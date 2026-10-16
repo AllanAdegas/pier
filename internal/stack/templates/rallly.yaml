@@ -1,0 +1,61 @@
+name: Rallly
+description: Agendamento de eventos e reuniões em grupo.
+category: Produtividade
+website: https://support.rallly.co/self-hosting/introduction
+tags:
+  - scheduling
+  - rallly
+  - events
+  - meeting
+  - doodle
+routes:
+  - service: rallly
+    port: 3000
+compose: |
+  services:
+    rallly:
+      image: lukevella/rallly:latest
+      environment:
+        - PROXY_MODE=external
+        - DATABASE_URL=postgres://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@rallly_db:5432/${POSTGRES_DB:-rallly}
+        - SECRET_PASSWORD=${PIER_PASSWORD_64_RALLLY}
+        - NEXT_PUBLIC_BASE_URL=${PIER_URL_RALLLY}
+        - REGISTRATION_ENABLED=${REGISTRATION_ENABLED:-true}
+        - INITIAL_ADMIN_EMAIL=${INITIAL_ADMIN_EMAIL:?}
+        - ALLOWED_EMAILS=${ALLOWED_EMAILS}
+        - SUPPORT_EMAIL=${SUPPORT_EMAIL:?}
+        - SMTP_HOST=${SMTP_HOST}
+        - SMTP_PORT=${SMTP_PORT}
+        - SMTP_SECURE=${SMTP_SECURE:-false}
+        - SMTP_USER=${SMTP_USER}
+        - SMTP_PWD=${SMTP_PWD}
+        - SMTP_TLS_ENABLED=${SMTP_TLS_ENABLED:-false}
+        - BETTER_AUTH_TRUSTED_ORIGINS=${PIER_URL_RALLLY}
+      depends_on:
+        rallly_db:
+          condition: service_healthy
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - bash -c ':> /dev/tcp/127.0.0.1/3000' || exit 1
+        timeout: 20s
+      platform: linux/amd64
+    rallly_db:
+      image: postgres:18
+      environment:
+        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
+        - POSTGRES_USER=${PIER_USER_POSTGRES}
+        - POSTGRES_DB=${POSTGRES_DB:-rallly}
+      volumes:
+        - postgres-data:/var/lib/postgresql
+      healthcheck:
+        interval: 2s
+        retries: 15
+        test:
+          - CMD-SHELL
+          - pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}
+        timeout: 10s
+  volumes:
+    postgres-data: null

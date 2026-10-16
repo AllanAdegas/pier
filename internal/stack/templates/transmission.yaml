@@ -1,0 +1,39 @@
+name: Transmission
+description: Cliente BitTorrent rápido e simples.
+category: Mídia
+website: https://docs.linuxserver.io/images/docker-transmission/
+tags:
+  - bittorrent
+  - torrent
+  - peer-to-peer
+routes:
+  - service: transmission
+    port: 9091
+compose: |
+  services:
+    transmission:
+      image: lscr.io/linuxserver/transmission:latest
+      environment:
+        - PUID=1000
+        - PGID=1000
+        - USER=${PIER_USER_ADMIN}
+        - PASS=${PIER_PASSWORD_ADMIN}
+      volumes:
+        - transmission-config:/config
+        - transmission-downloads:/downloads
+        - transmission-watch:/watch
+      healthcheck:
+        interval: 30s
+        retries: 3
+        test:
+          - CMD
+          - curl
+          - -sSfL
+          - -u
+          - ${PIER_USER_ADMIN}:${PIER_PASSWORD_ADMIN}
+          - http://localhost:9091/
+        timeout: 10s
+  volumes:
+    transmission-config: null
+    transmission-downloads: null
+    transmission-watch: null

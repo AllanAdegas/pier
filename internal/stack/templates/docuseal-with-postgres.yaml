@@ -1,0 +1,49 @@
+name: DocuSeal com PostgreSQL
+description: Assinatura de documentos; alternativa open source ao DocuSign.
+category: Produtividade
+website: https://www.docuseal.co/
+tags:
+  - documentation
+routes:
+  - service: docuseal
+    port: 3000
+compose: |
+  services:
+    docuseal:
+      image: docuseal/docuseal:latest
+      environment:
+        - HOST=${PIER_URL_DOCUSEAL}
+        - DATABASE_URL=postgresql://$PIER_USER_POSTGRES:$PIER_PASSWORD_POSTGRES@postgresql:5432/${POSTGRES_DB}
+      volumes:
+        - docuseal-data:/data
+      depends_on:
+        postgresql:
+          condition: service_healthy
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - wget
+          - -q
+          - --spider
+          - http://127.0.0.1:3000
+        timeout: 20s
+    postgresql:
+      image: postgres:16-alpine
+      environment:
+        - POSTGRES_USER=$PIER_USER_POSTGRES
+        - POSTGRES_PASSWORD=$PIER_PASSWORD_POSTGRES
+        - POSTGRES_DB=${POSTGRES_DB:-docuseal}
+      volumes:
+        - postgresql-data:/var/lib/postgresql/data
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 20s
+  volumes:
+    docuseal-data: null
+    postgresql-data: null

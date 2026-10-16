@@ -1,0 +1,35 @@
+name: ElectricSQL
+description: Sincroniza subconjuntos dos seus dados do Postgres por HTTP.
+category: Backend
+website: https://electric-sql.com/docs/guides/deployment
+tags:
+  - electric
+  - electricsql
+  - realtime
+  - sync
+  - postgresql
+routes:
+  - service: electric
+    port: 3000
+compose: |
+  services:
+    electric:
+      image: electricsql/electric:1.4.2
+      environment:
+        - DATABASE_URL=${DATABASE_URL:?}
+        - ELECTRIC_SECRET=${PIER_PASSWORD_64_ELECTRIC}
+        - ELECTRIC_STORAGE_DIR=/app/persistent
+        - ELECTRIC_USAGE_REPORTING=${ELECTRIC_USAGE_REPORTING:-false}
+      volumes:
+        - electric_data:/app/persistent
+      healthcheck:
+        interval: 10s
+        retries: 5
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:3000/v1/health
+        timeout: 5s
+  volumes:
+    electric_data: null

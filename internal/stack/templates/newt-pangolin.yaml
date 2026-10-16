@@ -1,0 +1,26 @@
+name: Newt (Pangolin)
+description: Túnel do Pangolin para acessar seus serviços de qualquer lugar.
+category: Rede
+website: https://docs.digpangolin.com/manage/sites/install-site
+tags:
+  - wireguard
+  - reverse-proxy
+  - zero-trust-network-access
+  - open source
+routes: []
+compose: |
+  services:
+    newt:
+      image: fosrl/newt:latest
+      environment:
+        - PANGOLIN_ENDPOINT=${PANGOLIN_ENDPOINT:-https://pangolin.domain.tld}
+        - NEWT_ID=${NEWT_ID:?}
+        - NEWT_SECRET=${NEWT_SECRET:?}
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - newt
+          - --version
+        timeout: 20s

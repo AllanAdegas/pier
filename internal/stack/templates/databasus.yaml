@@ -1,0 +1,29 @@
+name: Databasus
+description: Ferramenta de backup para PostgreSQL, MySQL e MongoDB.
+category: Desenvolvimento
+website: https://databasus.com/installation
+tags:
+  - postgres
+  - mysql
+  - mongo
+  - backup
+routes:
+  - service: databasus
+    port: 4005
+compose: |
+  services:
+    databasus:
+      image: databasus/databasus:v3.16.2
+      volumes:
+        - databasus-data:/databasus-data
+      healthcheck:
+        interval: 5s
+        retries: 5
+        test:
+          - CMD
+          - wget
+          - -qO-
+          - http://localhost:4005/api/v1/system/health
+        timeout: 10s
+  volumes:
+    databasus-data: null

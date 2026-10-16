@@ -1,0 +1,56 @@
+name: SFTPGo
+description: Servidor SFTP, FTP/S, HTTP/S e WebDAV orientado a eventos.
+category: Armazenamento
+website: https://docs.sftpgo.com/2.7/
+tags:
+  - sftpgo
+  - sftp
+  - ftp
+  - file
+  - webdav
+routes:
+  - service: sftpgo
+    port: 8080
+compose: |
+  services:
+    postgresql:
+      image: postgres:17-alpine
+      environment:
+        - POSTGRES_USER=${PIER_USER_POSTGRES}
+        - POSTGRES_PASSWORD=${PIER_PASSWORD_64_POSTGRES}
+        - POSTGRES_DB=${POSTGRES_DATABASE:-sftpgo-db}
+      volumes:
+        - postgresql-data:/var/lib/postgresql/data
+      healthcheck:
+        interval: 5s
+        retries: 20
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 10s
+    sftpgo:
+      image: ghcr.io/drakkan/sftpgo:v2.7-alpine
+      environment:
+        - SFTPGO_DATA_PROVIDER__DRIVER=postgresql
+        - SFTPGO_DATA_PROVIDER__CONNECTION_STRING=postgresql://${PIER_USER_POSTGRES}:${PIER_PASSWORD_64_POSTGRES}@postgresql:5432/${POSTGRES_DATABASE:-sftpgo-db}
+        - SFTPGO_SFTPD__BINDINGS__0__PORT=${PORT_SFTPGO:-2222}
+        - SFTPGO_LOG_LEVEL=${LOG_LEVEL:-info}
+      volumes:
+        - sftpgo-data:/srv/sftpgo/data
+        - sftpgo-keys:/var/lib/sftpgo
+      ports:
+        - 2222:2222
+      depends_on:
+        postgresql:
+          condition: service_healthy
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - wget -qO- http://127.0.0.1:8080/
+        timeout: 20s
+  volumes:
+    postgresql-data: null
+    sftpgo-data: null
+    sftpgo-keys: null

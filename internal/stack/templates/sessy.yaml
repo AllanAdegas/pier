@@ -1,0 +1,31 @@
+name: Sessy
+description: 'Observabilidade de e-mail: monitore e analise seus envios.'
+category: Monitoramento
+website: https://github.com/marckohlbrugge/sessy/blob/main/docs/docker-deployment.md
+tags:
+  - email
+  - observability
+  - monitoring
+  - analytics
+routes:
+  - service: sessy
+    port: 80
+compose: |
+  services:
+    sessy:
+      image: ghcr.io/marckohlbrugge/sessy:main
+      environment:
+        - SECRET_KEY_BASE=$PIER_HEX_64_SESSYSECRET
+        - HTTP_AUTH_USERNAME=$PIER_USER_SESSY
+        - HTTP_AUTH_PASSWORD=$PIER_PASSWORD_SESSY
+      volumes:
+        - sessy-data:/rails/storage
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - curl -sf http://127.0.0.1:80 || [ $? -eq 22 ]
+        timeout: 10s
+  volumes:
+    sessy-data: null

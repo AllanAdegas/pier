@@ -1,0 +1,58 @@
+name: Langflow
+description: Framework visual em Python para construir aplicações de IA.
+category: IA
+website: https://docs.langflow.org
+tags:
+  - langflow
+  - ai
+  - openai
+  - gpt
+  - llm
+  - workflow
+  - automation
+  - open source
+routes:
+  - service: langflow
+    port: 7860
+compose: |
+  services:
+    langflow:
+      image: langflowai/langflow:1.7.2
+      environment:
+        - LANGFLOW_AUTO_LOGIN=${LANGFLOW_AUTO_LOGIN:-false}
+        - LANGFLOW_SUPERUSER=$PIER_USER_LANGFLOW
+        - LANGFLOW_SUPERUSER_PASSWORD=$PIER_PASSWORD_LANGFLOW
+        - LANGFLOW_DATABASE_URL=postgresql://$PIER_USER_POSTGRES:$PIER_PASSWORD_POSTGRES@postgres:5432/${POSTGRES_DB:-langflow-db}
+        - LANGFLOW_CONFIG_DIR=app/langflow
+        - LANGFLOW_HOST=0.0.0.0
+        - PORT=7860
+      volumes:
+        - langflow-data:/app/langflow
+      depends_on:
+        postgres:
+          condition: service_healthy
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - curl -f http://127.0.0.1:7860/health
+        timeout: 20s
+    postgres:
+      image: postgres:18-alpine
+      environment:
+        - POSTGRES_USER=$PIER_USER_POSTGRES
+        - POSTGRES_PASSWORD=$PIER_PASSWORD_POSTGRES
+        - POSTGRES_DB=${POSTGRES_DB:-langflow-db}
+      volumes:
+        - langflow-postgres:/var/lib/postgres/data
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 20s
+  volumes:
+    langflow-data: null
+    langflow-postgres: null

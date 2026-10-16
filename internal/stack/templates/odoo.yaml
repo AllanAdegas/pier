@@ -1,0 +1,55 @@
+name: Odoo
+description: Suíte de aplicações de negócio open source.
+category: Produtividade
+website: https://www.odoo.com/
+tags:
+  - business
+  - apps
+  - crm
+  - ecommerce
+  - accounting
+  - inventory
+  - point of sale
+  - project management
+routes:
+  - service: odoo
+    port: 8069
+compose: |
+  services:
+    odoo:
+      image: odoo:18
+      environment:
+        - HOST=postgresql
+        - USER=$PIER_USER_POSTGRES
+        - PASSWORD=$PIER_PASSWORD_POSTGRES
+      volumes:
+        - odoo-web-data:/var/lib/odoo
+        - odoo-extra-addons:/mnt/extra-addons
+      healthcheck:
+        interval: 2s
+        retries: 30
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:8069
+        timeout: 10s
+    postgresql:
+      image: postgres:16-alpine
+      environment:
+        - POSTGRES_USER=$PIER_USER_POSTGRES
+        - POSTGRES_PASSWORD=$PIER_PASSWORD_POSTGRES
+        - POSTGRES_DB=postgres
+      volumes:
+        - postgresql-data:/var/lib/postgresql/data
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d postgres
+        timeout: 20s
+  volumes:
+    odoo-extra-addons: null
+    odoo-web-data: null
+    postgresql-data: null

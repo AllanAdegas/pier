@@ -1,0 +1,26 @@
+name: Organizr
+description: Organizador de serviços de homelab.
+category: Produtividade
+website: https://docs.organizr.app/
+tags:
+  - tool
+routes:
+  - service: organizr
+    port: 80
+compose: |
+  services:
+    organizr:
+      image: organizr/organizr:latest
+      environment:
+        - branch=${branch:-v2-master}
+      volumes:
+        - organizr-data:/config
+      healthcheck:
+        interval: 10s
+        retries: 3
+        test:
+          - CMD-SHELL
+          - curl -sf http://localhost:80 || exit 1
+        timeout: 1s
+  volumes:
+    organizr-data: null

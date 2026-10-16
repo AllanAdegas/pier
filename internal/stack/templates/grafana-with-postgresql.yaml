@@ -1,0 +1,56 @@
+name: Grafana com PostgreSQL
+description: Análise e monitoramento open source para qualquer banco de dados.
+category: Monitoramento
+website: https://grafana.com
+tags:
+  - grafana
+  - analytics
+  - monitoring
+  - dashboard
+routes:
+  - service: grafana
+    port: 3000
+compose: |
+  services:
+    grafana:
+      image: grafana/grafana-oss
+      environment:
+        - GF_SERVER_ROOT_URL=${PIER_URL_GRAFANA}
+        - GF_SERVER_DOMAIN=${PIER_HOST_GRAFANA}
+        - GF_SECURITY_ADMIN_PASSWORD=${PIER_PASSWORD_GRAFANA}
+        - GF_DATABASE_TYPE=postgres
+        - GF_DATABASE_HOST=postgresql
+        - GF_DATABASE_USER=$PIER_USER_POSTGRES
+        - GF_DATABASE_PASSWORD=$PIER_PASSWORD_POSTGRES
+        - GF_DATABASE_NAME=${POSTGRES_DB:-grafana}
+      volumes:
+        - grafana-data:/var/lib/grafana
+      depends_on:
+        - postgresql
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:3000/api/health
+        timeout: 20s
+    postgresql:
+      image: postgres:16-alpine
+      environment:
+        - POSTGRES_USER=$PIER_USER_POSTGRES
+        - POSTGRES_PASSWORD=$PIER_PASSWORD_POSTGRES
+        - POSTGRES_DB=${POSTGRES_DB:-grafana}
+      volumes:
+        - postgresql-data:/var/lib/postgresql/data
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 20s
+  volumes:
+    grafana-data: null
+    postgresql-data: null

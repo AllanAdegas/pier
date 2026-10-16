@@ -1,0 +1,37 @@
+name: GitHub Runner
+description: Runner do GitHub Actions em Docker.
+category: Desenvolvimento
+website: https://github.com/myoung34/docker-github-actions-runner/wiki/Usage
+tags:
+  - github
+  - actions
+  - runner
+  - docker
+routes: []
+compose: |
+  services:
+    runner:
+      image: myoung34/github-runner:latest
+      environment:
+        - REPO_URL=${REPO_URL}
+        - RUNNER_NAME_PREFIX=${RUNNER_NAME_PREFIX:-pier-runner}
+        - RUNNER_NAME_SUFFIX=${RUNNER_NAME_SUFFIX:-false}
+        - ACCESS_TOKEN=${ACCESS_TOKEN}
+        - RUNNER_WORKDIR=/runner/work
+        - RUNNER_SCOPE=${RUNNER_SCOPE:-repo}
+        - LABELS=${LABELS:-default}
+        - ORG_NAME=${ORG_NAME}
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+        - runner-data:/runner
+      healthcheck:
+        interval: 5s
+        retries: 15
+        test:
+          - CMD-SHELL
+          - ps aux | grep '[R]unner' > /dev/null || exit 1
+        timeout: 10s
+      security_opt:
+        - label:disable
+  volumes:
+    runner-data: null

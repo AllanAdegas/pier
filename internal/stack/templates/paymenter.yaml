@@ -1,0 +1,81 @@
+name: Paymenter
+description: Cobrança open source, feita para hospedagem.
+category: Finanças
+website: https://paymenter.org/docs/guides/docker
+tags:
+  - automation
+  - billing
+  - open source
+routes: []
+compose: |
+  services:
+    mariadb:
+      image: mariadb:11.8
+      environment:
+        - MYSQL_ROOT_PASSWORD=${PIER_PASSWORD_MYSQLROOT}
+        - MYSQL_DATABASE=${MYSQL_DATABASE:-paymenter-db}
+        - MYSQL_USER=${PIER_USER_MYSQL}
+        - MYSQL_PASSWORD=${PIER_PASSWORD_MYSQL}
+      volumes:
+        - paymenter_mariadb_data:/var/lib/mysql
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - healthcheck.sh
+          - --connect
+          - --innodb_initialized
+        timeout: 20s
+    paymenter:
+      image: ghcr.io/paymenter/paymenter:v1.4.5
+      environment:
+        APP_ENV: production
+        APP_KEY: ${PIER_PASSWORD_KEY}
+        CACHE_STORE: redis
+        DB_CONNECTION: mariadb
+        DB_DATABASE: ${MYSQL_DATABASE:-paymenter-db}
+        DB_HOST: mariadb
+        DB_PASSWORD: ${PIER_PASSWORD_MYSQL}
+        DB_PORT: 3306
+        DB_USERNAME: ${PIER_USER_MYSQL}
+        QUEUE_CONNECTION: redis
+        REDIS_HOST: redis
+        REDIS_PASSWORD: ${PIER_PASSWORD_64_REDIS}
+        REDIS_USERNAME: default
+        PIER_URL_PAYMENTER: ${PIER_URL_PAYMENTER}
+        SESSION_DRIVER: redis
+      volumes:
+        - app_logs:/app/storage/logs
+        - extenstions:/app/extensions
+        - themes:/app/themes
+        - app_storage:/app/storage/app
+        - app_public_storage:/app/storage/app/public
+      depends_on:
+        mariadb:
+          condition: service_healthy
+        redis:
+          condition: service_started
+      healthcheck:
+        interval: 10s
+        retries: 3
+        test:
+          - CMD-SHELL
+          - curl -sf http://localhost:80 || exit 1
+        timeout: 1s
+    redis:
+      image: redis:alpine
+      healthcheck:
+        interval: 10s
+        retries: 3
+        test:
+          - CMD-SHELL
+          - redis-cli ping || exit 1
+        timeout: 1s
+  volumes:
+    app_logs: null
+    app_public_storage: null
+    app_storage: null
+    extenstions: null
+    paymenter_mariadb_data: null
+    themes: null

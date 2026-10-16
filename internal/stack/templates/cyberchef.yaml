@@ -1,0 +1,32 @@
+name: CyberChef
+description: Canivete suíço para criptografia, codificação, compressão e análise de dados.
+category: Segurança
+website: https://github.com/gchq/CyberChef
+tags:
+  - encryption
+  - encoding
+  - compression
+  - data analysis
+  - tools
+  - development
+routes:
+  - service: cyberchef
+    port: 8080
+compose: |
+  services:
+    cyberchef:
+      image: ghcr.io/gchq/cyberchef:latest
+      volumes:
+        - cyberchef-data:/app/data
+      healthcheck:
+        interval: 30s
+        retries: 3
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:8080
+        timeout: 10s
+      platform: linux/amd64
+  volumes:
+    cyberchef-data: null

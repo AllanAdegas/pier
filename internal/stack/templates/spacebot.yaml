@@ -1,0 +1,46 @@
+name: Spacebot
+description: Sistema de IA agêntico com processos para pensar, trabalhar e lembrar.
+category: IA
+website: https://docs.spacebot.sh/docker
+tags:
+  - ai
+  - agent
+  - anthropic
+  - openai
+  - discord
+  - slack
+  - llm
+  - agentic
+routes:
+  - service: spacebot
+    port: 19898
+compose: |
+  services:
+    spacebot:
+      image: ghcr.io/spacedriveapp/spacebot:full
+      environment:
+        - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+        - OPENAI_API_KEY=${OPENAI_API_KEY}
+        - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+        - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+        - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+        - SLACK_APP_TOKEN=${SLACK_APP_TOKEN}
+        - BRAVE_SEARCH_API_KEY=${BRAVE_SEARCH_API_KEY}
+        - SPACEBOT_CHANNEL_MODEL=${SPACEBOT_CHANNEL_MODEL}
+        - SPACEBOT_WORKER_MODEL=${SPACEBOT_WORKER_MODEL}
+      volumes:
+        - spacebot-data:/data
+      healthcheck:
+        interval: 30s
+        retries: 3
+        test:
+          - CMD
+          - curl
+          - -sf
+          - http://localhost:19898/api/health
+        timeout: 5s
+      security_opt:
+        - seccomp=unconfined
+      shm_size: 1g
+  volumes:
+    spacebot-data: null

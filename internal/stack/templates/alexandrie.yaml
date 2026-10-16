@@ -1,0 +1,102 @@
+name: Alexandrie
+description: Espaço de trabalho em Markdown, feito para velocidade e clareza.
+category: Produtividade
+website: https://github.com/Smaug6739/Alexandrie/tree/main/docs
+tags:
+  - note-taking
+  - markdown
+  - knowledge-management
+  - personal-wiki
+  - productivity
+routes:
+  - service: backend
+    port: 8201
+  - service: frontend
+    port: 8200
+  - service: rustfs
+    port: 9000
+compose: |
+  services:
+    backend:
+      image: ghcr.io/smaug6739/alexandrie-backend:v8.10.0
+      environment:
+        - BACKEND_PORT=8201
+        - GIN_MODE=release
+        - JWT_SECRET=${PIER_PASSWORD_JWT}
+        - COOKIE_DOMAIN=${PIER_URL_FRONTEND}
+        - FRONTEND_URL=${PIER_URL_FRONTEND}
+        - ALLOW_UNSECURE=${ALLOW_UNSECURE:-false}
+        - DATABASE_HOST=mysql
+        - DATABASE_PORT=3306
+        - DATABASE_NAME=${MYSQL_DATABASE:-alexandrie-db}
+        - DATABASE_USER=${PIER_USER_MYSQL}
+        - DATABASE_PASSWORD=${PIER_PASSWORD_MYSQL}
+        - MINIO_ENDPOINT=rustfs:9000
+        - MINIO_PUBLIC_URL=${PIER_URL_RUSTFS}
+        - MINIO_SECURE=${MINIO_SECURE:-false}
+        - MINIO_ACCESSKEY=${PIER_USER_RUSTFS}
+        - MINIO_SECRETKEY=${PIER_PASSWORD_RUSTFS}
+        - MINIO_BUCKET=${MINIO_BUCKET:-alexandrie}
+        - SMTP_HOST=${SMTP_HOST:-}
+        - SMTP_MAIL=${SMTP_MAIL:-}
+        - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      depends_on:
+        mysql:
+          condition: service_healthy
+        rustfs:
+          condition: service_healthy
+    frontend:
+      image: ghcr.io/smaug6739/alexandrie-frontend:v8.10.0
+      environment:
+        - PORT=8200
+        - NUXT_PUBLIC_CONFIG_DISABLE_SIGNUP_PAGE=${CONFIG_DISABLE_SIGNUP:-false}
+        - NUXT_PUBLIC_CONFIG_DISABLE_LANDING_PAGE=${CONFIG_DISABLE_LANDING:-false}
+        - NUXT_PUBLIC_BASE_API=${PIER_URL_BACKEND}
+        - NUXT_PUBLIC_BASE_CDN=${PIER_URL_RUSTFS}
+        - NUXT_PUBLIC_CDN_ENDPOINT=${CDN_ENDPOINT:-/alexandrie/}
+        - NUXT_PUBLIC_BASE_URL=${PIER_URL_FRONTEND}
+      depends_on:
+        - backend
+    mysql:
+      image: mysql:8.0
+      environment:
+        - MYSQL_ROOT_PASSWORD=${PIER_PASSWORD_MYSQLROOT}
+        - MYSQL_USER=${PIER_USER_MYSQL}
+        - MYSQL_PASSWORD=${PIER_PASSWORD_MYSQL}
+        - MYSQL_DATABASE=${MYSQL_DATABASE:-alexandrie-db}
+      volumes:
+        - mysql-data:/var/lib/mysql
+      healthcheck:
+        interval: 10s
+        retries: 5
+        test:
+          - CMD
+          - mysqladmin
+          - ping
+          - -h
+          - localhost
+          - -u
+          - root
+          - -p${PIER_PASSWORD_MYSQLROOT}
+        timeout: 5s
+    rustfs:
+      image: rustfs/rustfs:1.0.0-beta.8
+      environment:
+        - RUSTFS_ACCESS_KEY=${PIER_USER_RUSTFS}
+        - RUSTFS_SECRET_KEY=${PIER_PASSWORD_RUSTFS}
+        - RUSTFS_CONSOLE_ENABLE=${RUSTFS_CONSOLE_ENABLE:-false}
+        - RUSTFS_LOG_LEVEL=${RUSTFS_LOG_LEVEL:-info}
+      volumes:
+        - rustfs-data:/data
+        - rustfs-logs:/logs
+      healthcheck:
+        interval: 10s
+        retries: 5
+        test:
+          - CMD-SHELL
+          - nc -z localhost 9000 || exit 1
+        timeout: 5s
+  volumes:
+    mysql-data: null
+    rustfs-data: null
+    rustfs-logs: null

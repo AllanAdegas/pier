@@ -1,0 +1,31 @@
+name: SilverBullet
+description: Organize e estruture o seu conhecimento pessoal, em todos os dispositivos.
+category: Produtividade
+website: https://v2.silverbullet.md/Install/Configuration
+tags:
+  - note-taking
+  - markdown
+  - pkm
+routes:
+  - service: silverbullet
+    port: 3000
+compose: |
+  services:
+    silverbullet:
+      image: ghcr.io/silverbulletmd/silverbullet:v2
+      environment:
+        - SB_USER=${PIER_USER_SILVERBULLET}:${PIER_PASSWORD_SILVERBULLET}
+      volumes:
+        - silverbullet-space:/space
+      healthcheck:
+        interval: 2s
+        retries: 5
+        test:
+          - CMD
+          - wget
+          - --spider
+          - --quiet
+          - http://127.0.0.1:3000
+        timeout: 10s
+  volumes:
+    silverbullet-space: null

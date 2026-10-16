@@ -1,0 +1,53 @@
+name: SuperTokens com PostgreSQL
+description: 'Autenticação open source: login seguro e gestão de sessões.'
+category: Autenticação
+website: https://supertokens.com/docs/guides
+tags:
+  - supertokens
+  - login
+  - authentication
+  - authorization
+  - oauth
+  - user-management
+  - session-management
+  - access-control
+routes:
+  - service: supertokens
+    port: 3567
+compose: |
+  services:
+    postgres:
+      image: postgres:16
+      environment:
+        - POSTGRES_USER=$PIER_USER_POSTGRESQL
+        - POSTGRES_PASSWORD=$PIER_PASSWORD_POSTGRESQL
+        - POSTGRES_DB=${POSTGRES_DB:-supertokens}
+      volumes:
+        - supertokens-postgres-data:/var/lib/postgresql/data
+      healthcheck:
+        interval: 5s
+        retries: 5
+        test:
+          - CMD
+          - pg_isready
+          - -U
+          - $PIER_USER_POSTGRESQL
+          - -d
+          - ${POSTGRES_DB:-supertokens}
+        timeout: 5s
+    supertokens:
+      image: registry.supertokens.io/supertokens/supertokens-postgresql:latest
+      environment:
+        - API_KEYS=${API_KEYS:-}
+        - POSTGRESQL_CONNECTION_URI="postgresql://$PIER_USER_POSTGRESQL:$PIER_PASSWORD_POSTGRESQL@postgres:5432/${POSTGRES_DB:-supertokens}"
+      depends_on:
+        postgres:
+          condition: service_healthy
+      healthcheck:
+        interval: 10s
+        retries: 5
+        test: |
+          bash -c 'exec 3<>/dev/tcp/127.0.0.1/3567 && echo -e "GET /hello HTTP/1.1\r\nhost: 127.0.0.1:3567\r\nConnection: close\r\n\r\n" >&3 && cat <&3 | grep "Hello"'
+        timeout: 5s
+  volumes:
+    supertokens-postgres-data: null

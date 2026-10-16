@@ -1,0 +1,32 @@
+name: phpMyAdmin
+description: Administração de bancos MySQL e MariaDB via web.
+category: Dados
+website: https://phpmyadmin.net
+tags:
+  - database management
+routes:
+  - service: phpmyadmin
+    port: 80
+compose: |
+  services:
+    phpmyadmin:
+      image: lscr.io/linuxserver/phpmyadmin:latest
+      environment:
+        - PUID=1000
+        - PGID=1000
+        - TZ=Europe/Madrid
+        - PMA_ARBITRARY=1
+        - PMA_ABSOLUTE_URI=$PIER_URL_PHPMYADMIN
+      volumes:
+        - phpmyadmin-config:/config
+      healthcheck:
+        interval: 2s
+        retries: 15
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:80
+        timeout: 10s
+  volumes:
+    phpmyadmin-config: null

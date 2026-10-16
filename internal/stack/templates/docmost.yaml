@@ -1,0 +1,81 @@
+name: Docmost
+description: Wiki e documentação colaborativa open source.
+category: Produtividade
+website: https://docmost.com/docs/
+tags:
+  - documentation
+  - opensource
+  - wiki
+  - confluence
+  - knowledge-base
+  - notion
+  - realtime-collaboration
+  - notion-alternative
+routes:
+  - service: docmost
+    port: 3000
+compose: |
+  services:
+    docmost:
+      image: docmost/docmost:latest
+      environment:
+        - APP_SECRET=$PIER_PASSWORD_APPKEY
+        - APP_URL=$PIER_URL_DOCMOST
+        - DATABASE_URL=postgresql://$PIER_USER_POSTGRES:$PIER_PASSWORD_POSTGRES@postgresql/docmost?schema=public
+        - REDIS_URL=redis://redis:6379
+        - MAIL_DRIVER=${MAIL_DRIVER:?}
+        - SMTP_HOST=${SMTP_HOST}
+        - SMTP_PORT=${SMTP_PORT}
+        - SMTP_USERNAME=${SMTP_USERNAME}
+        - SMTP_PASSWORD=${SMTP_PASSWORD}
+        - SMTP_SECURE=${SMTP_SECURE}
+        - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS}
+        - MAIL_FROM_NAME=${MAIL_FROM_NAME}
+        - POSTMARK_TOKEN=${POSTMARK_TOKEN}
+      volumes:
+        - docmost:/app/data/storage
+      depends_on:
+        postgresql:
+          condition: service_healthy
+        redis:
+          condition: service_healthy
+      healthcheck:
+        interval: 2s
+        retries: 20
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:3000
+        timeout: 10s
+    postgresql:
+      image: postgres:16-alpine
+      environment:
+        - POSTGRES_USER=$PIER_USER_POSTGRES
+        - POSTGRES_PASSWORD=$PIER_PASSWORD_POSTGRES
+        - POSTGRES_DB=docmost
+      volumes:
+        - postgresql-data:/var/lib/postgresql/data
+      healthcheck:
+        interval: 5s
+        retries: 20
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 10s
+    redis:
+      image: redis:7.2-alpine
+      volumes:
+        - redis-data:/data
+      healthcheck:
+        interval: 5s
+        retries: 20
+        test:
+          - CMD
+          - redis-cli
+          - PING
+        timeout: 10s
+  volumes:
+    docmost: null
+    postgresql-data: null
+    redis-data: null

@@ -1,0 +1,32 @@
+name: Readeck
+description: Guarde para sempre o conteúdo das páginas que você quer ler.
+category: Produtividade
+website: https://readeck.org/en/docs/
+tags:
+  - read-it-later
+  - pocket-alternative
+  - omnivore-alternative
+  - instapaper-alternative
+routes:
+  - service: readeck
+    port: 8000
+compose: |
+  services:
+    readeck:
+      image: codeberg.org/readeck/readeck:latest
+      environment:
+        - READECK_USE_X_FORWARDED=${READECK_USE_X_FORWARDED:-true}
+      volumes:
+        - readeck_data:/readeck
+      healthcheck:
+        interval: 30s
+        retries: 3
+        test:
+          - CMD
+          - /bin/readeck
+          - healthcheck
+          - -config
+          - config.toml
+        timeout: 2s
+  volumes:
+    readeck_data: null

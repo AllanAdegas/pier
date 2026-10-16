@@ -1,0 +1,12 @@
+name: Whoami
+description: Serviço mínimo que responde com os dados da requisição. Ótimo para validar proxy e domínios.
+category: Utilitários
+website: https://github.com/traefik/whoami
+verified: true
+routes:
+  - service: whoami
+    port: 80
+compose: |
+  services:
+    whoami:
+      image: traefik/whoami:latest

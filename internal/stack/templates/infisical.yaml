@@ -1,0 +1,78 @@
+name: Infisical
+description: Plataforma open source de gestão de segredos e configuração.
+category: Segurança
+website: https://infisical.com/docs/documentation/getting-started/introduction
+tags:
+  - security
+  - environment
+  - secrets
+  - infisical
+  - database
+  - configuration
+  - secret
+  - api
+routes:
+  - service: backend
+    port: 8080
+compose: |
+  services:
+    backend:
+      image: infisical/infisical:v0.154.6
+      environment:
+        - SITE_URL=${PIER_URL_BACKEND}
+        - NODE_ENV=${NODE_ENV:-production}
+        - ENCRYPTION_KEY=${PIER_PASSWORD_ENCRYPTIONKEY}
+        - AUTH_SECRET=${PIER_BASE64_64_AUTHSECRET}
+        - SMTP_HOST=${SMTP_HOST}
+        - SMTP_USERNAME=${SMTP_USERNAME}
+        - SMTP_PASSWORD=${SMTP_PASSWORD}
+        - SMTP_PORT=${SMTP_PORT}
+        - SMTP_FROM_ADDRESS=${SMTP_FROM_ADDRESS}
+        - SMTP_FROM_NAME=${SMTP_FROM_NAME}
+        - INF_APP_CONNECTION_GITHUB_APP_CLIENT_ID=${INF_APP_CONNECTION_GITHUB_APP_CLIENT_ID}
+        - INF_APP_CONNECTION_GITHUB_APP_CLIENT_SECRET=${INF_APP_CONNECTION_GITHUB_APP_CLIENT_SECRET}
+        - INF_APP_CONNECTION_GITHUB_APP_SLUG=${INF_APP_CONNECTION_GITHUB_APP_SLUG}
+        - INF_APP_CONNECTION_GITHUB_APP_ID=${INF_APP_CONNECTION_GITHUB_APP_ID}
+        - INF_APP_CONNECTION_GITHUB_APP_PRIVATE_KEY=${INF_APP_CONNECTION_GITHUB_APP_PRIVATE_KEY}
+        - DB_CONNECTION_URI=postgres://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@db:5432/${POSTGRES_DB}
+        - REDIS_URL=redis://redis:6379
+      depends_on:
+        db:
+          condition: service_healthy
+        redis:
+          condition: service_healthy
+      healthcheck:
+        test:
+          - CMD-SHELL
+          - wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/api/status || exit 1
+    db:
+      image: postgres:14-alpine
+      environment:
+        - POSTGRES_USER=${PIER_USER_POSTGRES}
+        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
+        - POSTGRES_DB=${POSTGRES_DB:-infisical}
+      volumes:
+        - pg_data:/var/lib/postgresql/data
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - pg_isready -h localhost -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 10s
+    redis:
+      image: redis:7
+      environment:
+        - ALLOW_EMPTY_PASSWORD=${ALLOW_EMPTY_PASSWORD:-yes}
+      volumes:
+        - redis-data:/data
+      healthcheck:
+        interval: 5s
+        retries: 3
+        test:
+          - CMD-SHELL
+          - redis-cli -h localhost -p 6379 ping
+        timeout: 5s
+  volumes:
+    pg_data: null
+    redis-data: null

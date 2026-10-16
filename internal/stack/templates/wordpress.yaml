@@ -1,0 +1,39 @@
+name: WordPress
+description: O CMS mais usado do mundo, com MariaDB dedicado.
+category: CMS
+website: https://wordpress.org
+verified: true
+routes:
+  - service: wordpress
+    port: 80
+compose: |
+  services:
+    wordpress:
+      image: wordpress:6
+      environment:
+        WORDPRESS_DB_HOST: db
+        WORDPRESS_DB_USER: wordpress
+        WORDPRESS_DB_PASSWORD: ${PIER_PASSWORD_DB}
+        WORDPRESS_DB_NAME: wordpress
+      volumes:
+        - site:/var/www/html
+      depends_on:
+        db:
+          condition: service_healthy
+    db:
+      image: mariadb:11.4
+      environment:
+        MARIADB_DATABASE: wordpress
+        MARIADB_USER: wordpress
+        MARIADB_PASSWORD: ${PIER_PASSWORD_DB}
+        MARIADB_ROOT_PASSWORD: ${PIER_PASSWORD_ROOT}
+      volumes:
+        - db:/var/lib/mysql
+      healthcheck:
+        test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+        interval: 5s
+        timeout: 5s
+        retries: 20
+  volumes:
+    site:
+    db:

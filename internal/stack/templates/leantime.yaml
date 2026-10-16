@@ -1,0 +1,87 @@
+name: Leantime
+description: Gestão de projetos orientada a objetivos, para quem não é gerente de projetos.
+category: Produtividade
+website: https://leantime.io
+tags:
+  - project management
+  - productivity
+  - php
+  - mysql
+  - laravel
+  - open source
+routes:
+  - service: leantime
+    port: 8080
+compose: |
+  services:
+    leantime:
+      image: leantime/leantime:latest
+      environment:
+        - LEAN_APP_URL=${PIER_URL_LEANTIME}
+        - LEAN_DB_HOST=mysql
+        - LEAN_DB_USER=${PIER_USER_MYSQLDB}
+        - LEAN_DB_PASSWORD=${PIER_PASSWORD_MYSQLDB}
+        - LEAN_DB_DATABASE=${DB_NAME:-leantime-db}
+        - LEAN_SESSION_PASSWORD=${PIER_PASSWORD_64_SALT}
+        - LEAN_SESSION_EXPIRATION=${SESSION_EXPIRATION:-28800}
+        - LEAN_USE_REDIS=${USE_REDIS:-true}
+        - LEAN_REDIS_HOST=redis
+        - LEAN_REDIS_PORT=${REDIS_PORT:-6379}
+        - LEAN_REDIS_SCHEME=${REDIS_SCHEME:-tcp}
+      volumes:
+        - public-userfiles:/var/www/html/public/userfiles
+        - userfiles:/var/www/html/userfiles
+        - plugins:/var/www/html/app/Plugins
+      depends_on:
+        mysql:
+          condition: service_healthy
+        redis:
+          condition: service_started
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:8080
+        timeout: 20s
+    mysql:
+      image: mysql:8.4
+      command: --character-set-server=UTF8MB4 --collation-server=UTF8MB4_unicode_ci
+      environment:
+        - MYSQL_ROOT_PASSWORD=${PIER_PASSWORD_MYSQLROOT}
+        - MYSQL_USER=${PIER_USER_MYSQLDB}
+        - MYSQL_PASSWORD=${PIER_PASSWORD_MYSQLDB}
+        - MYSQL_DATABASE=${DB_NAME:-leantime-db}
+      volumes:
+        - leantime_mysql_data:/var/lib/mysql
+      healthcheck:
+        interval: 30s
+        retries: 3
+        test:
+          - CMD
+          - mysqladmin
+          - ping
+          - -h
+          - localhost
+        timeout: 10s
+    redis:
+      image: redis:7-alpine
+      command: redis-server --appendonly yes
+      volumes:
+        - leantime_redis_data:/data
+      healthcheck:
+        interval: 5s
+        retries: 3
+        test:
+          - CMD
+          - redis-cli
+          - ping
+        timeout: 5s
+  volumes:
+    leantime_mysql_data: null
+    leantime_redis_data: null
+    plugins: null
+    public-userfiles: null
+    userfiles: null

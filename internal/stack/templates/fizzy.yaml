@@ -1,0 +1,45 @@
+name: Fizzy
+description: Kanban para issues e ideias, da 37signals.
+category: Produtividade
+website: https://github.com/basecamp/fizzy
+tags:
+  - kanban
+  - project management
+  - issues
+  - rails
+  - ruby
+  - basecamp
+  - 37signals
+routes:
+  - service: fizzy
+    port: 80
+compose: |
+  services:
+    fizzy:
+      image: ghcr.io/basecamp/fizzy:main
+      environment:
+        - SECRET_KEY_BASE=$PIER_PASSWORD_FIZZY
+        - RAILS_MASTER_KEY=$PIER_PASSWORD_64_MASTERKEY
+        - RAILS_ENV=production
+        - RAILS_LOG_TO_STDOUT=true
+        - RAILS_SERVE_STATIC_FILES=true
+        - DATABASE_ADAPTER=sqlite
+        - SOLID_QUEUE_CONNECTS_TO=false
+        - VAPID_PRIVATE_KEY=$VAPID_PRIVATE_KEY
+        - VAPID_PUBLIC_KEY=$VAPID_PUBLIC_KEY
+      volumes:
+        - fizzy-data:/rails/db
+        - fizzy-storage:/rails/storage
+      healthcheck:
+        interval: 10s
+        retries: 5
+        start_period: 30s
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:80/up
+        timeout: 5s
+  volumes:
+    fizzy-data: null
+    fizzy-storage: null

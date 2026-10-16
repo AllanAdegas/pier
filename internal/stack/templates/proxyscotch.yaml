@@ -1,0 +1,20 @@
+name: Proxyscotch
+description: Proxy CORS simples, criado para o Hoppscotch.
+category: Rede
+website: https://github.com/hoppscotch/proxyscotch
+tags:
+  - proxy
+  - hoppscotch
+  - cors
+routes:
+  - service: proxyscotch
+    port: 9159
+compose: |
+  services:
+    proxyscotch:
+      image: hoppscotch/proxyscotch:v0.1.4
+      environment:
+        - PROXYSCOTCH_TOKEN=${PIER_PASSWORD_TOKEN}
+        - PROXYSCOTCH_ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-*}
+        - PROXYSCOTCH_BANNED_OUTPUTS=${BANNED_OUTPUTS}
+        - PROXYSCOTCH_BANNED_DESTS=${BANNED_DESTS}

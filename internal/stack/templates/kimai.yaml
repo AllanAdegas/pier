@@ -1,0 +1,60 @@
+name: Kimai
+description: Controle de horas open source.
+category: Produtividade
+website: https://www.kimai.org/
+tags:
+  - time-tracking
+  - open-source
+routes:
+  - service: kimai
+    port: 8001
+compose: |
+  services:
+    kimai:
+      image: kimai/kimai2:apache
+      container_name: kimai
+      environment:
+        - APP_SECRET=${PIER_PASSWORD_APPSECRET}
+        - MAILER_FROM=${MAILER_FROM:-kimai@example.com}
+        - MAILER_URL=${MAILER_URL:-null://null}
+        - ADMINMAIL=${ADMINMAIL:-admin@kimai.local}
+        - ADMINPASS=${PIER_PASSWORD_ADMINPASS}
+        - DATABASE_URL=mysql://${PIER_USER_MYSQL}:${PIER_PASSWORD_MYSQL}@mysql/${MYSQL_DATABASE}?charset=utf8mb4&serverVersion=8.3.0
+        - TRUSTED_HOSTS=${TRUSTED_HOSTS}|localhost|127.0.0.1
+      volumes:
+        - kimai-data:/opt/kimai/var/data
+      depends_on:
+        mysql:
+          condition: service_healthy
+      healthcheck:
+        interval: 2s
+        retries: 15
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:8001
+        timeout: 10s
+    mysql:
+      image: mysql:8
+      command: --default-storage-engine innodb
+      environment:
+        - MYSQL_DATABASE=${MYSQL_DATABASE:-kimai}
+        - MYSQL_USER=${PIER_USER_MYSQL}
+        - MYSQL_PASSWORD=${PIER_PASSWORD_MYSQL}
+        - MYSQL_ROOT_PASSWORD=${PIER_PASSWORD_ROOT}
+      volumes:
+        - kimai-mysql-data:/var/lib/mysql
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - mysqladmin
+          - ping
+          - -h
+          - 127.0.0.1
+        timeout: 20s
+  volumes:
+    kimai-data: null
+    kimai-mysql-data: null

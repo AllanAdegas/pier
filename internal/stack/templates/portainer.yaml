@@ -1,0 +1,27 @@
+name: Portainer
+description: Interface leve de gestão do Docker.
+category: Desenvolvimento
+website: https://docs.portainer.io
+tags:
+  - docker
+  - management
+  - ui
+routes:
+  - service: portainer
+    port: 9000
+compose: |
+  services:
+    portainer:
+      image: portainer/portainer-ce:alpine
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+        - portainer_data:/data
+      healthcheck:
+        interval: 20s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - wget -qO- http://127.0.0.1:9000/
+        timeout: 20s
+  volumes:
+    portainer_data: null

@@ -1,0 +1,63 @@
+name: Traccar
+description: Sistema de rastreamento GPS livre e open source.
+category: Monitoramento
+website: https://www.traccar.org/documentation/
+tags:
+  - traccar
+  - gps
+  - tracking
+routes:
+  - service: traccar
+    port: 8082
+compose: |
+  services:
+    postgres:
+      image: postgres:16-alpine
+      environment:
+        - POSTGRES_USER=$PIER_USER_POSTGRES
+        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
+        - POSTGRES_DB=${POSTGRESQL_DATABASE:-traccar}
+      volumes:
+        - traccar-postgresql-data:/var/lib/postgresql/data/
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 20s
+    traccar:
+      image: traccar/traccar:latest
+      environment:
+        - CONFIG_USE_ENVIRONMENT_VARIABLES=${CONFIG_USE_ENVIRONMENT_VARIABLES:-true}
+        - DATABASE_USER=${PIER_USER_POSTGRES}
+        - DATABASE_PASSWORD=${PIER_PASSWORD_POSTGRES}
+      volumes:
+        - content: |
+            <?xml version='1.0' encoding='UTF-8'?>
+            <!DOCTYPE properties SYSTEM 'http://java.sun.com/dtd/properties.dtd'>
+            <properties>
+                <entry key='config.default'>./conf/default.xml</entry>
+                <entry key='database.driver'>org.postgresql.Driver</entry>
+                <entry key='database.url'>jdbc:postgresql://postgres:5432/traccar</entry>
+            </properties>
+          source: ./srv/traccar/conf/traccar.xml
+          target: /opt/traccar/conf/traccar.xml
+          type: bind
+      depends_on:
+        postgres:
+          condition: service_healthy
+      healthcheck:
+        interval: 30s
+        retries: 3
+        start_period: 15s
+        test:
+          - CMD
+          - wget
+          - --no-verbose
+          - --tries=1
+          - --spider
+          - http://127.0.0.1:8082
+        timeout: 10s
+  volumes:
+    traccar-postgresql-data: null

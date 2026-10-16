@@ -1,0 +1,23 @@
+name: cloudflared
+description: 'Cliente do Cloudflare Tunnel: expõe serviços privados pela borda da Cloudflare.'
+category: Rede
+website: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/
+routes: []
+compose: |
+  services:
+    cloudflared:
+      image: cloudflare/cloudflared:latest
+      container_name: cloudflare-tunnel
+      command: tunnel --no-autoupdate run
+      restart: unless-stopped
+      environment:
+        - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+      network_mode: host
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - cloudflared
+          - --version
+        timeout: 20s

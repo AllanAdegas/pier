@@ -1,0 +1,66 @@
+name: Drupal com PostgreSQL
+description: Sistema de gestão de conteúdo web, livre e open source, em PHP.
+category: CMS
+website: https://www.drupal.org/about
+tags:
+  - cms
+  - blog
+  - content
+  - management
+  - postgresql
+routes:
+  - service: drupal
+    port: 80
+compose: |
+  services:
+    drupal:
+      image: drupal:10-apache
+      environment:
+        - DB_HOST=postgres
+        - DB_NAME=postgres
+        - DB_USER=postgres
+        - DB_PASSWORD=$PIER_PASSWORD_POSTGRES
+      volumes:
+        - is_directory: true
+          source: drupal_modules
+          target: /var/www/html/modules
+          type: volume
+        - is_directory: true
+          source: drupal_profiles
+          target: /var/www/html/profiles
+          type: volume
+        - is_directory: true
+          source: drupal_themes
+          target: /var/www/html/themes
+          type: volume
+        - is_directory: true
+          source: drupal_sites
+          target: /var/www/html/sites
+          type: volume
+      depends_on:
+        - postgres
+      healthcheck:
+        interval: 30s
+        retries: 5
+        test:
+          - CMD-SHELL
+          - curl -f http://localhost:80 || exit 1
+        timeout: 10s
+    postgres:
+      image: postgres:16
+      environment:
+        - POSTGRES_DB=postgres
+        - POSTGRES_USER=postgres
+        - POSTGRES_PASSWORD=$PIER_PASSWORD_POSTGRES
+      healthcheck:
+        interval: 5s
+        retries: 20
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 10s
+  volumes:
+    drupal_modules: null
+    drupal_profiles: null
+    drupal_sites: null
+    drupal_themes: null

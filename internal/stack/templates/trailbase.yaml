@@ -1,0 +1,21 @@
+name: TrailBase
+description: Servidor de aplicações rápido em Rust/SQLite, com APIs tipadas.
+category: Backend
+website: https://trailbase.io/
+tags:
+  - trailbase
+  - backend
+  - saas
+  - mobile
+  - api
+routes:
+  - service: trailbase
+    port: 4000
+compose: |
+  services:
+    trailbase:
+      image: trailbase/trailbase:0.22.6
+      volumes:
+        - trailbase-data:/app/traildepot
+  volumes:
+    trailbase-data: null

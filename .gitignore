@@ -1,0 +1,10 @@
+/bin/
+/.data/
+/data/
+/internal/webui/dist/*
+!/internal/webui/dist/.gitkeep
+/web/node_modules/
+/web/dist/
+.DS_Store
+/.data-dev/
+/.env

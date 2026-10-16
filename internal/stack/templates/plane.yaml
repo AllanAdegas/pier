@@ -1,0 +1,422 @@
+name: Plane
+description: Gestão de projetos open source.
+category: Produtividade
+website: https://docs.plane.so/self-hosting/methods/docker-compose
+tags:
+  - plane
+  - project-management
+  - tool
+  - api
+  - nextjs
+  - redis
+  - postgresql
+  - django
+routes:
+  - service: proxy
+    port: 80
+compose: |
+  services:
+    admin:
+      image: makeplane/plane-admin:${APP_RELEASE:-v1.3.0}
+      depends_on:
+        - api
+        - web
+      healthcheck:
+        interval: 2s
+        retries: 15
+        test:
+          - CMD
+          - echo
+          - hey whats up
+        timeout: 10s
+    api:
+      image: makeplane/plane-backend:${APP_RELEASE:-v1.3.0}
+      command: ./bin/docker-entrypoint-api.sh
+      environment:
+        AMQP_URL: amqp://${PIER_USER_RABBITMQ}:${PIER_PASSWORD_RABBITMQ}@plane-mq:${RABBITMQ_PORT:-5672}/plane
+        API_KEY_RATE_LIMIT: ${API_KEY_RATE_LIMIT:-60/minute}
+        APP_DOMAIN: ${PIER_URL_PROXY}
+        APP_RELEASE: ${APP_RELEASE:-v1.3.0}
+        AWS_ACCESS_KEY_ID: $PIER_USER_MINIO
+        AWS_REGION: ${AWS_REGION:-}
+        AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-uploads}
+        AWS_S3_ENDPOINT_URL: ${AWS_S3_ENDPOINT_URL:-http://plane-minio:9000}
+        AWS_SECRET_ACCESS_KEY: $PIER_PASSWORD_MINIO
+        BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-uploads}
+        CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost}
+        DATABASE_URL: postgresql://$PIER_USER_POSTGRES:$PIER_PASSWORD_POSTGRES@plane-db/plane
+        DEBUG: ${DEBUG:-0}
+        FILE_SIZE_LIMIT: ${FILE_SIZE_LIMIT:-5242880}
+        GUNICORN_WORKERS: ${GUNICORN_WORKERS:-1}
+        LIVE_SERVER_SECRET_KEY: $PIER_PASSWORD_64_LIVESECRET
+        MINIO_ENDPOINT_SSL: ${MINIO_ENDPOINT_SSL:-0}
+        MINIO_ROOT_PASSWORD: $PIER_PASSWORD_MINIO
+        MINIO_ROOT_USER: $PIER_USER_MINIO
+        PGDATA: /var/lib/postgresql/data
+        PGDATABASE: plane
+        PGHOST: plane-db
+        POSTGRES_DB: plane
+        POSTGRES_PASSWORD: $PIER_PASSWORD_POSTGRES
+        POSTGRES_PORT: 5432
+        POSTGRES_USER: $PIER_USER_POSTGRES
+        REDIS_HOST: ${REDIS_HOST:-plane-redis}
+        REDIS_PORT: ${REDIS_PORT:-6379}
+        REDIS_URL: ${REDIS_URL:-redis://plane-redis:6379/}
+        SECRET_KEY: $PIER_PASSWORD_64_SECRETKEY
+        SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+        USE_MINIO: ${USE_MINIO:-1}
+        WEB_URL: ${PIER_URL_PROXY}
+      volumes:
+        - logs_api:/code/plane/logs
+      depends_on:
+        - plane-db
+        - plane-redis
+        - plane-mq
+      healthcheck:
+        interval: 2s
+        retries: 15
+        test:
+          - CMD
+          - echo
+          - hey whats up
+        timeout: 10s
+    beat-worker:
+      image: makeplane/plane-backend:${APP_RELEASE:-v1.3.0}
+      command: ./bin/docker-entrypoint-beat.sh
+      environment:
+        AMQP_URL: amqp://${PIER_USER_RABBITMQ}:${PIER_PASSWORD_RABBITMQ}@plane-mq:${RABBITMQ_PORT:-5672}/plane
+        API_KEY_RATE_LIMIT: ${API_KEY_RATE_LIMIT:-60/minute}
+        APP_DOMAIN: ${PIER_URL_PROXY}
+        APP_RELEASE: ${APP_RELEASE:-v1.3.0}
+        AWS_ACCESS_KEY_ID: $PIER_USER_MINIO
+        AWS_REGION: ${AWS_REGION:-}
+        AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-uploads}
+        AWS_S3_ENDPOINT_URL: ${AWS_S3_ENDPOINT_URL:-http://plane-minio:9000}
+        AWS_SECRET_ACCESS_KEY: $PIER_PASSWORD_MINIO
+        BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-uploads}
+        CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost}
+        DATABASE_URL: postgresql://$PIER_USER_POSTGRES:$PIER_PASSWORD_POSTGRES@plane-db/plane
+        DEBUG: ${DEBUG:-0}
+        FILE_SIZE_LIMIT: ${FILE_SIZE_LIMIT:-5242880}
+        GUNICORN_WORKERS: ${GUNICORN_WORKERS:-1}
+        LIVE_SERVER_SECRET_KEY: $PIER_PASSWORD_64_LIVESECRET
+        MINIO_ENDPOINT_SSL: ${MINIO_ENDPOINT_SSL:-0}
+        MINIO_ROOT_PASSWORD: $PIER_PASSWORD_MINIO
+        MINIO_ROOT_USER: $PIER_USER_MINIO
+        PGDATA: /var/lib/postgresql/data
+        PGDATABASE: plane
+        PGHOST: plane-db
+        POSTGRES_DB: plane
+        POSTGRES_PASSWORD: $PIER_PASSWORD_POSTGRES
+        POSTGRES_PORT: 5432
+        POSTGRES_USER: $PIER_USER_POSTGRES
+        REDIS_HOST: ${REDIS_HOST:-plane-redis}
+        REDIS_PORT: ${REDIS_PORT:-6379}
+        REDIS_URL: ${REDIS_URL:-redis://plane-redis:6379/}
+        SECRET_KEY: $PIER_PASSWORD_64_SECRETKEY
+        SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+        USE_MINIO: ${USE_MINIO:-1}
+        WEB_URL: ${PIER_URL_PROXY}
+      volumes:
+        - logs_beat-worker:/code/plane/logs
+      depends_on:
+        - api
+        - plane-db
+        - plane-redis
+        - plane-mq
+      healthcheck:
+        interval: 2s
+        retries: 15
+        test:
+          - CMD
+          - echo
+          - hey whats up
+        timeout: 10s
+    live:
+      image: makeplane/plane-live:${APP_RELEASE:-v1.3.0}
+      environment:
+        API_BASE_URL: ${API_BASE_URL:-http://api:8000}
+        LIVE_SERVER_SECRET_KEY: $PIER_PASSWORD_64_LIVESECRET
+        REDIS_HOST: ${REDIS_HOST:-plane-redis}
+        REDIS_PORT: ${REDIS_PORT:-6379}
+        REDIS_URL: ${REDIS_URL:-redis://plane-redis:6379/}
+      depends_on:
+        - api
+        - web
+      healthcheck:
+        interval: 2s
+        retries: 15
+        test:
+          - CMD
+          - echo
+          - hey whats up
+        timeout: 10s
+    migrator:
+      image: makeplane/plane-backend:${APP_RELEASE:-v1.3.0}
+      command: ./bin/docker-entrypoint-migrator.sh
+      restart: "no"
+      environment:
+        AMQP_URL: amqp://${PIER_USER_RABBITMQ}:${PIER_PASSWORD_RABBITMQ}@plane-mq:${RABBITMQ_PORT:-5672}/plane
+        API_KEY_RATE_LIMIT: ${API_KEY_RATE_LIMIT:-60/minute}
+        APP_DOMAIN: ${PIER_URL_PROXY}
+        APP_RELEASE: ${APP_RELEASE:-v1.3.0}
+        AWS_ACCESS_KEY_ID: $PIER_USER_MINIO
+        AWS_REGION: ${AWS_REGION:-}
+        AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-uploads}
+        AWS_S3_ENDPOINT_URL: ${AWS_S3_ENDPOINT_URL:-http://plane-minio:9000}
+        AWS_SECRET_ACCESS_KEY: $PIER_PASSWORD_MINIO
+        BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-uploads}
+        CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost}
+        DATABASE_URL: postgresql://$PIER_USER_POSTGRES:$PIER_PASSWORD_POSTGRES@plane-db/plane
+        DEBUG: ${DEBUG:-0}
+        FILE_SIZE_LIMIT: ${FILE_SIZE_LIMIT:-5242880}
+        GUNICORN_WORKERS: ${GUNICORN_WORKERS:-1}
+        LIVE_SERVER_SECRET_KEY: $PIER_PASSWORD_64_LIVESECRET
+        MINIO_ENDPOINT_SSL: ${MINIO_ENDPOINT_SSL:-0}
+        MINIO_ROOT_PASSWORD: $PIER_PASSWORD_MINIO
+        MINIO_ROOT_USER: $PIER_USER_MINIO
+        PGDATA: /var/lib/postgresql/data
+        PGDATABASE: plane
+        PGHOST: plane-db
+        POSTGRES_DB: plane
+        POSTGRES_PASSWORD: $PIER_PASSWORD_POSTGRES
+        POSTGRES_PORT: 5432
+        POSTGRES_USER: $PIER_USER_POSTGRES
+        REDIS_HOST: ${REDIS_HOST:-plane-redis}
+        REDIS_PORT: ${REDIS_PORT:-6379}
+        REDIS_URL: ${REDIS_URL:-redis://plane-redis:6379/}
+        SECRET_KEY: $PIER_PASSWORD_64_SECRETKEY
+        SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+        USE_MINIO: ${USE_MINIO:-1}
+        WEB_URL: ${PIER_URL_PROXY}
+      volumes:
+        - logs_migrator:/code/plane/logs
+      depends_on:
+        - plane-db
+        - plane-redis
+    plane-db:
+      image: postgres:15.7-alpine
+      command: postgres -c 'max_connections=1000'
+      environment:
+        PGDATA: /var/lib/postgresql/data
+        PGDATABASE: plane
+        PGHOST: plane-db
+        POSTGRES_DB: plane
+        POSTGRES_PASSWORD: $PIER_PASSWORD_POSTGRES
+        POSTGRES_PORT: 5432
+        POSTGRES_USER: $PIER_USER_POSTGRES
+      volumes:
+        - pgdata:/var/lib/postgresql/data
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 20s
+    plane-minio:
+      image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
+      command: server /export --console-address ":9090"
+      environment:
+        MINIO_ROOT_PASSWORD: $PIER_PASSWORD_MINIO
+        MINIO_ROOT_USER: $PIER_USER_MINIO
+      volumes:
+        - uploads:/export
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - mc
+          - ready
+          - local
+        timeout: 20s
+    plane-mq:
+      image: rabbitmq:3.13.6-management-alpine
+      environment:
+        RABBITMQ_DEFAULT_PASS: ${PIER_PASSWORD_RABBITMQ:-plane}
+        RABBITMQ_DEFAULT_USER: ${PIER_USER_RABBITMQ:-plane}
+        RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-plane}
+        RABBITMQ_HOST: plane-mq
+        RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
+        RABBITMQ_VHOST: ${RABBITMQ_VHOST:-plane}
+      volumes:
+        - rabbitmq_data:/var/lib/rabbitmq
+      healthcheck:
+        interval: 30s
+        retries: 3
+        test: rabbitmq-diagnostics -q ping
+        timeout: 30s
+    plane-redis:
+      image: valkey/valkey:7.2.11-alpine
+      volumes:
+        - redisdata:/data
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - redis-cli
+          - ping
+        timeout: 20s
+    proxy:
+      image: makeplane/plane-proxy:${APP_RELEASE:-v1.3.0}
+      environment:
+        - APP_DOMAIN=${PIER_URL_PROXY}
+        - SITE_ADDRESS=:80
+        - FILE_SIZE_LIMIT=${FILE_SIZE_LIMIT:-5242880}
+        - BUCKET_NAME=${AWS_S3_BUCKET_NAME:-uploads}
+      volumes:
+        - proxy_config:/config
+        - proxy_data:/data
+      depends_on:
+        - web
+        - api
+        - space
+        - admin
+        - live
+      healthcheck:
+        interval: 2s
+        retries: 15
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:80
+        timeout: 10s
+    space:
+      image: makeplane/plane-space:${APP_RELEASE:-v1.3.0}
+      depends_on:
+        - api
+        - worker
+        - web
+      healthcheck:
+        interval: 2s
+        retries: 15
+        test:
+          - CMD
+          - echo
+          - hey whats up
+        timeout: 10s
+    web:
+      image: makeplane/plane-frontend:${APP_RELEASE:-v1.3.0}
+      depends_on:
+        - api
+        - worker
+      healthcheck:
+        interval: 2s
+        retries: 15
+        test: wget -qO- http://`hostname`:3000
+        timeout: 10s
+    worker:
+      image: makeplane/plane-backend:${APP_RELEASE:-v1.3.0}
+      command: ./bin/docker-entrypoint-worker.sh
+      environment:
+        AMQP_URL: amqp://${PIER_USER_RABBITMQ}:${PIER_PASSWORD_RABBITMQ}@plane-mq:${RABBITMQ_PORT:-5672}/plane
+        API_KEY_RATE_LIMIT: ${API_KEY_RATE_LIMIT:-60/minute}
+        APP_DOMAIN: ${PIER_URL_PROXY}
+        APP_RELEASE: ${APP_RELEASE:-v1.3.0}
+        AWS_ACCESS_KEY_ID: $PIER_USER_MINIO
+        AWS_REGION: ${AWS_REGION:-}
+        AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-uploads}
+        AWS_S3_ENDPOINT_URL: ${AWS_S3_ENDPOINT_URL:-http://plane-minio:9000}
+        AWS_SECRET_ACCESS_KEY: $PIER_PASSWORD_MINIO
+        BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-uploads}
+        CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost}
+        DATABASE_URL: postgresql://$PIER_USER_POSTGRES:$PIER_PASSWORD_POSTGRES@plane-db/plane
+        DEBUG: ${DEBUG:-0}
+        FILE_SIZE_LIMIT: ${FILE_SIZE_LIMIT:-5242880}
+        GUNICORN_WORKERS: ${GUNICORN_WORKERS:-1}
+        LIVE_SERVER_SECRET_KEY: $PIER_PASSWORD_64_LIVESECRET
+        MINIO_ENDPOINT_SSL: ${MINIO_ENDPOINT_SSL:-0}
+        MINIO_ROOT_PASSWORD: $PIER_PASSWORD_MINIO
+        MINIO_ROOT_USER: $PIER_USER_MINIO
+        PGDATA: /var/lib/postgresql/data
+        PGDATABASE: plane
+        PGHOST: plane-db
+        POSTGRES_DB: plane
+        POSTGRES_PASSWORD: $PIER_PASSWORD_POSTGRES
+        POSTGRES_PORT: 5432
+        POSTGRES_USER: $PIER_USER_POSTGRES
+        REDIS_HOST: ${REDIS_HOST:-plane-redis}
+        REDIS_PORT: ${REDIS_PORT:-6379}
+        REDIS_URL: ${REDIS_URL:-redis://plane-redis:6379/}
+        SECRET_KEY: $PIER_PASSWORD_64_SECRETKEY
+        SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+        USE_MINIO: ${USE_MINIO:-1}
+        WEB_URL: ${PIER_URL_PROXY}
+      volumes:
+        - logs_worker:/code/plane/logs
+      depends_on:
+        - api
+        - plane-db
+        - plane-redis
+        - plane-mq
+      healthcheck:
+        interval: 2s
+        retries: 15
+        test:
+          - CMD
+          - echo
+          - hey whats up
+        timeout: 10s
+  volumes:
+    logs_api: null
+    logs_beat-worker: null
+    logs_migrator: null
+    logs_worker: null
+    pgdata: null
+    proxy_config: null
+    proxy_data: null
+    rabbitmq_data: null
+    redisdata: null
+    uploads: null
+  x-app-env:
+    AMQP_URL: amqp://${PIER_USER_RABBITMQ}:${PIER_PASSWORD_RABBITMQ}@plane-mq:${RABBITMQ_PORT:-5672}/plane
+    API_KEY_RATE_LIMIT: ${API_KEY_RATE_LIMIT:-60/minute}
+    APP_RELEASE: ${APP_RELEASE:-v1.3.0}
+    CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost}
+    DATABASE_URL: postgresql://$PIER_USER_POSTGRES:$PIER_PASSWORD_POSTGRES@plane-db/plane
+    DEBUG: ${DEBUG:-0}
+    GUNICORN_WORKERS: ${GUNICORN_WORKERS:-1}
+    LIVE_SERVER_SECRET_KEY: $PIER_PASSWORD_64_LIVESECRET
+    MINIO_ENDPOINT_SSL: ${MINIO_ENDPOINT_SSL:-0}
+    SECRET_KEY: $PIER_PASSWORD_64_SECRETKEY
+    USE_MINIO: ${USE_MINIO:-1}
+    WEB_URL: ${PIER_URL_PROXY}
+  x-aws-s3-env:
+    AWS_ACCESS_KEY_ID: $PIER_USER_MINIO
+    AWS_REGION: ${AWS_REGION:-}
+    AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-uploads}
+    AWS_S3_ENDPOINT_URL: ${AWS_S3_ENDPOINT_URL:-http://plane-minio:9000}
+    AWS_SECRET_ACCESS_KEY: $PIER_PASSWORD_MINIO
+  x-db-env:
+    PGDATA: /var/lib/postgresql/data
+    PGDATABASE: plane
+    PGHOST: plane-db
+    POSTGRES_DB: plane
+    POSTGRES_PASSWORD: $PIER_PASSWORD_POSTGRES
+    POSTGRES_PORT: 5432
+    POSTGRES_USER: $PIER_USER_POSTGRES
+  x-live-env:
+    API_BASE_URL: ${API_BASE_URL:-http://api:8000}
+    LIVE_SERVER_SECRET_KEY: $PIER_PASSWORD_64_LIVESECRET
+  x-minio-env:
+    MINIO_ROOT_PASSWORD: $PIER_PASSWORD_MINIO
+    MINIO_ROOT_USER: $PIER_USER_MINIO
+  x-mq-env:
+    RABBITMQ_DEFAULT_PASS: ${PIER_PASSWORD_RABBITMQ:-plane}
+    RABBITMQ_DEFAULT_USER: ${PIER_USER_RABBITMQ:-plane}
+    RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-plane}
+    RABBITMQ_HOST: plane-mq
+    RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
+    RABBITMQ_VHOST: ${RABBITMQ_VHOST:-plane}
+  x-proxy-env:
+    APP_DOMAIN: ${PIER_URL_PROXY}
+    BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-uploads}
+    FILE_SIZE_LIMIT: ${FILE_SIZE_LIMIT:-5242880}
+    SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+  x-redis-env:
+    REDIS_HOST: ${REDIS_HOST:-plane-redis}
+    REDIS_PORT: ${REDIS_PORT:-6379}
+    REDIS_URL: ${REDIS_URL:-redis://plane-redis:6379/}

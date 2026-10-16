@@ -1,0 +1,27 @@
+name: Apprise API
+description: API de notificações push para dezenas de serviços.
+category: Automação
+website: https://docs.linuxserver.io/images/docker-apprise-api/
+tags:
+  - api
+  - apprise
+routes:
+  - service: apprise-api
+    port: 8000
+compose: |
+  services:
+    apprise-api:
+      image: linuxserver/apprise-api:latest
+      environment:
+        - PUID=1000
+        - PGID=1000
+        - TZ=UTC
+      volumes:
+        - /apprise-api/config:/config
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - wget -qO- http://127.0.0.1:8000/
+        timeout: 20s

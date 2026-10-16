@@ -1,0 +1,36 @@
+name: NetBird Client
+description: Conecta seus dispositivos em uma rede overlay WireGuard com SSO e MFA.
+category: Rede
+website: https://docs.netbird.io/how-to/examples#net-bird-client-in-docker
+tags:
+  - wireguard
+  - mesh-networks
+  - vpn
+  - zero-trust-network-access
+  - open source
+routes: []
+compose: |
+  services:
+    netbird-client:
+      image: netbirdio/netbird:latest
+      environment:
+        - NB_SETUP_KEY=${NB_SETUP_KEY}
+        - NB_ENABLE_ROSENPASS=${NB_ENABLE_ROSENPASS:-false}
+        - NB_ENABLE_EXPERIMENTAL_LAZY_CONN=${NB_ENABLE_EXPERIMENTAL_LAZY_CONN:-false}
+      volumes:
+        - netbird-client:/var/lib/netbird
+      network_mode: host
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - netbird
+          - version
+        timeout: 20s
+      cap_add:
+        - NET_ADMIN
+        - SYS_ADMIN
+        - SYS_RESOURCE
+  volumes:
+    netbird-client: null

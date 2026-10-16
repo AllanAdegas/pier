@@ -1,0 +1,141 @@
+name: Argilla
+description: Colaboração entre engenheiros de IA e especialistas para construir datasets de qualidade.
+category: IA
+website: https://docs.argilla.io/latest/
+tags:
+  - workflow
+  - orchestration
+  - data-pipeline
+  - python
+  - argilla
+  - ai
+  - elasticsearch
+  - datasets
+routes:
+  - service: argilla
+    port: 6900
+compose: |
+  services:
+    argilla:
+      image: argilla/argilla-server:v2.2.0
+      environment:
+        - ARGILLA_HOME_PATH=/var/lib/argilla
+        - ARGILLA_ELASTICSEARCH=http://elasticsearch:9200
+        - ARGILLA_DATABASE_URL=postgresql+asyncpg://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@postgres:5432/${POSTGRES_DB}
+        - ARGILLA_REDIS_URL=redis://redis:6379/0
+        - ARGILLA_AUTH_SECRET_KEY=${PIER_PASSWORD_AUTHSECRET}
+        - ARGILLA_ENABLE_TELEMETRY=${ARGILLA_ENABLE_TELEMETRY:-0}
+        - HF_HUB_DISABLE_TELEMETRY=${HF_HUB_DISABLE_TELEMETRY:-1}
+        - REINDEX_DATASETS=${REINDEX_DATASETS:-1}
+        - DEFAULT_USER_ENABLED=${DEFAULT_USER_ENABLED:-true}
+        - USERNAME=${ARGILLA_USERNAME:-argilla}
+        - PASSWORD=${PIER_PASSWORD_ARGILLA}
+        - API_KEY=${PIER_PASSWORD_APIKEY}
+        - DEFAULT_USER_PASSWORD=${PIER_PASSWORD_ARGILLA}
+        - DEFAULT_USER_API_KEY=${PIER_PASSWORD_APIKEY}
+        - WORKSPACE=${WORKSPACE:-default}
+      volumes:
+        - argilla-data:/var/lib/argilla
+      depends_on:
+        elasticsearch:
+          condition: service_healthy
+        postgres:
+          condition: service_healthy
+        redis:
+          condition: service_healthy
+      healthcheck:
+        interval: 10s
+        retries: 5
+        test:
+          - CMD-SHELL
+          - python -c "import requests as r;r.get(\"http://localhost:6900/api/_status\").raise_for_status()"
+        timeout: 10s
+    elasticsearch:
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.12.2
+      environment:
+        - node.name=${NODE_NAME:-elasticsearch}
+        - cluster.name=${CLUSTER_NAME:-es-argilla-local}
+        - discovery.type=${DISCOVERY_TYPE:-single-node}
+        - ES_JAVA_OPTS=${ES_JAVA_OPTS:-"-Xms512m -Xmx512m"}
+        - cluster.routing.allocation.disk.threshold_enabled=${CLUSTER_ROUTING_ALLOCATION_DISK_THRESHOLD_ENABLED:-false}
+        - xpack.security.enabled=${XPACK_SECURITY_ENABLED:-false}
+      volumes:
+        - elasticsearch-data:/usr/share/elasticsearch/data/
+      healthcheck:
+        interval: 10s
+        retries: 5
+        test:
+          - CMD-SHELL
+          - curl --silent --fail http://elasticsearch:9200
+        timeout: 10s
+      ulimits:
+        memlock:
+          hard: -1
+          soft: -1
+    postgres:
+      image: postgres:14
+      environment:
+        - POSTGRES_USER=${PIER_USER_POSTGRES}
+        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
+        - POSTGRES_DB=${POSTGRES_DB:-argilla}
+      volumes:
+        - pg-data:/var/lib/postgresql/data
+      healthcheck:
+        interval: 5s
+        retries: 3
+        test:
+          - CMD-SHELL
+          - pg_isready -h localhost -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 5s
+    redis:
+      image: redis:7
+      volumes:
+        - redis-data:/data
+      healthcheck:
+        interval: 5s
+        retries: 3
+        test:
+          - CMD-SHELL
+          - redis-cli -h localhost -p 6379 ping
+        timeout: 5s
+    worker:
+      image: argilla/argilla-server:v2.2.0
+      command: sh -c 'python -m argilla_server worker --num-workers $${BACKGROUND_NUM_WORKERS}'
+      environment:
+        - ARGILLA_HOME_PATH=/var/lib/argilla
+        - ARGILLA_ELASTICSEARCH=http://elasticsearch:9200
+        - ARGILLA_DATABASE_URL=postgresql+asyncpg://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@postgres:5432/${POSTGRES_DB}
+        - ARGILLA_REDIS_URL=redis://redis:6379/0
+        - ARGILLA_AUTH_SECRET_KEY=${PIER_PASSWORD_AUTHSECRET}
+        - ARGILLA_ENABLE_TELEMETRY=${ARGILLA_ENABLE_TELEMETRY:-0}
+        - HF_HUB_DISABLE_TELEMETRY=${HF_HUB_DISABLE_TELEMETRY:-1}
+        - REINDEX_DATASETS=${REINDEX_DATASETS:-1}
+        - DEFAULT_USER_ENABLED=${DEFAULT_USER_ENABLED:-true}
+        - USERNAME=${ARGILLA_USERNAME:-argilla}
+        - PASSWORD=${PIER_PASSWORD_ARGILLA}
+        - API_KEY=${PIER_PASSWORD_APIKEY}
+        - DEFAULT_USER_PASSWORD=${PIER_PASSWORD_ARGILLA}
+        - DEFAULT_USER_API_KEY=${PIER_PASSWORD_APIKEY}
+        - BACKGROUND_NUM_WORKERS=${BACKGROUND_NUM_WORKERS:-1}
+        - WORKSPACE=${WORKSPACE:-default}
+      volumes:
+        - argilla-data:/var/lib/argilla
+      depends_on:
+        elasticsearch:
+          condition: service_healthy
+        postgres:
+          condition: service_healthy
+        redis:
+          condition: service_healthy
+      healthcheck:
+        interval: 10s
+        retries: 5
+        test:
+          - CMD-SHELL
+          - pwd
+        timeout: 10s
+  volumes:
+    argilla-data: null
+    elasticsearch-data: null
+    pg-data: null
+    redis-data: null

@@ -1,0 +1,76 @@
+name: HeyForm
+description: Formulários conversacionais para pesquisas, questionários e enquetes, sem código.
+category: Produtividade
+website: https://docs.heyform.net/open-source/self-hosting
+tags:
+  - form
+  - builder
+  - forms
+  - survey
+  - quiz
+  - open source
+  - self-hosted
+  - docker
+routes:
+  - service: heyform
+    port: 9157
+compose: |
+  services:
+    heyform:
+      image: heyform/community-edition:latest
+      environment:
+        - APP_HOMEPAGE_URL=${PIER_URL_HEYFORM}
+        - SESSION_KEY=${PIER_PASSWORD_64_SESSION}
+        - FORM_ENCRYPTION_KEY=${PIER_PASSWORD_64_FORM}
+        - MONGO_URI=mongodb://mongo:27017/heyform
+        - REDIS_HOST=keydb
+        - REDIS_PORT=6379
+        - REDIS_PASSWORD=${PIER_PASSWORD_KEYDB}
+      volumes:
+        - heyform-assets:/app/static/upload
+      depends_on:
+        keydb:
+          condition: service_healthy
+        mongo:
+          condition: service_healthy
+      healthcheck:
+        interval: 5s
+        retries: 3
+        test:
+          - CMD-SHELL
+          - wget -qO- http://127.0.0.1:9157 || exit 1
+        timeout: 5s
+    keydb:
+      image: eqalpha/keydb:latest
+      command: keydb-server --appendonly yes
+      environment:
+        - KEYDB_PASSWORD=${PIER_PASSWORD_KEYDB}
+      volumes:
+        - heyform-keydb-data:/data
+      healthcheck:
+        interval: 5s
+        retries: 10
+        start_period: 5s
+        test:
+          - CMD-SHELL
+          - keydb-cli
+          - --pass
+          - ${PIER_PASSWORD_KEYDB}
+          - ping
+        timeout: 5s
+    mongo:
+      image: percona/percona-server-mongodb:latest
+      volumes:
+        - heyform-mongo-data:/data/db
+      healthcheck:
+        interval: 5s
+        retries: 10
+        start_period: 5s
+        test:
+          - CMD-SHELL
+          - echo 'ok' > /dev/null 2>&1
+        timeout: 5s
+  volumes:
+    heyform-assets: null
+    heyform-keydb-data: null
+    heyform-mongo-data: null

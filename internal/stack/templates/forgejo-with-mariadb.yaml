@@ -1,0 +1,70 @@
+name: Forgejo com MariaDB
+description: Forja de software leve, fácil de instalar e manter.
+category: Git
+website: https://forgejo.org/docs
+tags:
+  - version control
+  - collaboration
+  - code
+  - hosting
+  - lightweight
+  - mariadb
+routes:
+  - service: forgejo
+    port: 3000
+compose: |
+  services:
+    forgejo:
+      image: codeberg.org/forgejo/forgejo:15
+      environment:
+        - FORGEJO__server__ROOT_URL=${PIER_URL_FORGEJO}
+        - FORGEJO__migrations__ALLOWED_DOMAINS=${FORGEJO__migrations__ALLOWED_DOMAINS}
+        - FORGEJO__migrations__ALLOW_LOCALNETWORKS=${FORGEJO__migrations__ALLOW_LOCALNETWORKS-false}
+        - USER_UID=1000
+        - USER_GID=1000
+        - FORGEJO__database__DB_TYPE=mysql
+        - FORGEJO__database__HOST=mariadb
+        - FORGEJO__database__NAME=${MYSQL_DATABASE-forgejo}
+        - FORGEJO__database__USER=$PIER_USER_MYSQL
+        - FORGEJO__database__PASSWD=$PIER_PASSWORD_MYSQL
+      volumes:
+        - forgejo-data:/data
+        - forgejo-timezone:/etc/timezone:ro
+        - forgejo-localtime:/etc/localtime:ro
+      ports:
+        - "22222:22"
+      depends_on:
+        mariadb:
+          condition: service_healthy
+      healthcheck:
+        interval: 2s
+        retries: 15
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:3000
+        timeout: 10s
+    mariadb:
+      image: mariadb:11
+      environment:
+        - MYSQL_USER=${PIER_USER_MYSQL}
+        - MYSQL_PASSWORD=${PIER_PASSWORD_MYSQL}
+        - MYSQL_DATABASE=${MYSQL_DATABASE}
+        - MYSQL_ROOT_PASSWORD=${PIER_PASSWORD_MYSQLROOT}
+      volumes:
+        - forgejo-mariadb-data:/var/lib/mysql
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - healthcheck.sh
+          - --connect
+          - --innodb_initialized
+        timeout: 20s
+  volumes:
+    forgejo-data: null
+    forgejo-localtime: null
+    forgejo-mariadb-data: null
+    forgejo-timezone: null

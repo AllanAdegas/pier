@@ -1,0 +1,68 @@
+name: Mixpost
+description: Gestão de redes sociais e marketing de conteúdo.
+category: Analytics
+website: https://docs.mixpost.app/lite
+tags:
+  - social media
+  - marketing
+  - content
+  - management
+  - automation
+  - self-hosted
+routes:
+  - service: mixpost
+    port: 80
+compose: |
+  services:
+    mixpost:
+      image: inovector/mixpost:latest
+      environment:
+        - APP_NAME=Mixpost
+        - APP_KEY=${PIER_PASSWORD_MIXPOST}
+        - APP_DEBUG=false
+        - APP_DOMAIN=${PIER_URL_MIXPOST}
+        - APP_URL=${PIER_URL_MIXPOST}
+        - DB_DATABASE=${MYSQL_DATABASE:-mixpost_db}
+        - DB_USERNAME=${PIER_USER_MYSQL}
+        - DB_PASSWORD=${PIER_PASSWORD_MYSQL}
+        - SSL_EMAIL=${SSL_EMAIL:-user@example.com}
+      volumes:
+        - mixpost-storage:/var/www/html/storage/app
+        - mixpost-logs:/var/www/html/storage/logs
+      depends_on:
+        - mysql
+        - redis
+    mysql:
+      image: mysql/mysql-server:8.0
+      environment:
+        - MYSQL_DATABASE=${MYSQL_DATABASE:-mixpost_db}
+        - MYSQL_USER=${PIER_USER_MYSQL}
+        - MYSQL_PASSWORD=${PIER_PASSWORD_MYSQL}
+        - MYSQL_ROOT_PASSWORD=${PIER_PASSWORD_MYSQLROOT}
+      volumes:
+        - mixpost-mysql:/var/lib/mysql
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - mysqladmin
+          - ping
+          - -h
+          - 127.0.0.1
+          - -uroot
+          - -p${PIER_PASSWORD_MYSQLROOT}
+        timeout: 20s
+    redis:
+      image: redis:alpine
+      healthcheck:
+        test:
+          - CMD
+          - redis-cli
+          - --raw
+          - incr
+          - ping
+  volumes:
+    mixpost-logs: null
+    mixpost-mysql: null
+    mixpost-storage: null

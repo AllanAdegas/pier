@@ -1,0 +1,58 @@
+name: Paperless-ngx
+description: Transforma documentos físicos em um arquivo online pesquisável.
+category: Produtividade
+website: https://docs.paperless-ngx.com/configuration/
+routes:
+  - service: paperless
+    port: 8000
+compose: |
+  services:
+    paperless:
+      image: paperlessngx/paperless-ngx:latest
+      environment:
+        - PAPERLESS_URL=$PIER_URL_PAPERLESS
+        - PAPERLESS_ADMIN_PASSWORD=${PIER_PASSWORD_PAPERLESS}
+        - PAPERLESS_ADMIN_USER=${PIER_USER_PAPERLESS}
+        - PAPERLESS_REDIS=redis://redis:6379
+        - PAPERLESS_SECRET_KEY=${PIER_BASE64_64_PAPERLESS}
+      volumes:
+        - paperless-data:/usr/src/paperless/data
+        - paperless-media:/usr/src/paperless/media
+        - is_directory: true
+          source: ./export
+          target: /usr/src/paperless/export
+          type: bind
+        - is_directory: true
+          source: ./consume
+          target: /usr/src/paperless/consume
+          type: bind
+      depends_on:
+        redis:
+          condition: service_healthy
+      healthcheck:
+        interval: 30s
+        retries: 5
+        test:
+          - CMD
+          - curl
+          - -fs
+          - -S
+          - --max-time
+          - "2"
+          - http://localhost:8000
+        timeout: 10s
+    redis:
+      image: redis:7.4
+      volumes:
+        - paperless-redis:/data
+      healthcheck:
+        retries: 3
+        test:
+          - CMD
+          - redis-cli
+          - ping
+        timeout: 10s
+  volumes:
+    paperless-data: null
+    paperless-media: null
+    paperless-redis: null

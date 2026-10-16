@@ -1,0 +1,35 @@
+name: Baby Buddy
+description: Ajuda pais a acompanhar atividades, crescimento e saúde do bebê.
+category: Produtividade
+website: https://docs.baby-buddy.net
+tags:
+  - baby
+  - parents
+  - health
+  - growth
+  - activities
+routes:
+  - service: babybuddy
+    port: 8000
+compose: |
+  services:
+    babybuddy:
+      image: lscr.io/linuxserver/babybuddy:latest
+      environment:
+        - PUID=1000
+        - PGID=1000
+        - TZ=Europe/Madrid
+        - CSRF_TRUSTED_ORIGINS=$PIER_URL_BABYBUDDY
+      volumes:
+        - babybuddy-config:/config
+      healthcheck:
+        interval: 2s
+        retries: 15
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:8000
+        timeout: 10s
+  volumes:
+    babybuddy-config: null

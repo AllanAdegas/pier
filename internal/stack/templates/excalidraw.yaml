@@ -1,0 +1,12 @@
+name: Excalidraw
+description: Quadro branco colaborativo para diagramas com aparência de desenho à mão.
+category: Utilitários
+website: https://excalidraw.com
+verified: true
+routes:
+  - service: excalidraw
+    port: 80
+compose: |
+  services:
+    excalidraw:
+      image: excalidraw/excalidraw:latest

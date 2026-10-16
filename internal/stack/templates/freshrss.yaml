@@ -1,0 +1,29 @@
+name: FreshRSS
+description: Agregador de feeds livre e auto-hospedável.
+category: RSS
+website: https://freshrss.org/index.html
+tags:
+  - rss
+  - feed
+routes:
+  - service: freshrss
+    port: 80
+compose: |
+  services:
+    freshrss:
+      image: freshrss/freshrss:latest
+      environment:
+        - CRON_MIN=${CRON_MIN:-1,31}
+      volumes:
+        - freshrss-data:/var/www/FreshRSS/data
+        - freshrss-extensions:/var/www/FreshRSS/extensions
+      healthcheck:
+        interval: 5s
+        retries: 3
+        test:
+          - CMD-SHELL
+          - bash -c ':> /dev/tcp/127.0.0.1/80' || exit 1
+        timeout: 20s
+  volumes:
+    freshrss-data: null
+    freshrss-extensions: null

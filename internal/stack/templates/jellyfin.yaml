@@ -1,0 +1,39 @@
+name: Jellyfin
+description: Servidor de mídia para hospedar e transmitir sua coleção.
+category: Mídia
+website: https://jellyfin.org
+tags:
+  - media
+  - server
+  - movies
+  - tv
+  - music
+routes:
+  - service: jellyfin
+    port: 8096
+compose: |
+  services:
+    jellyfin:
+      image: lscr.io/linuxserver/jellyfin:10.11.8
+      environment:
+        - PUID=1000
+        - PGID=1000
+        - TZ=Europe/Madrid
+        - JELLYFIN_PublishedServerUrl=$PIER_URL_JELLYFIN
+      volumes:
+        - jellyfin-config:/config
+        - jellyfin-tvshows:/data/tvshows
+        - jellyfin-movies:/data/movies
+      healthcheck:
+        interval: 2s
+        retries: 15
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:8096
+        timeout: 10s
+  volumes:
+    jellyfin-config: null
+    jellyfin-movies: null
+    jellyfin-tvshows: null

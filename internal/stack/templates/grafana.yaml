@@ -1,0 +1,20 @@
+name: Grafana
+description: Painéis e visualização de métricas, logs e traces.
+category: Monitoramento
+website: https://grafana.com
+verified: true
+routes:
+  - service: grafana
+    port: 3000
+compose: |
+  services:
+    grafana:
+      image: grafana/grafana-oss:latest
+      environment:
+        GF_SERVER_ROOT_URL: ${PIER_URL_GRAFANA:-http://localhost:3000}
+        GF_SECURITY_ADMIN_USER: admin
+        GF_SECURITY_ADMIN_PASSWORD: ${PIER_PASSWORD_GRAFANA}
+      volumes:
+        - data:/var/lib/grafana
+  volumes:
+    data:

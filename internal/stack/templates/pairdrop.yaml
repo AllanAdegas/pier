@@ -1,0 +1,30 @@
+name: PairDrop
+description: Compartilhamento de arquivos entre dispositivos.
+category: Produtividade
+website: https://pairdrop.net/
+tags:
+  - file
+  - sharing
+  - collaboration
+  - teamwork
+routes:
+  - service: pairdrop
+    port: 3000
+compose: |
+  services:
+    pairdrop:
+      image: lscr.io/linuxserver/pairdrop:latest
+      environment:
+        - PUID=1000
+        - PGID=1000
+        - TZ=Europe/Madrid
+        - DEBUG_MODE=false
+      healthcheck:
+        interval: 2s
+        retries: 15
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:3000
+        timeout: 10s

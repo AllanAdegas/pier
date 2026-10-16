@@ -1,0 +1,29 @@
+name: Browserless
+description: Chrome headless como serviço.
+category: Desenvolvimento
+website: https://docs.browserless.io/
+tags:
+  - chrome
+  - headless
+  - browser
+  - service
+routes:
+  - service: browserless
+    port: 3000
+compose: |
+  services:
+    browserless:
+      image: ghcr.io/browserless/chromium
+      environment:
+        - TOKEN=$PIER_PASSWORD_BROWSERLESS
+      expose:
+        - 3000
+      healthcheck:
+        interval: 2s
+        retries: 15
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:3000/docs
+        timeout: 10s

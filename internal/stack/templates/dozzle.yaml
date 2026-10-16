@@ -1,0 +1,27 @@
+name: Dozzle
+description: Interface web simples e leve para logs do Docker.
+category: Desenvolvimento
+website: https://dozzle.dev/guide/getting-started#running-with-docker
+tags:
+  - dozzle
+  - docker
+  - logs
+  - web-ui
+routes:
+  - service: dozzle
+    port: 8080
+compose: |
+  services:
+    dozzle:
+      image: amir20/dozzle:latest
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+      healthcheck:
+        interval: 3s
+        retries: 5
+        start_period: 30s
+        test:
+          - CMD
+          - /dozzle
+          - healthcheck
+        timeout: 30s

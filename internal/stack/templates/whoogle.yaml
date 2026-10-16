@@ -1,0 +1,23 @@
+name: Whoogle
+description: Front-end de busca com privacidade para resultados do Google.
+category: Busca
+website: https://github.com/benbusby/whoogle-search?tab=readme-ov-file
+tags:
+  - privacy
+  - search engine
+routes:
+  - service: whoogle
+    port: 5000
+compose: |
+  services:
+    whoogle:
+      image: benbusby/whoogle-search:latest
+      healthcheck:
+        interval: 2s
+        retries: 15
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:5000
+        timeout: 10s

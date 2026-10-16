@@ -1,0 +1,81 @@
+name: Seafile
+description: Armazenamento em nuvem para sincronizar e compartilhar arquivos.
+category: Armazenamento
+website: https://manual.seafile.com
+tags:
+  - file-manager
+  - file-sharing
+  - storage
+routes:
+  - service: seafile
+    port: 80
+compose: |
+  services:
+    mariadb:
+      image: mariadb:11
+      environment:
+        - MYSQL_ROOT_PASSWORD=${PIER_PASSWORD_MYSQLROOT}
+        - MYSQL_USER=${PIER_USER_MYSQL}
+        - MYSQL_PASSWORD=${PIER_PASSWORD_MYSQL}
+        - MYSQL_DATABASE=${MYSQL_DATABASE:-seafile-db}
+      volumes:
+        - seafile_mariadb_data:/var/lib/mysql
+      healthcheck:
+        interval: 10s
+        retries: 5
+        test:
+          - CMD
+          - healthcheck.sh
+          - --connect
+          - --innodb_initialized
+        timeout: 20s
+    memcached:
+      image: memcached:latest
+      entrypoint: memcached -m 256
+      healthcheck:
+        interval: 10s
+        retries: 5
+        test:
+          - CMD-SHELL
+          - bash -c "echo version | (exec 3<>/dev/tcp/localhost/11211; cat >&3; timeout 0.5 cat <&3; exec 3<&-)"
+        timeout: 20s
+    seafile:
+      image: seafileltd/seafile-mc:12.0-latest
+      environment:
+        - SEAFILE_SERVER_HOSTNAME=${PIER_HOST_SEAFILE}
+        - DB_HOST=mariadb
+        - DB_PORT=3306
+        - DB_ROOT_PASSWD=${PIER_PASSWORD_MYSQLROOT}
+        - DB_USER=${PIER_USER_MYSQL}
+        - DB_PASSWORD=${PIER_PASSWORD_MYSQL}
+        - SEAFILE_MYSQL_DB_CCNET_DB_NAME=${SEAFILE_MYSQL_DB_CCNET_DB_NAME:-ccnet_db}
+        - SEAFILE_MYSQL_DB_SEAFILE_DB_NAME=${SEAFILE_MYSQL_DB_SEAFILE_DB_NAME:-seafile_db}
+        - SEAFILE_MYSQL_DB_SEAHUB_DB_NAME=${SEAFILE_MYSQL_DB_SEAHUB_DB_NAME:-seahub_db}
+        - TIME_ZONE=${TIME_ZONE:-UTC}
+        - INIT_SEAFILE_ADMIN_EMAIL=${INIT_SEAFILE_ADMIN_EMAIL:-test@example.com}
+        - INIT_SEAFILE_ADMIN_PASSWORD=${PIER_PASSWORD_ADMIN}
+        - SEAFILE_SERVER_PROTOCOL=https
+        - SITE_ROOT=${SITE_ROOT:-/}
+        - NON_ROOT=${NON_ROOT:-false}
+        - JWT_PRIVATE_KEY=${PIER_PASSWORD_64_JWT}
+        - SEAFILE_LOG_TO_STDOUT=${SEAFILE_LOG_TO_STDOUT:-true}
+        - FILE_SERVER_ROOT=${PIER_URL_SEAFILE}/seafhttp
+      volumes:
+        - seafile-data:/shared
+      depends_on:
+        mariadb:
+          condition: service_healthy
+        memcached:
+          condition: service_started
+      healthcheck:
+        interval: 10s
+        retries: 5
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:80/api2/ping
+        timeout: 20s
+  volumes:
+    seafile-data: null
+    seafile_mariadb_data: null

@@ -1,0 +1,33 @@
+name: Stirling-PDF
+description: Manipulação de PDFs via web.
+category: Produtividade
+website: https://github.com/Stirling-Tools/Stirling-PDF
+tags:
+  - pdf
+  - manipulation
+  - web
+  - tool
+routes:
+  - service: stirling-pdf
+    port: 8080
+compose: |
+  services:
+    stirling-pdf:
+      image: stirlingtools/stirling-pdf:latest
+      environment:
+        - DOCKER_ENABLE_SECURITY=false
+      volumes:
+        - stirling-training-data:/usr/share/tesseract-ocr/5/tessdata
+        - stirling-configs:/configs
+        - stirling-custom-files:/customFiles/
+        - stirling-logs:/logs/
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test: curl --fail --silent http://127.0.0.1:8080/api/v1/info/status | grep -q "UP" || exit 1
+        timeout: 20s
+  volumes:
+    stirling-configs: null
+    stirling-custom-files: null
+    stirling-logs: null
+    stirling-training-data: null

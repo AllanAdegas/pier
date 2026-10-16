@@ -1,0 +1,38 @@
+name: Syncthing
+description: Sincroniza arquivos entre computadores em tempo real.
+category: Armazenamento
+website: https://syncthing.net/
+tags:
+  - filestorage
+  - data
+  - synchronization
+routes:
+  - service: syncthing
+    port: 8384
+compose: |
+  services:
+    syncthing:
+      image: lscr.io/linuxserver/syncthing:latest
+      environment:
+        - PUID=1000
+        - PGID=1000
+        - TZ=${TZ:-Etc/UTC}
+      volumes:
+        - syncthing_config:/config
+        - syncthing_data1:/data1
+        - syncthing_data2:/data2
+      ports:
+        - 22000:22000/tcp
+        - 22000:22000/udp
+        - 21027:21027/udp
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - wget -qO- http://127.0.0.1:8384/
+        timeout: 20s
+  volumes:
+    syncthing_config: null
+    syncthing_data1: null
+    syncthing_data2: null

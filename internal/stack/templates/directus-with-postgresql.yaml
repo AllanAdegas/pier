@@ -1,0 +1,89 @@
+name: Directus com PostgreSQL
+description: API dinâmica sobre bancos de dados, com aplicação para gerir o conteúdo.
+category: CMS
+website: https://directus.io
+tags:
+  - directus
+  - cms
+  - database
+  - sql
+routes:
+  - service: directus
+    port: 8055
+compose: |
+  services:
+    directus:
+      image: directus/directus:11
+      environment:
+        - KEY=$PIER_PASSWORD_64_KEY
+        - SECRET=$PIER_PASSWORD_64_SECRET
+        - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@example.com}
+        - ADMIN_PASSWORD=$PIER_PASSWORD_ADMIN
+        - DB_CLIENT=postgres
+        - DB_HOST=postgresql
+        - DB_PORT=5432
+        - DB_DATABASE=${POSTGRESQL_DATABASE:-directus}
+        - DB_USER=$PIER_USER_POSTGRESQL
+        - DB_PASSWORD=$PIER_PASSWORD_POSTGRESQL
+        - REDIS_HOST=redis
+        - REDIS_PORT=6379
+        - WEBSOCKETS_ENABLED=true
+        - CORS_ENABLED=${CORS_ENABLED:-true}
+        - CORS_ORIGIN=${CORS_ORIGIN}
+        - CORS_METHODS=${CORS_METHODS:-GET,POST,PATCH,DELETE,OPTIONS}
+        - CORS_ALLOWED_HEADERS=${CORS_ALLOWED_HEADERS:-Content-Type,Authorization}
+        - CORS_CREDENTIALS=${CORS_CREDENTIALS:-true}
+      volumes:
+        - directus-uploads:/directus/uploads
+        - directus-extensions:/directus/extensions
+        - directus-templates:/directus/templates
+      depends_on:
+        postgresql:
+          condition: service_healthy
+        redis:
+          condition: service_healthy
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - wget
+          - -q
+          - --spider
+          - http://127.0.0.1:8055/admin/login
+        timeout: 20s
+    postgresql:
+      image: postgis/postgis:16-3.4-alpine
+      environment:
+        - POSTGRES_USER=${PIER_USER_POSTGRESQL}
+        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRESQL}
+        - POSTGRES_DB=${POSTGRESQL_DATABASE:-directus}
+      volumes:
+        - directus-postgresql-data:/var/lib/postgresql/data
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 20s
+      platform: linux/amd64
+    redis:
+      image: redis:7-alpine
+      command: redis-server --appendonly yes
+      volumes:
+        - directus-redis-data:/data
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - redis-cli
+          - ping
+        timeout: 20s
+  volumes:
+    directus-extensions: null
+    directus-postgresql-data: null
+    directus-redis-data: null
+    directus-templates: null
+    directus-uploads: null

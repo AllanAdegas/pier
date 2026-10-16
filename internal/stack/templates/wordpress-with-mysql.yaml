@@ -1,0 +1,57 @@
+name: WordPress com MySQL
+description: Software open source para criar sites, blogs e aplicações.
+category: CMS
+website: https://wordpress.org
+tags:
+  - cms
+  - blog
+  - content
+  - management
+  - mysql
+routes:
+  - service: wordpress
+    port: 80
+compose: |
+  services:
+    mysql:
+      image: mysql:8
+      environment:
+        - MYSQL_ROOT_PASSWORD=$PIER_PASSWORD_ROOT
+        - MYSQL_DATABASE=wordpress
+        - MYSQL_USER=$PIER_USER_WORDPRESS
+        - MYSQL_PASSWORD=$PIER_PASSWORD_WORDPRESS
+      volumes:
+        - mysql-data:/var/lib/mysql
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - mysqladmin
+          - ping
+          - -h
+          - 127.0.0.1
+        timeout: 20s
+    wordpress:
+      image: wordpress:latest
+      environment:
+        - WORDPRESS_DB_HOST=mysql
+        - WORDPRESS_DB_USER=$PIER_USER_WORDPRESS
+        - WORDPRESS_DB_PASSWORD=$PIER_PASSWORD_WORDPRESS
+        - WORDPRESS_DB_NAME=wordpress
+      volumes:
+        - wordpress-files:/var/www/html
+      depends_on:
+        - mysql
+      healthcheck:
+        interval: 2s
+        retries: 10
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1
+        timeout: 10s
+  volumes:
+    mysql-data: null
+    wordpress-files: null

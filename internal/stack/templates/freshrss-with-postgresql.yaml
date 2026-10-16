@@ -1,0 +1,52 @@
+name: FreshRSS com PostgreSQL
+description: Agregador de feeds livre e auto-hospedável.
+category: RSS
+website: https://freshrss.org/index.html
+tags:
+  - rss
+  - feed
+routes:
+  - service: freshrss
+    port: 80
+compose: |
+  services:
+    freshrss:
+      image: freshrss/freshrss:latest
+      environment:
+        - CRON_MIN=${CRON_MIN:-1,31}
+        - POSTGRES_DB=${POSTGRESQL_DATABASE:-freshrss}
+        - POSTGRES_USER=${PIER_USER_POSTGRESQL}
+        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRESQL}
+        - POSTGRES_HOST=freshrss-db
+      volumes:
+        - freshrss-data:/var/www/FreshRSS/data
+        - freshrss-extensions:/var/www/FreshRSS/extensions
+      depends_on:
+        freshrss-db:
+          condition: service_healthy
+      healthcheck:
+        interval: 5s
+        retries: 3
+        test:
+          - CMD-SHELL
+          - bash -c ':> /dev/tcp/127.0.0.1/80' || exit 1
+        timeout: 20s
+    freshrss-db:
+      image: postgres:16
+      environment:
+        - POSTGRES_USER=${PIER_USER_POSTGRESQL}
+        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRESQL}
+        - POSTGRES_DB=${POSTGRESQL_DATABASE:-freshrss}
+      volumes:
+        - freshrss-postgresql-data:/var/lib/postgresql/data
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 20s
+  volumes:
+    freshrss-data: null
+    freshrss-extensions: null
+    freshrss-postgresql-data: null

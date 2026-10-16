@@ -1,0 +1,98 @@
+/*
+ * Design tokens of Pier. Every color, space and radius used by the interface
+ * comes from here; components never hard-code values.
+ * Dark is the default; light follows the system or the explicit data-theme.
+ */
+:root {
+  color-scheme: dark;
+
+  --bg: #0b1016;
+  --surface: #121922;
+  --surface-raised: #1a2330;
+  --surface-sunken: #080c11;
+  --border: #263243;
+  --border-strong: #3a4a61;
+
+  --text: #e6edf5;
+  --text-muted: #9aa8bc;
+  --text-faint: #6f7f96;
+
+  --accent: #2dd4bf;
+  --accent-hover: #5eead4;
+  --accent-soft: rgba(45, 212, 191, 0.14);
+  --on-accent: #04201c;
+
+  --success: #34d399;
+  --success-soft: rgba(52, 211, 153, 0.14);
+  --warning: #fbbf24;
+  --warning-soft: rgba(251, 191, 36, 0.14);
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.14);
+  --danger-solid: #dc2626;
+  --info: #60a5fa;
+  --info-soft: rgba(96, 165, 250, 0.14);
+
+  --focus-ring: 0 0 0 3px rgba(45, 212, 191, 0.45);
+  --shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+
+  /* 4/8 pt spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 12px;
+
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  /* modular type scale */
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 20px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+
+  --sidebar-width: 248px;
+  --control-height: 40px;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --surface-raised: #eef1f6;
+  --surface-sunken: #e7ebf1;
+  --border: #d5dbe5;
+  --border-strong: #aeb8c8;
+
+  --text: #101826;
+  --text-muted: #4b5a70;
+  --text-faint: #6b7a90;
+
+  --accent: #0f766e;
+  --accent-hover: #115e59;
+  --accent-soft: rgba(15, 118, 110, 0.1);
+  --on-accent: #ffffff;
+
+  --success: #15724a;
+  --success-soft: rgba(21, 114, 74, 0.1);
+  --warning: #8a5200;
+  --warning-soft: rgba(138, 82, 0, 0.1);
+  --danger: #b91c1c;
+  --danger-soft: rgba(185, 28, 28, 0.08);
+  --danger-solid: #b91c1c;
+  --info: #1d4ed8;
+  --info-soft: rgba(29, 78, 216, 0.08);
+
+  --focus-ring: 0 0 0 3px rgba(15, 118, 110, 0.35);
+  --shadow: 0 8px 28px rgba(16, 24, 38, 0.14);
+}

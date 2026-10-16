@@ -1,0 +1,86 @@
+name: LimeSurvey
+description: Ferramenta de pesquisas online, simples e anônima.
+category: Produtividade
+website: https://www.limesurvey.org/manual/
+tags:
+  - online survey
+  - forms
+  - no code
+  - open source
+routes:
+  - service: limesurvey
+    port: 80
+compose: |
+  services:
+    limesurvey:
+      image: adamzammit/limesurvey:latest
+      environment:
+        - LIMESURVEY_DB_HOST=mariadb
+        - LIMESURVEY_DB_PASSWORD=${PIER_PASSWORD_MYSQL}
+        - LIMESURVEY_DB_USER=${PIER_USER_MYSQL}
+        - LIMESURVEY_DB_NAME=${MYSQL_DATABASE:-limesurvey-db}
+        - LIMESURVEY_ADMIN_USER=${LIMESURVEY_ADMIN_USER:-admin}
+        - LIMESURVEY_ADMIN_PASSWORD=${PIER_PASSWORD_ADMIN}
+        - LIMESURVEY_ADMIN_NAME=${LIMESURVEY_ADMIN_NAME:-Admin}
+        - LIMESURVEY_ADMIN_EMAIL=${LIMESURVEY_ADMIN_EMAIL:-admin@example.com}
+        - LIMESURVEY_FROM_EMAIL=${LIMESURVEY_FROM_EMAIL}
+        - LIMESURVEY_SMTP_HOST=${LIMESURVEY_SMTP_HOST}
+        - LIMESURVEY_SMTP_USER=${LIMESURVEY_SMTP_USER}
+        - LIMESURVEY_SMTP_PASSWORD=${LIMESURVEY_SMTP_PASSWORD}
+        - LIMESURVEY_SMTP_SSL=${LIMESURVEY_SMTP_SSL}
+        - LIMESURVEY_PHP_SESSION_SAVE_HANDLER=redis
+        - LIMESURVEY_PHP_SESSION_SAVE_PATH=tcp://redis:6379
+        - TZ=${TZ:-America/Jamaica}
+      volumes:
+        - limesurvey_plugins_data:/var/www/html/plugins
+        - limesurvey_upload_data:/var/www/html/upload
+        - limesurvey_config_data:/var/www/html/application/config
+        - limesurvey_sessions_data:/var/lime/sessions
+      depends_on:
+        mariadb:
+          condition: service_healthy
+        redis:
+          condition: service_healthy
+      healthcheck:
+        interval: 2s
+        retries: 10
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1
+        timeout: 10s
+    mariadb:
+      image: mariadb:11
+      environment:
+        - MYSQL_USER=${PIER_USER_MYSQL}
+        - MYSQL_PASSWORD=${PIER_PASSWORD_MYSQL}
+        - MYSQL_DATABASE=${MYSQL_DATABASE:-limesurvey-db}
+        - MYSQL_ROOT_PASSWORD=${PIER_PASSWORD_MYSQLROOT}
+      volumes:
+        - limesurvey_mariadb_data:/var/lib/mysql
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - healthcheck.sh
+          - --connect
+          - --innodb_initialized
+        timeout: 20s
+    redis:
+      image: redis:7-alpine
+      healthcheck:
+        interval: 5s
+        retries: 3
+        test:
+          - CMD
+          - redis-cli
+          - ping
+        timeout: 3s
+  volumes:
+    limesurvey_config_data: null
+    limesurvey_mariadb_data: null
+    limesurvey_plugins_data: null
+    limesurvey_sessions_data: null
+    limesurvey_upload_data: null

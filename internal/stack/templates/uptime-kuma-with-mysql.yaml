@@ -1,0 +1,55 @@
+name: Uptime Kuma com MySQL
+description: Monitora em tempo real a disponibilidade das suas aplicações.
+category: Monitoramento
+website: https://github.com/louislam/uptime-kuma?tab=readme-ov-file
+tags:
+  - monitoring
+  - status
+  - performance
+  - web
+  - services
+  - applications
+  - real-time
+routes:
+  - service: uptime-kuma
+    port: 3001
+compose: |
+  services:
+    mysql:
+      image: mysql:8
+      environment:
+        - MYSQL_USER=${PIER_USER_MYSQL}
+        - MYSQL_PASSWORD=${PIER_PASSWORD_MYSQL}
+        - MYSQL_ROOT_PASSWORD=${PIER_PASSWORD_ROOT}
+        - MYSQL_DATABASE=${MYSQL_DATABASE:-uptime-kuma-db}
+      volumes:
+        - mysql-data:/var/lib/mysql
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - mysqladmin
+          - ping
+          - -h
+          - 127.0.0.1
+        timeout: 20s
+    uptime-kuma:
+      image: louislam/uptime-kuma:2
+      environment:
+        - TZ=${TZ:-Etc/UTC}
+      volumes:
+        - uptime-kuma-data:/app/data
+      depends_on:
+        mysql:
+          condition: service_healthy
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - extra/healthcheck
+        timeout: 5s
+  volumes:
+    mysql-data: null
+    uptime-kuma-data: null

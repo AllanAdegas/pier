@@ -1,0 +1,148 @@
+name: Windmill
+description: Plataforma para automações de vários passos e aplicações internas.
+category: Automação
+website: https://www.windmill.dev/docs/
+tags:
+  - windmill
+  - workflow
+  - automation
+  - developer
+  - platform
+routes:
+  - service: windmill-server
+    port: 8000
+compose: |
+  services:
+    db:
+      image: postgres:16
+      environment:
+        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
+        - POSTGRES_USER=${PIER_USER_POSTGRES}
+        - POSTGRES_DB=${POSTGRES_DB:-windmill-db}
+      volumes:
+        - db-data:/var/lib/postgresql/data
+      healthcheck:
+        interval: 10s
+        retries: 5
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 5s
+      shm_size: 1g
+    lsp:
+      image: ghcr.io/windmill-labs/windmill-lsp:latest
+      volumes:
+        - lsp-cache:/root/.cache
+      healthcheck:
+        interval: 30s
+        retries: 3
+        start_period: 20s
+        test:
+          - CMD-SHELL
+          - exit 0
+        timeout: 10s
+    windmill-server:
+      image: ghcr.io/windmill-labs/windmill:main
+      environment:
+        - DATABASE_URL=postgres://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@db/${POSTGRES_DB:-windmill-db}
+        - MODE=server
+        - BASE_URL=${PIER_URL_WINDMILL_SERVER}
+      volumes:
+        - worker-logs:/tmp/windmill/logs
+      depends_on:
+        db:
+          condition: service_healthy
+      healthcheck:
+        interval: 30s
+        retries: 3
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://localhost:8000/health
+        timeout: 10s
+    windmill-worker-1:
+      image: ghcr.io/windmill-labs/windmill:main
+      environment:
+        - DATABASE_URL=postgres://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@db/${POSTGRES_DB:-windmill-db}
+        - MODE=worker
+        - WORKER_GROUP=default
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+        - worker-dependency-cache:/tmp/windmill/cache
+        - worker-logs:/tmp/windmill/logs
+      depends_on:
+        db:
+          condition: service_healthy
+      healthcheck:
+        interval: 30s
+        retries: 3
+        test:
+          - CMD-SHELL
+          - exit 0
+        timeout: 10s
+    windmill-worker-2:
+      image: ghcr.io/windmill-labs/windmill:main
+      environment:
+        - DATABASE_URL=postgres://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@db/${POSTGRES_DB:-windmill-db}
+        - MODE=worker
+        - WORKER_GROUP=default
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+        - worker-dependency-cache:/tmp/windmill/cache
+        - worker-logs:/tmp/windmill/logs
+      depends_on:
+        db:
+          condition: service_healthy
+      healthcheck:
+        interval: 30s
+        retries: 3
+        test:
+          - CMD-SHELL
+          - exit 0
+        timeout: 10s
+    windmill-worker-3:
+      image: ghcr.io/windmill-labs/windmill:main
+      environment:
+        - DATABASE_URL=postgres://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@db/${POSTGRES_DB:-windmill-db}
+        - MODE=worker
+        - WORKER_GROUP=default
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+        - worker-dependency-cache:/tmp/windmill/cache
+        - worker-logs:/tmp/windmill/logs
+      depends_on:
+        db:
+          condition: service_healthy
+      healthcheck:
+        interval: 30s
+        retries: 3
+        test:
+          - CMD-SHELL
+          - exit 0
+        timeout: 10s
+    windmill-worker-native:
+      image: ghcr.io/windmill-labs/windmill:main
+      environment:
+        - DATABASE_URL=postgres://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@db/${POSTGRES_DB:-windmill-db}
+        - MODE=worker
+        - WORKER_GROUP=native
+        - NUM_WORKERS=8
+        - SLEEP_QUEUE=200
+      volumes:
+        - worker-logs:/tmp/windmill/logs
+      depends_on:
+        db:
+          condition: service_healthy
+      healthcheck:
+        interval: 30s
+        retries: 3
+        test:
+          - CMD-SHELL
+          - exit 0
+        timeout: 10s
+  volumes:
+    db-data: null
+    lsp-cache: null
+    worker-dependency-cache: null
+    worker-logs: null

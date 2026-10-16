@@ -1,0 +1,53 @@
+name: Checkmate
+description: Monitoramento open source de servidores e sites.
+category: Monitoramento
+website: https://docs.checkmate.so/
+tags:
+  - monitoring
+  - server
+  - uptime
+  - healthcheck
+routes:
+  - service: checkmate
+    port: 52345
+compose: |
+  services:
+    checkmate:
+      image: ghcr.io/bluewave-labs/checkmate-backend-mono-multiarch:v3.2.0
+      environment:
+        - UPTIME_APP_API_BASE_URL=${PIER_URL_CHECKMATE}/api/v1
+        - UPTIME_APP_CLIENT_HOST=${PIER_URL_CHECKMATE}
+        - DB_CONNECTION_STRING=mongodb://mongodb:27017/uptime_db
+        - CLIENT_HOST=${PIER_URL_CHECKMATE}
+        - JWT_SECRET=${PIER_PASSWORD_64_JWT}
+      depends_on:
+        - mongodb
+      healthcheck:
+        interval: 30s
+        retries: 3
+        test:
+          - CMD
+          - node
+          - -e
+          - 'require(''http'').get(''http://127.0.0.1:52345/health'', r => process.exit(r.statusCode === 200 ? 0 : 1)).on(''error'', () => process.exit(1))'
+        timeout: 5s
+    mongodb:
+      image: ghcr.io/bluewave-labs/checkmate-mongo:v3.2.0
+      command:
+        - mongod
+        - --quiet
+        - --bind_ip_all
+      volumes:
+        - checkmate-mongo:/data/db
+      healthcheck:
+        interval: 5s
+        start_period: 10s
+        test:
+          - CMD
+          - mongosh
+          - --eval
+          - db.adminCommand('ping')
+          - --quiet
+        timeout: 30s
+  volumes:
+    checkmate-mongo: null

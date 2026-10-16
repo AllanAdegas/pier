@@ -1,0 +1,38 @@
+name: Prowlarr
+description: Gerenciador de indexadores para a stack *arr.
+category: Mídia
+website: https://hub.docker.com/r/linuxserver/prowlarr
+tags:
+  - media
+  - server
+  - movies
+  - tv
+  - indexer
+  - torrent
+  - nzb
+  - usenet
+routes:
+  - service: prowlarr
+    port: 9696
+compose: |
+  services:
+    prowlarr:
+      image: lscr.io/linuxserver/prowlarr:latest
+      environment:
+        - _APP_URL=$PIER_URL_PROWLARR
+        - PUID=1000
+        - PGID=1000
+        - TZ=${TZ:-America/Toronto}
+      volumes:
+        - prowlarr-config:/config
+      healthcheck:
+        interval: 2s
+        retries: 15
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://localhost:9696/ping
+        timeout: 10s
+  volumes:
+    prowlarr-config: null

@@ -1,0 +1,12 @@
+name: IT Tools
+description: Coleção de utilitários para desenvolvedores (conversores, geradores, formatadores).
+category: Utilitários
+website: https://it-tools.tech
+verified: true
+routes:
+  - service: it-tools
+    port: 80
+compose: |
+  services:
+    it-tools:
+      image: corentinth/it-tools:latest

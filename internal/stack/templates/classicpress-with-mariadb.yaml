@@ -1,0 +1,55 @@
+name: ClassicPress com MariaDB
+description: CMS leve e estável baseado no WordPress, sem o editor de blocos.
+category: CMS
+website: https://www.classicpress.net/
+tags:
+  - cms
+  - blog
+  - content
+  - management
+routes:
+  - service: classicpress
+    port: 80
+compose: |
+  services:
+    classicpress:
+      image: classicpress/classicpress:latest
+      environment:
+        - CLASSICPRESS_DB_HOST=mariadb
+        - CLASSICPRESS_DB_USER=$PIER_USER_CLASSICPRESS
+        - CLASSICPRESS_DB_PASSWORD=$PIER_PASSWORD_CLASSICPRESS
+        - CLASSICPRESS_DB_NAME=classicpress
+      volumes:
+        - classicpress-files:/var/www/html
+      depends_on:
+        - mariadb
+      healthcheck:
+        interval: 2s
+        retries: 10
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1
+        timeout: 10s
+    mariadb:
+      image: mariadb:11
+      environment:
+        - MYSQL_ROOT_PASSWORD=$PIER_PASSWORD_ROOT
+        - MYSQL_DATABASE=classicpress
+        - MYSQL_USER=$PIER_USER_CLASSICPRESS
+        - MYSQL_PASSWORD=$PIER_PASSWORD_CLASSICPRESS
+      volumes:
+        - mariadb-data:/var/lib/mysql
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - healthcheck.sh
+          - --connect
+          - --innodb_initialized
+        timeout: 20s
+  volumes:
+    classicpress-files: null
+    mariadb-data: null

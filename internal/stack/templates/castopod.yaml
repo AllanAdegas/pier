@@ -1,0 +1,80 @@
+name: Castopod
+description: Hospedagem de podcasts open source, com interação com a audiência.
+category: Mídia
+website: https://docs.castopod.org/main/en/
+tags:
+  - podcast
+  - media
+  - audio
+  - video
+  - streaming
+  - hosting
+  - platform
+  - castopod
+routes:
+  - service: castopod
+    port: 8080
+compose: |
+  services:
+    castopod:
+      image: castopod/castopod:1.15.4
+      environment:
+        - MYSQL_DATABASE=castopod
+        - MYSQL_USER=$PIER_USER_MYSQL
+        - MYSQL_PASSWORD=$PIER_PASSWORD_MYSQL
+        - CP_DISABLE_HTTPS=${CP_DISABLE_HTTPS:-1}
+        - CP_BASEURL=$PIER_URL_CASTOPOD
+        - CP_ANALYTICS_SALT=$PIER_BASE64_64_SALT
+        - CP_CACHE_HANDLER=redis
+        - CP_REDIS_HOST=redis
+        - CP_REDIS_PASSWORD=$PIER_PASSWORD_REDIS
+      volumes:
+        - castopod-media:/var/www/castopod/public/media
+      depends_on:
+        mariadb:
+          condition: service_healthy
+        redis:
+          condition: service_healthy
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://localhost:8080/health
+        timeout: 20s
+    mariadb:
+      image: mariadb:11.2
+      environment:
+        - MYSQL_ROOT_PASSWORD=$PIER_PASSWORD_MYSQL
+        - MYSQL_DATABASE=castopod
+        - MYSQL_USER=$PIER_USER_MYSQL
+        - MYSQL_PASSWORD=$PIER_PASSWORD_MYSQL
+      volumes:
+        - castopod-db:/var/lib/mysql
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - healthcheck.sh
+          - --connect
+          - --innodb_initialized
+        timeout: 20s
+    redis:
+      image: redis:7.2-alpine
+      command: --requirepass $PIER_PASSWORD_REDIS
+      volumes:
+        - castopod-cache:/data
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - redis-cli -a $PIER_PASSWORD_REDIS ping | grep PONG
+        timeout: 20s
+  volumes:
+    castopod-cache: null
+    castopod-db: null
+    castopod-media: null

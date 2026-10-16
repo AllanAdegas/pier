@@ -1,0 +1,48 @@
+name: Ollama com Open WebUI
+description: Modelos de IA locais com uma interface amigável.
+category: IA
+website: https://docs.openwebui.com
+tags:
+  - ollama
+  - ai
+  - models
+  - deployment
+  - open-web-ui
+  - integration
+routes:
+  - service: open-webui
+    port: 8080
+compose: |
+  services:
+    ollama-api:
+      image: ollama/ollama:latest
+      volumes:
+        - ollama:/root/.ollama
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - ollama
+          - list
+        timeout: 30s
+    open-webui:
+      image: ghcr.io/open-webui/open-webui:main
+      environment:
+        - OLLAMA_BASE_URL=http://ollama-api:11434
+      volumes:
+        - open-webui:/app/backend/data
+      depends_on:
+        - ollama-api
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:8080
+        timeout: 30s
+  volumes:
+    ollama: null
+    open-webui: null

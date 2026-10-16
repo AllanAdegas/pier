@@ -1,0 +1,67 @@
+name: Forgejo com PostgreSQL
+description: Forja de software leve, fácil de instalar e manter.
+category: Git
+website: https://forgejo.org/docs
+tags:
+  - version control
+  - collaboration
+  - code
+  - hosting
+  - lightweight
+  - postgresql
+routes:
+  - service: forgejo
+    port: 3000
+compose: |
+  services:
+    forgejo:
+      image: codeberg.org/forgejo/forgejo:15
+      environment:
+        - FORGEJO__server__ROOT_URL=${PIER_URL_FORGEJO}
+        - FORGEJO__migrations__ALLOWED_DOMAINS=${FORGEJO__migrations__ALLOWED_DOMAINS}
+        - FORGEJO__migrations__ALLOW_LOCALNETWORKS=${FORGEJO__migrations__ALLOW_LOCALNETWORKS-false}
+        - USER_UID=1000
+        - USER_GID=1000
+        - FORGEJO__database__DB_TYPE=postgres
+        - FORGEJO__database__HOST=postgresql
+        - FORGEJO__database__NAME=${POSTGRESQL_DATABASE-forgejo}
+        - FORGEJO__database__USER=$PIER_USER_POSTGRESQL
+        - FORGEJO__database__PASSWD=$PIER_PASSWORD_POSTGRESQL
+      volumes:
+        - forgejo-data:/data
+        - forgejo-timezone:/etc/timezone:ro
+        - forgejo-localtime:/etc/localtime:ro
+      ports:
+        - "22222:22"
+      depends_on:
+        postgresql:
+          condition: service_healthy
+      healthcheck:
+        interval: 2s
+        retries: 15
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:3000
+        timeout: 10s
+    postgresql:
+      image: postgres:16-alpine
+      environment:
+        - POSTGRES_USER=${PIER_USER_POSTGRESQL}
+        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRESQL}
+        - POSTGRES_DB=${POSTGRESQL_DATABASE}
+      volumes:
+        - forgejo-postgresql-data:/var/lib/postgresql/data
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 20s
+  volumes:
+    forgejo-data: null
+    forgejo-localtime: null
+    forgejo-postgresql-data: null
+    forgejo-timezone: null

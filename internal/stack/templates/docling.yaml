@@ -1,0 +1,34 @@
+name: Docling
+description: Converte documentos (PDF, DOCX, PPTX, imagens, HTML) para Markdown e JSON com IA.
+category: IA
+website: https://github.com/DS4SD/docling-serve
+tags:
+  - ai
+  - document
+  - pdf
+  - ocr
+  - markdown
+  - extraction
+  - ibm
+  - rag
+routes:
+  - service: docling-serve
+    port: 5001
+compose: |
+  services:
+    docling-serve:
+      image: ghcr.io/docling-project/docling-serve-cpu:latest
+      environment:
+        - DOCLING_SERVE_ENABLE_UI=${DOCLING_SERVE_ENABLE_UI:-true}
+        - DOCLING_SERVE_LOG_LEVEL=${DOCLING_SERVE_LOG_LEVEL:-WARNING}
+        - DOCLING_NUM_THREADS=${DOCLING_NUM_THREADS:-4}
+      healthcheck:
+        interval: 30s
+        retries: 10
+        start_period: 120s
+        test:
+          - CMD
+          - wget
+          - -qO-
+          - http://127.0.0.1:5001/health
+        timeout: 30s

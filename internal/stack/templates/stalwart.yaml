@@ -1,0 +1,47 @@
+name: Stalwart
+description: Servidor de e-mail moderno.
+category: E-mail
+website: https://stalw.art/docs/
+tags:
+  - mail
+  - smtp
+  - imap
+  - pop3
+  - jmap
+  - email
+  - sieve
+  - messaging
+routes:
+  - service: stalwart
+    port: 8080
+compose: |
+  services:
+    stalwart:
+      image: stalwartlabs/stalwart:v0.16.13
+      volumes:
+        - stalwart-mail:/etc/stalwart
+        - stalwart-data:/var/lib/stalwart
+        - /etc/localtime:/etc/localtime:ro
+      ports:
+        - "25:25"
+        - 465:465
+        - 587:587
+        - 993:993
+        - 995:995
+        - 143:143
+        - 110:110
+        - 4190:4190
+      expose:
+        - "8080"
+      healthcheck:
+        interval: 30s
+        retries: 3
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://localhost:8080/
+        timeout: 10s
+  volumes:
+    stalwart-data: null
+    stalwart-mail: null

@@ -1,0 +1,47 @@
+name: Cap
+description: CAPTCHA auto-hospedado para a web moderna.
+category: Segurança
+website: https://capjs.js.org/guide/
+tags:
+  - captcha
+  - security
+  - privacy
+  - proof-of-work
+routes:
+  - service: cap
+    port: 3000
+compose: |
+  services:
+    cap:
+      image: tiago2/cap:3.0.4
+      environment:
+        - ADMIN_KEY=$PIER_PASSWORD_ADMIN
+        - REDIS_URL=redis://valkey:6379
+      depends_on:
+        valkey:
+          condition: service_healthy
+      healthcheck:
+        interval: 30s
+        retries: 3
+        start_period: 5s
+        test:
+          - CMD
+          - bun
+          - -e
+          - fetch('http://localhost:3000').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))
+        timeout: 5s
+    valkey:
+      image: valkey/valkey:9-alpine
+      command: valkey-server --save 60 1 --loglevel warning --maxmemory-policy noeviction
+      volumes:
+        - valkey-data:/data
+      healthcheck:
+        interval: 5s
+        retries: 5
+        test:
+          - CMD
+          - valkey-cli
+          - ping
+        timeout: 3s
+  volumes:
+    valkey-data: null

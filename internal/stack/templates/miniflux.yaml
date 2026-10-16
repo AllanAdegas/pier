@@ -1,0 +1,50 @@
+name: Miniflux
+description: Leitor de feeds minimalista.
+category: RSS
+website: https://miniflux.app/docs/index.html
+tags:
+  - miniflux
+  - rss
+  - feed
+routes:
+  - service: miniflux
+    port: 8080
+compose: |
+  services:
+    miniflux:
+      image: ghcr.io/miniflux/miniflux:latest
+      environment:
+        - BASE_URL=${PIER_URL_MINIFLUX}
+        - PORT=${PORT:-8080}
+        - RUN_MIGRATIONS=${RUN_MIGRATIONS:-1}
+        - CREATE_ADMIN=${CREATE_ADMIN:-1}
+        - ADMIN_USERNAME=${PIER_USER_ADMIN}
+        - ADMIN_PASSWORD=${PIER_PASSWORD_64_ADMIN}
+        - DATABASE_URL=postgres://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@postgres:5432/${POSTGRES_DB:-miniflux-db}?sslmode=disable
+      depends_on:
+        postgres:
+          condition: service_healthy
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - wget -qO- http://127.0.0.1:8080/
+        timeout: 20s
+    postgres:
+      image: postgres:16-alpine
+      environment:
+        - POSTGRES_USER=${PIER_USER_POSTGRES}
+        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
+        - POSTGRES_DB=${POSTGRES_DB:-miniflux-db}
+      volumes:
+        - miniflux-postgres-data:/var/lib/postgresql/data
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 20s
+  volumes:
+    miniflux-postgres-data: null

@@ -1,0 +1,48 @@
+name: Neon WS Proxy
+description: Proxy WebSocket para usar o driver serverless da Neon com o seu Postgres.
+category: Rede
+website: https://neon.tech
+tags:
+  - proxy
+  - neon
+  - postgresql
+routes:
+  - service: neon-proxy
+    port: 2112
+compose: |
+  services:
+    neon-proxy:
+      image: ghcr.io/neondatabase/wsproxy:latest
+      restart: unless-stopped
+      environment:
+        - APPEND_PORT=postgres:5432
+        - ALLOW_ADDR_REGEX=.*
+        - LOG_TRAFFIC=false
+        - LOG_CONN_INFO=true
+      depends_on:
+        - postgres
+      healthcheck:
+        interval: 5s
+        retries: 20
+        test:
+          - CMD-SHELL
+          - nc -z 127.0.0.1 80
+        timeout: 2s
+    postgres:
+      image: postgres:17-alpine
+      environment:
+        - POSTGRES_USER=${PIER_USER_POSTGRESQL}
+        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRESQL}
+        - POSTGRES_DB=${POSTGRESQL_DATABASE:-postgres}
+        - POSTGRES_HOST_AUTH_METHOD=password
+      volumes:
+        - postgresql-data:/var/lib/postgresql/data
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 20s
+  volumes:
+    postgresql-data: null

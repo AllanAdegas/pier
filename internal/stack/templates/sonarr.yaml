@@ -1,0 +1,33 @@
+name: Sonarr
+description: Gestão de coleção de séries para Usenet e BitTorrent.
+category: Mídia
+website: https://hub.docker.com/r/linuxserver/sonarr
+tags:
+  - media
+  - server
+  - tv
+routes:
+  - service: sonarr
+    port: 8989
+compose: |
+  services:
+    sonarr:
+      image: lscr.io/linuxserver/sonarr:latest
+      environment:
+        - _APP_URL=$PIER_URL_SONARR
+        - PUID=1000
+        - PGID=1000
+        - TZ=${TZ:-America/Toronto}
+      volumes:
+        - sonarr-config:/config
+      healthcheck:
+        interval: 2s
+        retries: 15
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://localhost:8989/ping
+        timeout: 10s
+  volumes:
+    sonarr-config: null

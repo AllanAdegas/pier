@@ -1,0 +1,56 @@
+name: Zipline
+description: Servidor de upload de arquivos compatível com ShareX, fácil de configurar.
+category: Mídia
+website: https://zipline.diced.sh/docs/config
+tags:
+  - zipline
+  - file-sharing
+  - upload
+  - sharing
+routes:
+  - service: zipline
+    port: 3000
+compose: |
+  services:
+    postgres:
+      image: postgres:16-alpine
+      environment:
+        - POSTGRES_USER=${PIER_USER_POSTGRES}
+        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
+        - POSTGRES_DB=${POSTGRES_DB:-zipline-db}
+      volumes:
+        - zipline-postgres-data:/var/lib/postgresql/data
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 20s
+    zipline:
+      image: ghcr.io/diced/zipline:latest
+      environment:
+        - CORE_RETURN_HTTPS=${CORE_RETURN_HTTPS:-false}
+        - CORE_SECRET=${PIER_PASSWORD_64_ZIPLINE}
+        - DATABASE_URL=postgres://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@postgres/${POSTGRES_DB:-zipline-db}
+        - CORE_LOGGER=${CORE_LOGGER:-true}
+      volumes:
+        - zipline-uploads:/zipline/uploads
+        - zipline-public:/zipline/public
+      depends_on:
+        postgres:
+          condition: service_healthy
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - wget
+          - -q
+          - --spider
+          - http://127.0.0.1:3000/auth/login
+        timeout: 20s
+  volumes:
+    zipline-postgres-data: null
+    zipline-public: null
+    zipline-uploads: null

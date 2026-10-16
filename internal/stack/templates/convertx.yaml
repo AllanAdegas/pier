@@ -1,0 +1,27 @@
+name: ConvertX
+description: Conversor de arquivos online, com suporte a mais de mil formatos.
+category: Backend
+website: https://github.com/C4illin/ConvertX
+tags:
+  - converter
+  - file
+  - documents
+  - files
+  - directories
+routes:
+  - service: convertx
+    port: 3000
+compose: |
+  services:
+    convertx:
+      image: ghcr.io/c4illin/convertx:latest
+      environment:
+        - ACCOUNT_REGISTRATION=${ACCOUNT_REGISTRATION:-false}
+        - HTTP_ALLOWED=${HTTP_ALLOWED:-true}
+        - ALLOW_UNAUTHENTICATED=${ALLOW_UNAUTHENTICATED:-false}
+        - AUTO_DELETE_EVERY_N_HOURS=${AUTO_DELETE_EVERY_N_HOURS:-24}
+        - JWT_SECRET=${PIER_PASSWORD_CONVERTXJWTSECRET}
+      volumes:
+        - convertx_data:/app/data
+  volumes:
+    convertx_data: null

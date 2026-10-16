@@ -1,0 +1,58 @@
+name: Tolgee
+description: Plataforma de gestão de localização para desenvolvedores e tradutores.
+category: Produtividade
+website: https://tolgee.io/
+tags:
+  - localization
+  - translation
+  - management
+  - platform
+routes:
+  - service: tolgee
+    port: 8080
+compose: |
+  services:
+    postgresql:
+      image: postgres:16-alpine
+      environment:
+        - POSTGRES_USER=${PIER_USER_POSTGRESQL}
+        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRESQL}
+        - POSTGRES_DB=${POSTGRESQL_DATABASE:-tolgee}
+      volumes:
+        - tolgee-postgresql-data:/var/lib/postgresql/data
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 20s
+    tolgee:
+      image: tolgee/tolgee
+      environment:
+        - TOLGEE_AUTHENTICATION_ENABLED=true
+        - TOLGEE_AUTHENTICATION_INITIAL_PASSWORD=$PIER_PASSWORD_TOLGEE
+        - TOLGEE_AUTHENTICATION_INITIAL_USERNAME=admin
+        - TOLGEE_AUTHENTICATION_JWT_SECRET=$PIER_PASSWORD_JWT
+        - TOLGEE_POSTGRES_AUTOSTART_ENABLED=false
+        - SPRING_DATASOURCE_URL=jdbc:postgresql://postgresql:5432/${POSTGRES_DB:-tolgee}
+        - SPRING_DATASOURCE_USERNAME=${PIER_USER_POSTGRESQL}
+        - SPRING_DATASOURCE_PASSWORD=${PIER_PASSWORD_POSTGRESQL}
+      volumes:
+        - tolgee-data:/data
+      depends_on:
+        postgresql:
+          condition: service_healthy
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - wget
+          - -q
+          - --spider
+          - http://127.0.0.1:8080
+        timeout: 20s
+  volumes:
+    tolgee-data: null
+    tolgee-postgresql-data: null

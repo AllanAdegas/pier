@@ -1,0 +1,62 @@
+name: MindsDB
+description: Plataforma para construir IA a partir dos dados da empresa.
+category: IA
+website: https://docs.mindsdb.com/what-is-mindsdb
+tags:
+  - mysql
+  - postgresdb
+  - machine-learning
+  - ai
+routes:
+  - service: mindsdb
+    port: 47335
+    path: /api
+compose: |
+  services:
+    mindsdb:
+      image: mindsdb/mindsdb:latest
+      environment:
+        - MINDSDB_DOCKER_ENV=true
+        - MINDSDB_STORAGE_DIR=/mindsdb/var
+        - FLASK_DEBUG=${FLASK_DEBUG:-1}
+        - OPENAI_API_KEY=${OPENAI_API_KEY}
+        - LANGFUSE_HOST=${LANGFUSE_HOST}
+        - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+        - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+        - LANGFUSE_RELEASE=${LANGFUSE_RELEASE:-local}
+        - LANGFUSE_DEBUG=${LANGFUSE_DEBUG:-False}
+        - LANGFUSE_TIMEOUT=${LANGFUSE_TIMEOUT:-10}
+        - LANGFUSE_SAMPLE_RATE=${LANGFUSE_SAMPLE_RATE:-1.0}
+        - MINDSDB_DB_CON=postgresql://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@postgresql/${POSTGRES_DB:-mindsdb-db}
+      volumes:
+        - mindsdb-data:/mindsdb/var
+      depends_on:
+        postgresql:
+          condition: service_healthy
+      healthcheck:
+        interval: 30s
+        retries: 15
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://localhost:47334/api/util/ping
+        timeout: 5s
+    postgresql:
+      image: postgres:16-alpine
+      environment:
+        - POSTGRES_USER=${PIER_USER_POSTGRES}
+        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
+        - POSTGRES_DB=${POSTGRES_DB:-mindsdb-db}
+      volumes:
+        - mindsdb-postgresql-data:/var/lib/postgresql/data
+      healthcheck:
+        interval: 10s
+        retries: 15
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 5s
+  volumes:
+    mindsdb-data: null
+    mindsdb-postgresql-data: null

@@ -1,0 +1,37 @@
+name: 9Router
+description: 'Gateway de IA para programação: roteia Claude Code, Codex, Cursor e outros para mais de 40 provedores de LLM, com fallback automático.'
+category: IA
+website: https://github.com/decolua/9router
+tags:
+  - ai
+  - gateway
+  - routing
+  - coding
+  - llm
+  - providers
+routes:
+  - service: 9router
+    port: 20128
+compose: |
+  services:
+    9router:
+      image: decolua/9router:0.5.65
+      environment:
+        - DATA_DIR=/app/data
+        - INITIAL_PASSWORD=${PIER_PASSWORD_PASSWORD}
+        - JWT_SECRET=${PIER_PASSWORD_64_JWTSECRET}
+        - API_KEY_SECRET=${PIER_PASSWORD_KEYSECRET}
+        - MACHINE_ID_SALT=${PIER_HEX_64_HMACSALT}
+      volumes:
+        - 9router:/app/data
+      healthcheck:
+        interval: 5s
+        retries: 5
+        test:
+          - CMD
+          - wget
+          - --spider
+          - http://127.0.0.1:20128/
+        timeout: 10s
+  volumes:
+    9router: null

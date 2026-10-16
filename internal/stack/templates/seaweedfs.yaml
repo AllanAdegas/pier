@@ -1,0 +1,96 @@
+name: SeaweedFS
+description: Sistema de arquivos distribuído e escalável, compatível com S3.
+category: Armazenamento
+website: https://github.com/seaweedfs/seaweedfs
+tags:
+  - object
+  - storage
+  - server
+  - s3
+  - api
+routes:
+  - service: seaweedfs-admin
+    port: 23646
+  - service: seaweedfs-master
+    port: 8333
+compose: |
+  services:
+    seaweedfs-admin:
+      image: chrislusf/seaweedfs:4.41
+      command:
+        - admin
+        - -master=seaweedfs-master:9333
+        - -adminUser=${SEAWEED_USER_ADMIN}
+        - -adminPassword=${SEAWEED_PASSWORD_ADMIN}
+        - -port=23646
+        - -dataDir=/data
+      environment:
+        - SEAWEED_USER_ADMIN=${PIER_USER_ADMIN}
+        - SEAWEED_PASSWORD_ADMIN=${PIER_PASSWORD_ADMIN}
+      volumes:
+        - seaweedfs-admin-data:/data
+      depends_on:
+        seaweedfs-master:
+          condition: service_healthy
+      healthcheck:
+        interval: 10s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - wget --spider -q http://0.0.0.0:23646; [ $$? -le 8 ]
+        timeout: 5s
+    seaweedfs-master:
+      image: chrislusf/seaweedfs:4.41
+      entrypoint: |
+        sh -c '\
+        sed "s/env:AWS_ACCESS_KEY_ID/$AWS_ACCESS_KEY_ID/g" /base-config.json > /base1-config.json; \
+        sed "s/env:AWS_SECRET_ACCESS_KEY/$AWS_SECRET_ACCESS_KEY/g" /base1-config.json > /config.json; \
+        weed server -dir=/data -master.port=9333 -s3 -s3.port=8333 -s3.config=/config.json\
+        '
+      environment:
+        - AWS_ACCESS_KEY_ID=${PIER_USER_S3}
+        - AWS_SECRET_ACCESS_KEY=${PIER_PASSWORD_S3}
+      volumes:
+        - seaweedfs-s3-data:/data
+        - content: |
+            {
+              "identities": [
+                {
+                  "name": "anonymous",
+                  "actions": [
+                    "Read"
+                  ]
+                },
+                {
+                  "name": "admin",
+                  "credentials": [
+                    {
+                      "accessKey": "env:AWS_ACCESS_KEY_ID",
+                      "secretKey": "env:AWS_SECRET_ACCESS_KEY"
+                    }
+                  ],
+                  "actions": [
+                    "Admin",
+                    "Read",
+                    "ReadAcp",
+                    "List",
+                    "Tagging",
+                    "Write",
+                    "WriteAcp"
+                  ]
+                }
+              ]
+            }
+          source: ./base-config.json
+          target: /base-config.json
+          type: bind
+      healthcheck:
+        interval: 10s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - wget --spider -q http://0.0.0.0:8333; [ $$? -le 8 ]
+        timeout: 5s
+  volumes:
+    seaweedfs-admin-data: null
+    seaweedfs-s3-data: null

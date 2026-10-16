@@ -1,0 +1,32 @@
+name: BudgE
+description: Aplicativo de orçamento e finanças pessoais.
+category: Finanças
+website: https://github.com/linuxserver/budge
+tags:
+  - personal finance
+  - budgeting
+  - expense tracking
+routes:
+  - service: budge
+    port: 80
+compose: |
+  services:
+    budge:
+      image: lscr.io/linuxserver/budge:latest
+      environment:
+        - PUID=1000
+        - PGID=1000
+        - TZ=Europe/Madrid
+      volumes:
+        - budge-config:/config
+      healthcheck:
+        interval: 2s
+        retries: 15
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:80
+        timeout: 10s
+  volumes:
+    budge-config: null

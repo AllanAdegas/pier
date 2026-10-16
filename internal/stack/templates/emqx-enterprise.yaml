@@ -1,0 +1,41 @@
+name: EMQX Enterprise
+description: Broker MQTT para IoT, IIoT e veículos conectados.
+category: Rede
+website: https://www.emqx.io/docs/en/latest/deploy/install-docker.html
+tags:
+  - mqtt
+  - broker
+  - iot
+  - messaging
+  - emqx
+  - iiot
+routes:
+  - service: emqx
+    port: 18083
+compose: |
+  services:
+    emqx:
+      image: emqx/emqx-enterprise:6.2.2
+      environment:
+        - EMQX_DASHBOARD__DEFAULT_PASSWORD=${PIER_PASSWORD_EMQX}
+      volumes:
+        - emqx_data:/opt/emqx/data
+        - emqx_log:/opt/emqx/log
+      ports:
+        - 1883:1883
+        - 8083:8083
+        - 8084:8084
+        - 8883:8883
+      healthcheck:
+        interval: 10s
+        retries: 5
+        start_period: 30s
+        test:
+          - CMD
+          - /opt/emqx/bin/emqx
+          - ctl
+          - status
+        timeout: 30s
+  volumes:
+    emqx_data: null
+    emqx_log: null

@@ -1,0 +1,36 @@
+name: File Browser
+description: Gerenciador de arquivos via web.
+category: Armazenamento
+website: https://filebrowser.org
+tags:
+  - file-management
+  - storage-access
+  - data-organization
+  - file-utilization
+  - administration-tool
+routes:
+  - service: filebrowser
+    port: 80
+compose: |
+  services:
+    filebrowser:
+      image: filebrowser/filebrowser:latest
+      volumes:
+        - isDirectory: true
+          source: ./srv
+          target: /srv
+          type: bind
+        - content: ""
+          isDirectory: false
+          source: ./database.db
+          target: /database.db
+          type: bind
+        - content: |
+            {
+              "address": "0.0.0.0",
+              "port": 80
+            }
+          read_only: true
+          source: ./filebrowser.json
+          target: /.filebrowser.json
+          type: bind

@@ -1,0 +1,36 @@
+# Pier in a container, managing the Docker of the machine it runs on.
+#
+#   cp .env.example .env        # review PIER_DATA_DIR first
+#   docker compose up --detach --build
+#
+# Pier drives the host's Docker through its socket, so every path it hands to
+# Docker (compose files, build contexts, the proxy configuration) is resolved
+# on the host. That is why the data directory is mounted at the same path on
+# both sides: do not change one side only.
+
+name: pier
+
+services:
+  pier:
+    image: pier:${PIER_VERSION:-latest}
+    build: .
+    container_name: pier
+    restart: unless-stopped
+    # Pier gives running deploys 10 s to stop before it exits.
+    stop_grace_period: 20s
+    ports:
+      - "${PIER_BIND:-127.0.0.1}:${PIER_PORT:-8700}:8700"
+    environment:
+      PIER_DATA_DIR: ${PIER_DATA_DIR:-/data/pier}
+      PIER_SECRET_KEY: ${PIER_SECRET_KEY:-}
+      PIER_DEPLOY_CONCURRENCY: ${PIER_DEPLOY_CONCURRENCY:-2}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${PIER_DATA_DIR:-/data/pier}:${PIER_DATA_DIR:-/data/pier}
+      # Folders used by "pasta do servidor" stacks must be visible to Pier at
+      # their host path too. Add one line per folder, same path on both sides:
+      # - /srv/stacks:/srv/stacks
+    extra_hosts:
+      # Makes PIER_LOCAL_HOST resolve on Linux; Docker Desktop already has it.
+      - host.docker.internal:host-gateway

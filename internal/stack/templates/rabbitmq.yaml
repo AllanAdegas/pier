@@ -1,0 +1,19 @@
+name: RabbitMQ
+description: Broker de mensagens com painel de administração. O domínio aponta para o painel.
+category: Mensageria
+website: https://www.rabbitmq.com
+verified: true
+routes:
+  - service: rabbitmq
+    port: 15672
+compose: |
+  services:
+    rabbitmq:
+      image: rabbitmq:4-management-alpine
+      environment:
+        RABBITMQ_DEFAULT_USER: ${PIER_USER_RABBITMQ}
+        RABBITMQ_DEFAULT_PASS: ${PIER_PASSWORD_RABBITMQ}
+      volumes:
+        - data:/var/lib/rabbitmq
+  volumes:
+    data:

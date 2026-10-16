@@ -1,0 +1,33 @@
+name: Cockpit
+description: Plataforma de conteúdo headless, leve e rápida.
+category: CMS
+website: https://getcockpit.com/documentation/
+tags:
+  - cockpit
+  - headless
+  - cms
+  - database
+  - nosql
+routes: []
+compose: |
+  services:
+    cockpit:
+      image: cockpithq/cockpit:core-latest
+      volumes:
+        - cockpit-config:/var/www/html/config
+        - cockpit-spaces:/var/www/html/.spaces
+        - cockpit-storage:/var/www/html/storage
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - wget
+          - -q
+          - --spider
+          - http://127.0.0.1/api/system/healthcheck
+        timeout: 20s
+  volumes:
+    cockpit-config: null
+    cockpit-spaces: null
+    cockpit-storage: null

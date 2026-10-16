@@ -1,0 +1,30 @@
+name: Jenkins
+description: Servidor de automação open source, com centenas de plugins.
+category: Desenvolvimento
+website: https://www.jenkins.io/doc/
+tags:
+  - jenkins
+  - automation
+  - open-source
+routes:
+  - service: jenkins
+    port: 8080
+compose: |
+  services:
+    jenkins:
+      image: jenkins/jenkins:latest
+      volumes:
+        - jenkins-home:/var/jenkins_home
+        - /var/run/docker.sock:/var/run/docker.sock
+      healthcheck:
+        interval: 30s
+        retries: 3
+        start_period: 40s
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://localhost:8080/login
+        timeout: 10s
+  volumes:
+    jenkins-home: null

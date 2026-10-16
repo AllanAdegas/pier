@@ -1,0 +1,36 @@
+name: Nitropage
+description: Construtor visual de sites, extensível.
+category: CMS
+website: https://nitropage.org
+tags:
+  - nitropage
+  - builder
+  - editor
+  - wysiwyg
+  - cms
+  - content
+  - management
+routes:
+  - service: nitropage
+    port: 3000
+compose: |
+  services:
+    nitropage:
+      image: nitropage/nitropage:sqlite
+      environment:
+        - NP_AUTH_SALT=${PIER_PASSWORD_SALT}
+        - NP_AUTH_PASSWORD=${PIER_PASSWORD_64_SESSION}
+        - DATABASE_URL=file:../.data/dev.db
+      volumes:
+        - nitropage-data:/app/.data
+      healthcheck:
+        interval: 2s
+        retries: 15
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:3000/admin
+        timeout: 10s
+  volumes:
+    nitropage-data: null

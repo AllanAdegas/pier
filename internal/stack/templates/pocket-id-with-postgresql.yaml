@@ -1,0 +1,72 @@
+name: Pocket ID com PostgreSQL
+description: Provedor OIDC simples e seguro, com passkeys.
+category: Autenticação
+website: https://pocket-id.org/docs/setup/installation
+tags:
+  - identity
+  - oidc
+  - oauth
+  - passkey
+  - webauthn
+  - authentication
+  - sso
+  - openid
+routes:
+  - service: pocket-id
+    port: 1411
+compose: |
+  services:
+    pocket-id:
+      image: ghcr.io/pocket-id/pocket-id:v1.13
+      environment:
+        - APP_URL=${PIER_URL_POCKET_ID}
+        - TRUST_PROXY=${TRUST_PROXY:-true}
+        - DB_PROVIDER=postgres
+        - DB_CONNECTION_STRING=postgresql://${PIER_USER_POSTGRESQL}:${PIER_PASSWORD_POSTGRESQL}@postgresql:5432/${POSTGRES_DB:-pocketid}
+        - ENCRYPTION_KEY=${PIER_PASSWORD_64_POCKETID}
+        - KEYS_STORAGE=${KEYS_STORAGE:-database}
+        - MAXMIND_LICENSE_KEY=${MAXMIND_LICENSE_KEY}
+        - SMTP_HOST=${SMTP_HOST}
+        - SMTP_PORT=${SMTP_PORT:-587}
+        - SMTP_FROM=${SMTP_FROM}
+        - SMTP_USER=${SMTP_USER}
+        - SMTP_PASSWORD=${SMTP_PASSWORD}
+        - SMTP_TLS=${SMTP_TLS:-starttls}
+        - SMTP_SKIP_CERT_VERIFY=${SMTP_SKIP_CERT_VERIFY:-false}
+        - EMAIL_LOGIN_NOTIFICATION_ENABLED=${EMAIL_LOGIN_NOTIFICATION_ENABLED:-false}
+        - EMAIL_ONE_TIME_ACCESS_AS_ADMIN_ENABLED=${EMAIL_ONE_TIME_ACCESS_AS_ADMIN_ENABLED:-false}
+        - EMAIL_API_KEY_EXPIRATION_ENABLED=${EMAIL_API_KEY_EXPIRATION_ENABLED:-false}
+        - PUID=${PUID:-1000}
+        - PGID=${PGID:-1000}
+      volumes:
+        - pocket-id-data:/app/data
+      depends_on:
+        postgresql:
+          condition: service_healthy
+      healthcheck:
+        interval: 30s
+        retries: 3
+        start_period: 10s
+        test:
+          - CMD
+          - /app/pocket-id
+          - healthcheck
+        timeout: 5s
+    postgresql:
+      image: postgres:16-alpine
+      environment:
+        - POSTGRES_USER=${PIER_USER_POSTGRESQL}
+        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRESQL}
+        - POSTGRES_DB=${POSTGRES_DB:-pocketid}
+      volumes:
+        - pocket-id-postgresql-data:/var/lib/postgresql/data
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 20s
+  volumes:
+    pocket-id-data: null
+    pocket-id-postgresql-data: null

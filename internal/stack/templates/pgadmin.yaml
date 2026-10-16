@@ -1,0 +1,29 @@
+name: pgAdmin
+description: Administração de bancos PostgreSQL via web.
+category: Dados
+website: https://www.pgadmin.org/docs/pgadmin4/latest/container_deployment.html
+tags:
+  - database management
+routes:
+  - service: pgadmin
+    port: 80
+compose: |
+  services:
+    pgadmin:
+      image: dpage/pgadmin4:latest
+      environment:
+        - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL:?}
+        - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD:?}
+      volumes:
+        - pgadmin-data:/var/lib/pgadmin
+      healthcheck:
+        interval: 5s
+        retries: 5
+        test:
+          - CMD
+          - wget
+          - -qO-
+          - http://localhost:80/login
+        timeout: 10s
+  volumes:
+    pgadmin-data: null

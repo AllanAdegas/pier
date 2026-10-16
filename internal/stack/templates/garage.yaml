@@ -1,0 +1,79 @@
+name: Garage
+description: Armazenamento de objetos distribuído compatível com S3.
+category: Armazenamento
+website: https://garagehq.deuxfleurs.fr/documentation/
+tags:
+  - object
+  - storage
+  - server
+  - s3
+  - api
+  - distributed
+routes: []
+compose: |
+  services:
+    garage:
+      image: dxflrs/garage:v2.3.0
+      command:
+        - /garage
+        - server
+        - --single-node
+        - --default-bucket
+      environment:
+        - GARAGE_S3_API_URL=$GARAGE_S3_API_URL
+        - GARAGE_WEB_URL=$GARAGE_WEB_URL
+        - GARAGE_ADMIN_URL=$GARAGE_ADMIN_URL
+        - GARAGE_RPC_SECRET=${PIER_HEX_64_RPCSECRET}
+        - GARAGE_ADMIN_TOKEN=$PIER_PASSWORD_GARAGE
+        - GARAGE_METRICS_TOKEN=$PIER_PASSWORD_GARAGEMETRICS
+        - GARAGE_ALLOW_WORLD_READABLE_SECRETS=true
+        - GARAGE_DEFAULT_ACCESS_KEY=${PIER_USER_GARAGE}
+        - GARAGE_DEFAULT_SECRET_KEY=${PIER_PASSWORD_64_GARAGE}
+        - GARAGE_DEFAULT_BUCKET=${GARAGE_DEFAULT_BUCKET:-default}
+        - RUST_LOG=${RUST_LOG:-garage=info}
+      volumes:
+        - garage-meta:/var/lib/garage/meta
+        - garage-data:/var/lib/garage/data
+        - content: |-
+            metadata_dir = "/var/lib/garage/meta"
+            data_dir = "/var/lib/garage/data"
+            db_engine = "lmdb"
+
+            replication_factor = 1
+            consistency_mode = "consistent"
+
+            compression_level = 1
+            block_size = "1M"
+
+            rpc_bind_addr = "[::]:3901"
+            rpc_secret_file = "env:GARAGE_RPC_SECRET"
+            bootstrap_peers = []
+
+            [s3_api]
+            s3_region = "garage"
+            api_bind_addr = "[::]:3900"
+            root_domain = ".s3.garage.localhost"
+
+            [s3_web]
+            bind_addr = "[::]:3902"
+            root_domain = ".web.garage.localhost"
+
+            [admin]
+            api_bind_addr = "[::]:3903"
+            admin_token_file = "env:GARAGE_ADMIN_TOKEN"
+            metrics_token_file = "env:GARAGE_METRICS_TOKEN"
+          source: ./garage.toml
+          target: /etc/garage.toml
+          type: bind
+      healthcheck:
+        interval: 10s
+        retries: 5
+        test:
+          - CMD
+          - /garage
+          - stats
+          - -a
+        timeout: 5s
+  volumes:
+    garage-data: null
+    garage-meta: null

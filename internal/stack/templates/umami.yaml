@@ -1,0 +1,34 @@
+name: Umami
+description: Analytics de sites simples e respeitoso com a privacidade, com PostgreSQL dedicado.
+category: Analytics
+website: https://umami.is
+verified: true
+routes:
+  - service: umami
+    port: 3000
+compose: |
+  services:
+    umami:
+      image: ghcr.io/umami-software/umami:postgresql-latest
+      environment:
+        DATABASE_URL: postgresql://umami:${PIER_PASSWORD_DB}@db:5432/umami
+        DATABASE_TYPE: postgresql
+        APP_SECRET: ${PIER_SECRET_APP}
+      depends_on:
+        db:
+          condition: service_healthy
+    db:
+      image: postgres:17-alpine
+      environment:
+        POSTGRES_USER: umami
+        POSTGRES_PASSWORD: ${PIER_PASSWORD_DB}
+        POSTGRES_DB: umami
+      volumes:
+        - db:/var/lib/postgresql/data
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U umami -d umami"]
+        interval: 5s
+        timeout: 5s
+        retries: 20
+  volumes:
+    db:

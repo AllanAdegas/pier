@@ -1,0 +1,30 @@
+name: MediaWiki
+description: Plataforma de colaboração e documentação, o motor da Wikipédia.
+category: CMS
+website: https://www.mediawiki.org
+tags:
+  - wiki
+  - collaboration
+  - documentation
+routes:
+  - service: mediawiki
+    port: 80
+compose: |
+  services:
+    mediawiki:
+      image: mediawiki:latest
+      volumes:
+        - mediawiki-images:/var/www/html/images
+        - mediawiki-sqlite:/var/www/html/data
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://localhost:80
+        timeout: 20s
+  volumes:
+    mediawiki-images: null
+    mediawiki-sqlite: null

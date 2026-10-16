@@ -1,0 +1,33 @@
+name: Heimdall
+description: Painel para organizar as aplicações do seu servidor.
+category: Produtividade
+website: https://github.com/linuxserver/Heimdall
+tags:
+  - dashboard
+  - server
+  - applications
+  - interface
+routes:
+  - service: heimdall
+    port: 80
+compose: |
+  services:
+    heimdall:
+      image: lscr.io/linuxserver/heimdall:latest
+      environment:
+        - PUID=1000
+        - PGID=1000
+        - TZ=Europe/Madrid
+      volumes:
+        - heimdall-config:/config
+      healthcheck:
+        interval: 2s
+        retries: 15
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:80
+        timeout: 10s
+  volumes:
+    heimdall-config: null

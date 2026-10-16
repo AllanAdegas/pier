@@ -1,0 +1,24 @@
+# Everything the image build does not read. The interface and the binary are
+# compiled inside the image, so local build output stays out.
+.git
+.gitignore
+.dockerignore
+.env
+.env.example
+Dockerfile
+compose*.yaml
+Makefile
+README.md
+
+bin/
+data/
+.data/
+.data-dev/
+
+web/node_modules/
+web/dist/
+internal/webui/dist/*
+!internal/webui/dist/.gitkeep
+
+**/.DS_Store
+install.sh

@@ -1,0 +1,65 @@
+name: FreeScout
+description: Help desk e caixa de entrada compartilhada, leve e open source.
+category: Atendimento
+website: https://github.com/freescout-help-desk/freescout/wiki/
+tags:
+  - helpdesk
+  - support
+  - ticketing
+  - customer-support
+routes:
+  - service: freescout
+    port: 80
+compose: |
+  services:
+    freescout:
+      image: nfrastack/freescout:latest
+      environment:
+        - DB_HOST=mariadb
+        - DB_NAME=${MARIADB_DATABASE:-freescout}
+        - DB_USER=${PIER_USER_MARIADB:-freescout}
+        - DB_PASS=${PIER_PASSWORD_MARIADB}
+        - SITE_URL=${PIER_URL_FREESCOUT}
+        - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@example.com}
+        - ADMIN_PASS=${PIER_PASSWORD_ADMIN}
+        - DISPLAY_ERRORS=${DISPLAY_ERRORS:-FALSE}
+        - TIMEZONE=${TIMEZONE:-UTC}
+      volumes:
+        - freescout-data:/data
+        - freescout-logs:/www/logs
+      depends_on:
+        mariadb:
+          condition: service_healthy
+      healthcheck:
+        interval: 5s
+        retries: 15
+        start_period: 10s
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1
+        timeout: 10s
+    mariadb:
+      image: mariadb
+      environment:
+        - MARIADB_ROOT_PASSWORD=${PIER_PASSWORD_ROOT}
+        - MARIADB_DATABASE=${MARIADB_DATABASE}
+        - MARIADB_USER=${PIER_USER_MARIADB}
+        - MARIADB_PASSWORD=${PIER_PASSWORD_MARIADB}
+      volumes:
+        - mariadb-data:/var/lib/mysql
+      healthcheck:
+        interval: 5s
+        retries: 15
+        start_period: 10s
+        test:
+          - CMD
+          - healthcheck.sh
+          - --connect
+          - --innodb_initialized
+        timeout: 10s
+  volumes:
+    freescout-data: null
+    freescout-logs: null
+    mariadb-data: null

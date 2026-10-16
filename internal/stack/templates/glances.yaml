@@ -1,0 +1,30 @@
+name: Glances
+description: 'Um olho no seu sistema: monitoramento em tempo real.'
+category: Monitoramento
+website: https://nicolargo.github.io/glances/
+tags:
+  - monitoring tool python cross platform
+routes:
+  - service: glances
+    port: 61208
+compose: |
+  services:
+    glances:
+      image: nicolargo/glances:latest
+      restart: unless-stopped
+      environment:
+        - GLANCES_OPT=-w
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock:ro
+        - /run/user/1000/podman/podman.sock:/run/user/1000/podman/podman.sock:ro
+      healthcheck:
+        interval: 2s
+        retries: 30
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://localhost:61208
+        timeout: 10s
+      pid: host
+      privileged: true

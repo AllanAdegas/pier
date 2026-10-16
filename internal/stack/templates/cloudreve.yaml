@@ -1,0 +1,76 @@
+name: Cloudreve
+description: Sistema de gestão e compartilhamento de arquivos.
+category: Armazenamento
+website: https://docs.cloudreve.org/
+tags:
+  - file sharing
+  - cloud storage
+  - self-hosted
+  - open-source
+routes:
+  - service: cloudreve
+    port: 5212
+compose: |
+  services:
+    cloudreve:
+      image: cloudreve/cloudreve:4.10.1
+      environment:
+        - CR_CONF_Database.Type=postgres
+        - CR_CONF_Database.Host=postgres
+        - CR_CONF_Database.User=${PIER_USER_POSTGRES}
+        - CR_CONF_Database.Password=${PIER_PASSWORD_POSTGRES}
+        - CR_CONF_Database.Name=${POSTGRES_DB:-cloudreve-db}
+        - CR_CONF_Database.Port=5432
+        - CR_CONF_Redis.Server=redis:6379
+        - CR_CONF_Redis.Password=${PIER_PASSWORD_REDIS}
+      volumes:
+        - cloudreve-data:/cloudreve/data
+      depends_on:
+        postgres:
+          condition: service_healthy
+        redis:
+          condition: service_healthy
+      healthcheck:
+        interval: 20s
+        retries: 3
+        test:
+          - CMD
+          - nc
+          - -z
+          - localhost
+          - "5212"
+        timeout: 10s
+    postgres:
+      image: postgres:18-alpine
+      environment:
+        - POSTGRES_USER=${PIER_USER_POSTGRES}
+        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
+        - POSTGRES_DB=${POSTGRES_DB:-cloudreve-db}
+      volumes:
+        - postgres-data:/var/lib/postgresql
+      healthcheck:
+        interval: 10s
+        retries: 5
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 5s
+    redis:
+      image: redis:7-alpine
+      command: redis-server --requirepass ${PIER_PASSWORD_REDIS}
+      volumes:
+        - redis-data:/data
+      healthcheck:
+        interval: 10s
+        retries: 5
+        test:
+          - CMD
+          - redis-cli
+          - -a
+          - ${PIER_PASSWORD_REDIS}
+          - ping
+        timeout: 5s
+  volumes:
+    cloudreve-data: null
+    postgres-data: null
+    redis-data: null

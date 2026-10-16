@@ -1,0 +1,23 @@
+name: VERT
+description: Conversor de arquivos open source e totalmente local.
+category: Desenvolvimento
+website: https://github.com/VERT-sh/VERT
+tags:
+  - converter
+  - file
+  - documents
+  - files
+  - ffmpeg
+  - wasm
+routes:
+  - service: vert
+    port: 80
+compose: |
+  services:
+    vert:
+      image: ghcr.io/vert-sh/vert:latest
+      environment:
+        - PUB_VERT_URL=${PIER_URL_VERT}
+        - PUB_HOSTNAME=${PIER_URL_VERT}
+        - PUB_PORT=80
+        - PUB_ENV=production

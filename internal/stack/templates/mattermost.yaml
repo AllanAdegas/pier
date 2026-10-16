@@ -1,0 +1,55 @@
+name: Mattermost
+description: Alternativa open source ao Slack.
+category: Mensageria
+website: https://docs.mattermost.com
+tags:
+  - mattermost
+  - slack
+  - alternative
+routes:
+  - service: mattermost
+    port: 8065
+compose: |
+  services:
+    mattermost:
+      image: mattermost/mattermost-team-edition:release-10
+      environment:
+        - MM_SERVICESETTINGS_SITEURL=${PIER_URL_MATTERMOST}
+        - TZ=${TZ:-UTC}
+        - MM_SQLSETTINGS_DRIVERNAME=postgres
+        - MM_SQLSETTINGS_DATASOURCE=postgres://$PIER_USER_POSTGRES:$PIER_PASSWORD_POSTGRES@postgres:5432/$POSTGRES_DB?sslmode=disable&connect_timeout=10
+        - MM_BLEVESETTINGS_INDEXDIR=/mattermost/bleve-indexes
+      volumes:
+        - mattermost-data-config:/mattermost/config:rw
+        - mattermost-data-data:/mattermost/data:rw
+        - mattermost-data-logs:/mattermost/logs:rw
+        - mattermost-data-plugins:/mattermost/plugins:rw
+        - mattermost-data-client-plugins:/mattermost/client/plugins:rw
+        - mattermost-data-bleve-indexes:/mattermost/bleve-indexes:rw
+      depends_on:
+        postgres:
+          condition: service_healthy
+      platform: linux/amd64
+    postgres:
+      image: postgres:16-alpine
+      environment:
+        - POSTGRES_USER=$PIER_USER_POSTGRES
+        - POSTGRES_PASSWORD=$PIER_PASSWORD_POSTGRES
+        - POSTGRES_DB=${POSTGRES_DB:-mattermost}
+      volumes:
+        - postgresql-data:/var/lib/postgresql/data
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 20s
+  volumes:
+    mattermost-data-bleve-indexes: null
+    mattermost-data-client-plugins: null
+    mattermost-data-config: null
+    mattermost-data-data: null
+    mattermost-data-logs: null
+    mattermost-data-plugins: null
+    postgresql-data: null

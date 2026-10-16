@@ -1,0 +1,61 @@
+name: Observium
+description: Plataforma completa de monitoramento de rede.
+category: Monitoramento
+website: https://docs.observium.org/
+tags:
+  - networking
+  - monitoring
+routes:
+  - service: observium
+    port: 80
+compose: |
+  services:
+    mariadb:
+      image: mariadb:lts
+      environment:
+        - MARIADB_ROOT_PASSWORD=${PIER_PASSWORD_MARIADBROOT}
+        - MARIADB_USER=${PIER_USER_MARIADB}
+        - MARIADB_PASSWORD=${PIER_PASSWORD_MARIADB}
+        - MARIADB_DATABASE=${MARIADB_DATABASE:-observium-db}
+      volumes:
+        - observium_mariadb_data:/var/lib/mysql
+      healthcheck:
+        interval: 10s
+        retries: 3
+        start_period: 10s
+        test:
+          - CMD
+          - healthcheck.sh
+          - --connect
+          - --innodb_initialized
+        timeout: 5s
+    observium:
+      image: mbixtech/observium:latest
+      environment:
+        - OBSERVIUM_ADMIN_PASS=${PIER_PASSWORD_OBSERVIUMADMIN}
+        - OBSERVIUM_ADMIN_USER=${PIER_USER_OBSERVIUMADMIN}
+        - OBSERVIUM_DB_HOST=mariadb
+        - OBSERVIUM_DB_NAME=${OBSERVIUM_DB_NAME:-observium-db}
+        - OBSERVIUM_DB_PASS=${PIER_PASSWORD_MARIADB}
+        - OBSERVIUM_DB_USER=${PIER_USER_MARIADB}
+      volumes:
+        - observium_logs:/opt/observium/logs
+        - observium_rrd:/opt/observium/rrd
+      depends_on:
+        mariadb:
+          condition: service_healthy
+      healthcheck:
+        interval: 30s
+        retries: 3
+        start_period: 5s
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://localhost/
+        timeout: 10s
+      platform: linux/amd64
+  volumes:
+    observium_logs: null
+    observium_mariadb_data: null
+    observium_rrd: null

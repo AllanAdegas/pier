@@ -1,0 +1,53 @@
+name: Ryot
+description: Acompanhe mídia consumida, atividades físicas e mais.
+category: Produtividade
+website: https://github.com/ignisda/ryot
+tags:
+  - rss
+  - reader
+  - self-hosted
+  - automation
+  - tracker
+  - media
+  - fitness
+routes:
+  - service: ryot
+    port: 8000
+compose: |
+  services:
+    postgresql:
+      image: postgres:16-alpine
+      environment:
+        - POSTGRES_USER=${PIER_USER_POSTGRES}
+        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
+        - POSTGRES_DB=${POSTGRES_DB:-ryot-db}
+        - TZ=${TZ:-Europe/Amsterdam}
+      volumes:
+        - ryot_postgresql_data:/var/lib/postgresql/data
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 20s
+    ryot:
+      image: ignisda/ryot:v10.3.0
+      environment:
+        - DATABASE_URL=postgres://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@postgresql:5432/${POSTGRES_DB}
+        - SERVER_ADMIN_ACCESS_TOKEN=${PIER_PASSWORD_64_RYOT}
+        - TZ=${TZ:-Europe/Amsterdam}
+      depends_on:
+        postgresql:
+          condition: service_healthy
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:8000/health
+        timeout: 20s
+  volumes:
+    ryot_postgresql_data: null

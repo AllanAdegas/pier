@@ -1,0 +1,140 @@
+name: Buzz
+description: Espaço de trabalho onde pessoas e agentes de IA colaboram sobre um relay Nostr próprio.
+category: Mensageria
+website: https://github.com/block/buzz
+tags:
+  - buzz
+  - chat
+  - nostr
+  - agents
+  - ai
+  - collaboration
+  - relay
+  - block
+routes:
+  - service: buzz
+    port: 3000
+compose: |
+  services:
+    buzz:
+      image: ghcr.io/block/buzz:${BUZZ_TAG:-main}
+      environment:
+        - BUZZ_BIND_ADDR=0.0.0.0:3000
+        - BUZZ_HEALTH_PORT=8080
+        - BUZZ_METRICS_PORT=9102
+        - RELAY_URL=wss://${PIER_HOST_BUZZ}
+        - BUZZ_MEDIA_BASE_URL=${PIER_URL_BUZZ}/media
+        - BUZZ_MEDIA_SERVER_DOMAIN=${PIER_HOST_BUZZ}
+        - BUZZ_CORS_ORIGINS=${PIER_URL_BUZZ},tauri://localhost,http://tauri.localhost
+        - DATABASE_URL=postgres://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@postgres:5432/${POSTGRES_DB:-buzz}
+        - REDIS_URL=redis://:${PIER_PASSWORD_REDIS}@redis:6379
+        - BUZZ_S3_ENDPOINT=http://minio:9000
+        - BUZZ_S3_ACCESS_KEY=${PIER_USER_MINIO}
+        - BUZZ_S3_SECRET_KEY=${PIER_PASSWORD_MINIO}
+        - BUZZ_S3_BUCKET=${BUZZ_S3_BUCKET:-buzz-media}
+        - BUZZ_GIT_REPO_PATH=/data/git
+        - BUZZ_RELAY_PRIVATE_KEY=${PIER_HEX_64_RELAYKEY}
+        - BUZZ_GIT_HOOK_HMAC_SECRET=${PIER_HEX_64_GITHMAC}
+        - BUZZ_AUTO_MIGRATE=${BUZZ_AUTO_MIGRATE:-true}
+        - BUZZ_GIT_CONFORMANCE_PROBE=${BUZZ_GIT_CONFORMANCE_PROBE:-true}
+        - BUZZ_REQUIRE_AUTH_TOKEN=${BUZZ_REQUIRE_AUTH_TOKEN:-true}
+        - BUZZ_REQUIRE_RELAY_MEMBERSHIP=${BUZZ_REQUIRE_RELAY_MEMBERSHIP:-false}
+        - BUZZ_ALLOW_NIP_OA_AUTH=${BUZZ_ALLOW_NIP_OA_AUTH:-true}
+        - RELAY_OWNER_PUBKEY=${RELAY_OWNER_PUBKEY}
+        - RUST_LOG=${RUST_LOG:-buzz_relay=info,buzz_db=info,buzz_auth=info,buzz_pubsub=info,tower_http=info}
+      volumes:
+        - buzz-git-data:/data/git
+      depends_on:
+        minio:
+          condition: service_healthy
+        minio-init:
+          condition: service_completed_successfully
+        postgres:
+          condition: service_healthy
+        redis:
+          condition: service_healthy
+      healthcheck:
+        interval: 10s
+        retries: 12
+        start_period: 45s
+        test:
+          - CMD-SHELL
+          - curl -fsS http://127.0.0.1:8080/_readiness >/dev/null || exit 1
+        timeout: 5s
+    minio:
+      image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
+      command: server /data --console-address ":9001"
+      environment:
+        - MINIO_ROOT_USER=${PIER_USER_MINIO}
+        - MINIO_ROOT_PASSWORD=${PIER_PASSWORD_MINIO}
+      volumes:
+        - buzz-minio-data:/data
+      healthcheck:
+        interval: 5s
+        retries: 12
+        start_period: 10s
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:9000/minio/health/live
+        timeout: 5s
+    minio-init:
+      image: pgsty/mc:latest
+      entrypoint:
+        - /bin/sh
+        - -euc
+        - |-
+          mc alias set local http://minio:9000 "$${BUZZ_S3_ACCESS_KEY}" "$${BUZZ_S3_SECRET_KEY}"
+          mc mb --ignore-existing "local/$${BUZZ_S3_BUCKET}"
+          mc anonymous set none "local/$${BUZZ_S3_BUCKET}"
+      restart: "no"
+      environment:
+        - BUZZ_S3_ACCESS_KEY=${PIER_USER_MINIO}
+        - BUZZ_S3_SECRET_KEY=${PIER_PASSWORD_MINIO}
+        - BUZZ_S3_BUCKET=${BUZZ_S3_BUCKET:-buzz-media}
+      depends_on:
+        minio:
+          condition: service_healthy
+    postgres:
+      image: postgres:17-alpine
+      environment:
+        - POSTGRES_USER=${PIER_USER_POSTGRES}
+        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
+        - POSTGRES_DB=${POSTGRES_DB:-buzz}
+        - PGDATA=/var/lib/postgresql/data/pgdata
+      volumes:
+        - buzz-postgres-data:/var/lib/postgresql/data
+      healthcheck:
+        interval: 5s
+        retries: 12
+        start_period: 10s
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 5s
+    redis:
+      image: redis:7-alpine
+      command:
+        - redis-server
+        - --appendonly
+        - "yes"
+        - --requirepass
+        - ${PIER_PASSWORD_REDIS}
+      environment:
+        - REDIS_PASSWORD=${PIER_PASSWORD_REDIS}
+      volumes:
+        - buzz-redis-data:/data
+      healthcheck:
+        interval: 5s
+        retries: 12
+        start_period: 5s
+        test:
+          - CMD-SHELL
+          - redis-cli -a "$${REDIS_PASSWORD}" ping | grep -q PONG
+        timeout: 3s
+  volumes:
+    buzz-git-data: null
+    buzz-minio-data: null
+    buzz-postgres-data: null
+    buzz-redis-data: null

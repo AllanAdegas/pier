@@ -1,0 +1,26 @@
+name: Jupyter Notebook (Python)
+description: Documentos com código executável, equações, visualizações e texto.
+category: Desenvolvimento
+website: https://jupyter.org/
+tags:
+  - notebook
+  - python
+  - data
+  - analysis
+routes:
+  - service: jupyter-notebook-python
+    port: 8888
+compose: |
+  services:
+    jupyter-notebook-python:
+      image: quay.io/jupyter/base-notebook:latest
+      command: start-notebook.sh
+      volumes:
+        - /jupyter:/home/jovyan/work
+      healthcheck:
+        interval: 30s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - wget -qO- http://127.0.0.1:8888/
+        timeout: 20s

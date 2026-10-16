@@ -1,0 +1,19 @@
+name: Meilisearch
+description: Motor de busca rápido e tolerante a erros de digitação.
+category: Busca
+website: https://www.meilisearch.com
+verified: true
+routes:
+  - service: meilisearch
+    port: 7700
+compose: |
+  services:
+    meilisearch:
+      image: getmeili/meilisearch:latest
+      environment:
+        MEILI_ENV: production
+        MEILI_MASTER_KEY: ${PIER_SECRET_MASTER}
+      volumes:
+        - data:/meili_data
+  volumes:
+    data:

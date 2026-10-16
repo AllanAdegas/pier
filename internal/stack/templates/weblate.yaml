@@ -1,0 +1,81 @@
+name: Weblate
+description: Sistema web de localização contínua, software livre.
+category: Produtividade
+website: https://weblate.org
+tags:
+  - localization
+  - translation
+  - web
+  - web-based
+  - continuous
+  - libre
+  - software
+routes:
+  - service: weblate
+    port: 8080
+compose: |
+  services:
+    postgresql:
+      image: postgres:16-alpine
+      environment:
+        - POSTGRES_USER=$PIER_USER_POSTGRES
+        - POSTGRES_PASSWORD=$PIER_PASSWORD_POSTGRES
+        - POSTGRES_DB=${POSTGRES_DB:-weblate}
+      volumes:
+        - postgresql-data:/var/lib/postgresql/data
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 20s
+    redis:
+      image: redis:7-alpine
+      command: |
+        --appendonly yes --requirepass ${PIER_PASSWORD_REDIS}
+      environment:
+        - REDIS_PASSWORD=$PIER_PASSWORD_REDIS
+      volumes:
+        - weblate-redis-data:/data
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - redis-cli
+          - ping
+        timeout: 20s
+    weblate:
+      image: weblate/weblate:latest
+      environment:
+        - WEBLATE_SITE_DOMAIN=$PIER_HOST_WEBLATE
+        - WEBLATE_ADMIN_NAME=${WEBLATE_ADMIN_NAME:-Admin}
+        - WEBLATE_ADMIN_EMAIL=${WEBLATE_ADMIN_EMAIL:-admin@example.com}
+        - WEBLATE_ADMIN_PASSWORD=$PIER_PASSWORD_WEBLATE
+        - DEFAULT_FROM_EMAIL=${WEBLATE_ADMIN_EMAIL:-admin@example.com}
+        - POSTGRES_PASSWORD=$PIER_PASSWORD_POSTGRES
+        - POSTGRES_USER=$PIER_USER_POSTGRES
+        - POSTGRES_DATABASE=${POSTGRES_DB:-weblate}
+        - POSTGRES_HOST=postgresql
+        - POSTGRES_PORT=5432
+        - REDIS_HOST=redis
+        - REDIS_PORT=6379
+        - REDIS_PASSWORD=$PIER_PASSWORD_REDIS
+      volumes:
+        - weblate-data:/app/data
+        - weblate-cache:/app/cache
+      healthcheck:
+        interval: 2s
+        retries: 30
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:8080
+        timeout: 10s
+  volumes:
+    postgresql-data: null
+    weblate-cache: null
+    weblate-data: null
+    weblate-redis-data: null

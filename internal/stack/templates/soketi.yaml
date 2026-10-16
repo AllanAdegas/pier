@@ -1,0 +1,28 @@
+name: Soketi
+description: Servidor de WebSockets simples, rápido e resiliente.
+category: Mensageria
+website: https://docs.soketi.app
+tags:
+  - websockets
+  - messaging
+routes:
+  - service: soketi
+    port: 6001
+compose: |
+  services:
+    soketi:
+      image: quay.io/soketi/soketi:1.6-16-debian
+      environment:
+        - SOKETI_DEBUG=${DEBUG:-0}
+        - SOKETI_DEFAULT_APP_ID=${PIER_USER_SOKETI}
+        - SOKETI_DEFAULT_APP_KEY=${PIER_BASE64_64_SOKETIKEY}
+        - SOKETI_DEFAULT_APP_SECRET=${PIER_BASE64_64_SOKETISECRET}
+        - SOKETI_PUSHER_SCHEME=${SOKETI_PUSHER_SCHEME:-https}
+        - SOKETI_DEFAULT_APP_ENABLE_CLIENT_MESSAGES=${DEFAULT_APP_ENABLE_CLIENT_MESSAGES}
+      healthcheck:
+        interval: 5s
+        retries: 3
+        test:
+          - CMD-SHELL
+          - bash -c ':> /dev/tcp/127.0.0.1/6001' || exit 1
+        timeout: 20s

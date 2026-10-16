@@ -1,0 +1,66 @@
+name: Label Studio
+description: Rotulagem e anotação de dados de vários tipos.
+category: IA
+website: https://labelstud.io/guide/
+tags:
+  - workflow
+  - orchestration
+  - data-pipeline
+  - python
+  - labelstudio
+  - ai
+  - elasticsearch
+  - datasets
+routes:
+  - service: labelstudio
+    port: 8080
+compose: |
+  services:
+    labelstudio:
+      image: heartexlabs/label-studio:latest
+      environment:
+        - CSRF_TRUSTED_ORIGINS=${PIER_URL_LABELSTUDIO}
+        - EXPERIMENTAL_FEATURES=${EXPERIMENTAL_FEATURES:-false}
+        - DJANGO_DB=${DJANGO_DB:-default}
+        - POSTGRE_NAME=${POSTGRES_DB:-labelstudio}
+        - POSTGRE_USER=${PIER_USER_POSTGRES}
+        - POSTGRE_PASSWORD=${PIER_PASSWORD_POSTGRES}
+        - POSTGRE_PORT=5432
+        - POSTGRE_HOST=postgres
+        - LABEL_STUDIO_HOST=${PIER_URL_LABELSTUDIO}
+        - SSRF_PROTECTION_ENABLED=${SSRF_PROTECTION_ENABLED:-true}
+        - LABEL_STUDIO_DISABLE_SIGNUP_WITHOUT_LINK=${LABEL_STUDIO_DISABLE_SIGNUP_WITHOUT_LINK:-true}
+        - DATA_UPLOAD_MAX_NUMBER_FILES=${DATA_UPLOAD_MAX_NUMBER_FILES:-10000}
+        - LABEL_STUDIO_USERNAME=${LABEL_STUDIO_USERNAME:-admin@example.com}
+        - LABEL_STUDIO_PASSWORD=${PIER_PASSWORD_LABELSTUDIO}
+        - LABEL_STUDIO_DISABLE_SIGNUP_WITHOUT_LINK=${LABEL_STUDIO_DISABLE_SIGNUP_WITHOUT_LINK:-true}
+      volumes:
+        - labelstudio-data:/label-studio/data
+      depends_on:
+        postgres:
+          condition: service_healthy
+      healthcheck:
+        interval: 5s
+        retries: 3
+        test:
+          - CMD-SHELL
+          - curl -f http://localhost:8080/health || exit 1
+        timeout: 20s
+    postgres:
+      image: postgres:16-alpine
+      environment:
+        - POSTGRES_USER=${PIER_USER_POSTGRES}
+        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
+        - POSTGRES_DB=${POSTGRES_DB:-labelstudio}
+      volumes:
+        - pg-data:/var/lib/postgresql/data
+      healthcheck:
+        interval: 5s
+        retries: 3
+        test:
+          - CMD-SHELL
+          - pg_isready -h localhost -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 20s
+  volumes:
+    labelstudio-data: null
+    pg-data: null

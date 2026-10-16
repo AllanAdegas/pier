@@ -1,0 +1,29 @@
+name: WordPress (sem banco)
+description: Software open source para criar sites, blogs e aplicações.
+category: CMS
+website: https://wordpress.org
+tags:
+  - cms
+  - blog
+  - content
+  - management
+routes:
+  - service: wordpress
+    port: 80
+compose: |
+  services:
+    wordpress:
+      image: wordpress:latest
+      volumes:
+        - wordpress-files:/var/www/html
+      healthcheck:
+        interval: 2s
+        retries: 10
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1
+        timeout: 10s
+  volumes:
+    wordpress-files: null

@@ -1,0 +1,31 @@
+name: Unstructured
+description: Ingestão e processamento de documentos não estruturados para RAG e fine-tuning.
+category: IA
+website: https://github.com/Unstructured-IO/unstructured-api?tab=readme-ov-file#--general-pre-processing-pipeline-for-documents
+tags:
+  - workflow
+  - orchestration
+  - data-pipeline
+  - python
+  - data
+  - machine-learning
+  - data-science
+  - nlp
+routes:
+  - service: unstructured
+    port: 8000
+compose: |
+  services:
+    unstructured:
+      image: downloads.unstructured.io/unstructured-io/unstructured-api:latest
+      environment:
+        - UNSTRUCTURED_API_KEY=${PIER_PASSWORD_APIKEY}
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - wget
+          - -qO-
+          - http://0.0.0.0:8000/healthcheck
+        timeout: 30s

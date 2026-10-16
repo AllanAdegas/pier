@@ -1,0 +1,101 @@
+name: Autobase
+description: Alternativa open source a bancos PostgreSQL gerenciados em nuvem (DBaaS próprio).
+category: Dados
+website: https://autobase.tech/docs/
+tags:
+  - database
+  - postgres
+  - automation
+  - self-hosted
+  - dbaas
+routes:
+  - service: autobase
+    port: 80
+compose: |
+  services:
+    autobase:
+      image: autobase/console_ui:2.11.0
+      environment:
+        - PG_CONSOLE_AUTHORIZATION_TOKEN=${PIER_PASSWORD_UI}
+        - PG_CONSOLE_API_HOST=autobase-api
+        - PG_CONSOLE_DBDESK_STUDIO_HOST=dbdesk-studio
+      depends_on:
+        autobase-api:
+          condition: service_healthy
+      healthcheck:
+        interval: 10s
+        retries: 5
+        test:
+          - CMD
+          - curl
+          - http://localhost:80/
+        timeout: 5s
+      platform: linux/amd64
+    autobase-api:
+      image: autobase/console_api:2.11.0
+      environment:
+        - PG_CONSOLE_DB_HOST=autobase-db
+        - PG_CONSOLE_DB_PASSWORD=${PIER_PASSWORD_POSTGRES}
+        - PG_CONSOLE_AUTHORIZATION_TOKEN=${PIER_PASSWORD_UI}
+        - PG_CONSOLE_ENCRYPTIONKEY=${PIER_PASSWORD_ENCRYPTIONKEY}
+        - PG_CONSOLE_LOGGER_LEVEL=${PG_CONSOLE_LOGGER_LEVEL:-info}
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+        - /tmp/ansible:/tmp/ansible
+      depends_on:
+        autobase-db:
+          condition: service_healthy
+      healthcheck:
+        interval: 10s
+        retries: 5
+        test:
+          - CMD
+          - curl
+          - -fsS
+          - -H
+          - 'accept: application/json'
+          - -H
+          - 'Authorization: Bearer ${PIER_PASSWORD_UI}'
+          - http://localhost:8080/api/v1/version
+        timeout: 5s
+      platform: linux/amd64
+    autobase-db:
+      image: autobase/console_db:2.11.0
+      environment:
+        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
+      volumes:
+        - autobase-db-data:/var/lib/postgresql
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - pg_isready -U postgres
+        timeout: 5s
+      platform: linux/amd64
+    dbdesk-studio:
+      image: docker.io/bhavikagarwal2001/dbdesk-studio:0.1.5
+      container_name: dbdesk-studio
+      environment:
+        - PORT=6789
+        - CORS_ORIGIN=${CORS_ORIGIN:-*}
+        - NODE_ENV=production
+        - DEFAULT_SSL_MODE=require
+        - STORAGE_PATH=/opt/dbdesk-studio/data
+      volumes:
+        - dbdesk_studio_data:/opt/dbdesk-studio
+      depends_on:
+        autobase-api:
+          condition: service_healthy
+      healthcheck:
+        interval: 10s
+        retries: 5
+        test:
+          - CMD
+          - curl
+          - -fsS
+          - http://localhost:6789/health
+        timeout: 5s
+  volumes:
+    autobase-db-data: null
+    dbdesk_studio_data: null

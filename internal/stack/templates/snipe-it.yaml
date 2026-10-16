@@ -1,0 +1,70 @@
+name: Snipe-IT
+description: Gestão de ativos de TI open source.
+category: Produtividade
+website: https://snipe-it.readme.io/docs/introduction
+tags:
+  - inventory
+  - open-source
+routes:
+  - service: app
+    port: 80
+compose: |
+  services:
+    app:
+      image: snipe/snipe-it:v8.7.1
+      environment:
+        - APP_ENV=production
+        - APP_DEBUG=false
+        - APP_KEY=base64:${PIER_BASE64_32_APPKEY}
+        - APP_URL=${PIER_URL_APP}
+        - APP_TIMEZONE=${APP_TIMEZONE:-UTC}
+        - APP_LOCALE=${APP_LOCALE:-en-US}
+        - DB_CONNECTION=mysql
+        - DB_HOST=mariadb
+        - DB_PORT=3306
+        - DB_DATABASE=${MYSQL_DATABASE:-snipeit}
+        - DB_USERNAME=${PIER_USER_MARIADB}
+        - DB_PASSWORD=${PIER_PASSWORD_MARIADB}
+        - MAIL_MAILER=${MAIL_MAILER:-smtp}
+        - MAIL_HOST=${MAIL_HOST:-null}
+        - MAIL_PORT=${MAIL_PORT:-1025}
+        - MAIL_USERNAME=${MAIL_USERNAME:-null}
+        - MAIL_PASSWORD=${MAIL_PASSWORD:-null}
+        - MAIL_FROM_ADDR=${MAIL_FROM_ADDR:-you@example.com}
+        - MAIL_FROM_NAME=${MAIL_FROM_NAME:-Snipe-IT}
+      volumes:
+        - storage:/var/lib/snipeit
+      depends_on:
+        mariadb:
+          condition: service_healthy
+      healthcheck:
+        interval: 10s
+        retries: 5
+        start_period: 30s
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://localhost/health
+        timeout: 5s
+    mariadb:
+      image: mariadb:11.8
+      environment:
+        - MYSQL_DATABASE=${MYSQL_DATABASE:-snipeit}
+        - MYSQL_USER=${PIER_USER_MARIADB}
+        - MYSQL_PASSWORD=${PIER_PASSWORD_MARIADB}
+        - MYSQL_ROOT_PASSWORD=${PIER_PASSWORD_ROOT}
+      volumes:
+        - db_data:/var/lib/mysql
+      healthcheck:
+        interval: 5s
+        retries: 5
+        test:
+          - CMD
+          - healthcheck.sh
+          - --connect
+          - --innodb_initialized
+        timeout: 1s
+  volumes:
+    db_data: null
+    storage: null

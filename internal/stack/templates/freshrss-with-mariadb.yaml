@@ -1,0 +1,54 @@
+name: FreshRSS com MariaDB
+description: Agregador de feeds livre e auto-hospedável.
+category: RSS
+website: https://freshrss.org/index.html
+tags:
+  - rss
+  - feed
+routes:
+  - service: freshrss
+    port: 80
+compose: |
+  services:
+    freshrss:
+      image: freshrss/freshrss:latest
+      environment:
+        - CRON_MIN=${CRON_MIN:-1,31}
+        - MARIADB_DB=${MARIADB_DATABASE:-freshrss}
+        - MARIADB_USER=${PIER_USER_MARIADB}
+        - MARIADB_PASSWORD=${PIER_PASSWORD_MARIADB}
+      volumes:
+        - freshrss-data:/var/www/FreshRSS/data
+        - freshrss-extensions:/var/www/FreshRSS/extensions
+      depends_on:
+        freshrss-db:
+          condition: service_healthy
+      healthcheck:
+        interval: 5s
+        retries: 3
+        test:
+          - CMD-SHELL
+          - bash -c ':> /dev/tcp/127.0.0.1/80' || exit 1
+        timeout: 20s
+    freshrss-db:
+      image: mariadb:11
+      environment:
+        - MYSQL_ROOT_PASSWORD=$PIER_PASSWORD_ROOT
+        - MYSQL_DATABASE=${MARIADB_DATABASE:-freshrss}
+        - MYSQL_USER=${PIER_USER_MARIADB}
+        - MYSQL_PASSWORD=${PIER_PASSWORD_MARIADB}
+      volumes:
+        - mariadb-data:/var/lib/mysql
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - healthcheck.sh
+          - --connect
+          - --innodb_initialized
+        timeout: 20s
+  volumes:
+    freshrss-data: null
+    freshrss-extensions: null
+    mariadb-data: null

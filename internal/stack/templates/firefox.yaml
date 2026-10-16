@@ -1,0 +1,29 @@
+name: Firefox
+description: Navegador Firefox rodando no servidor, acessado pelo navegador.
+category: Produtividade
+website: https://github.com/jlesage/docker-firefox
+tags:
+  - browser
+  - web
+  - privacy
+routes:
+  - service: firefox
+    port: 5800
+compose: |
+  services:
+    firefox:
+      image: jlesage/firefox
+      volumes:
+        - firefox_config:/config
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD
+          - wget
+          - -q
+          - --spider
+          - http://127.0.0.1:5800/
+        timeout: 20s
+  volumes:
+    firefox_config: null

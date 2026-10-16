@@ -1,0 +1,55 @@
+name: Nitropage com PostgreSQL
+description: Construtor visual de sites, extensível.
+category: CMS
+website: https://nitropage.org
+tags:
+  - nitropage
+  - builder
+  - editor
+  - wysiwyg
+  - cms
+  - content
+  - management
+routes:
+  - service: nitropage
+    port: 3000
+compose: |
+  services:
+    nitropage:
+      image: nitropage/nitropage
+      environment:
+        - NP_AUTH_SALT=${PIER_PASSWORD_SALT}
+        - NP_AUTH_PASSWORD=${PIER_PASSWORD_64_SESSION}
+        - DATABASE_URL=postgresql://${PIER_USER_POSTGRESQL}:${PIER_PASSWORD_POSTGRESQL}@postgresql:5432/${POSTGRESQL_DATABASE:-nitropage}
+      volumes:
+        - nitropage-data:/app/.data
+      depends_on:
+        postgresql:
+          condition: service_healthy
+      healthcheck:
+        interval: 2s
+        retries: 15
+        test:
+          - CMD
+          - curl
+          - -f
+          - http://127.0.0.1:3000/admin
+        timeout: 10s
+    postgresql:
+      image: postgres:16-alpine
+      environment:
+        - POSTGRES_USER=${PIER_USER_POSTGRESQL}
+        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRESQL}
+        - POSTGRES_DB=${POSTGRESQL_DATABASE:-nitropage}
+      volumes:
+        - nitropage-postgresql-data:/var/lib/postgresql/data
+      healthcheck:
+        interval: 5s
+        retries: 10
+        test:
+          - CMD-SHELL
+          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+        timeout: 20s
+  volumes:
+    nitropage-data: null
+    nitropage-postgresql-data: null

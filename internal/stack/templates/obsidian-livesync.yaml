@@ -1,0 +1,60 @@
+name: Obsidian LiveSync
+description: Backend de sincronização do plugin LiveSync do Obsidian, sobre CouchDB.
+category: Armazenamento
+website: https://github.com/vrtmrz/obsidian-livesync/blob/main/docs/setup_own_server.md
+tags:
+  - obsidian
+  - couchdb
+  - sync
+  - notes
+  - markdown
+routes:
+  - service: couchdb
+    port: 5984
+compose: |
+  services:
+    couchdb:
+      image: couchdb:3.4.2
+      environment:
+        - COUCHDB_USER=${PIER_USER_COUCHDB}
+        - COUCHDB_PASSWORD=${PIER_PASSWORD_64_COUCHDB}
+        - MAX_DOCUMENT_SIZE=${MAX_DOCUMENT_SIZE:-52428800}
+        - MAX_HTTP_REQUEST_SIZE=${MAX_HTTP_REQUEST_SIZE:-67108864}
+      volumes:
+        - content: |-
+            [couchdb]
+            single_node=true
+            max_document_size = ${MAX_DOCUMENT_SIZE}
+
+            [chttpd]
+            require_valid_user = true
+            max_http_request_size = ${MAX_HTTP_REQUEST_SIZE}
+
+            [chttpd_auth]
+            require_valid_user = true
+            authentication_redirect = /_utils/session.html
+
+            [httpd]
+            WWW-Authenticate = Basic realm="couchdb"
+            enable_cors = true
+
+            [cors]
+            origins = app://obsidian.md,capacitor://localhost,http://localhost
+            credentials = true
+            headers = accept, authorization, content-type, origin, referer
+            methods = GET, PUT, POST, HEAD, DELETE
+            max_age = 3600
+          source: ./local.ini
+          target: /opt/couchdb/etc/local.ini
+          type: bind
+        - couchdb-data:/opt/couchdb/data
+      healthcheck:
+        interval: 30s
+        retries: 3
+        start_period: 40s
+        test:
+          - CMD-SHELL
+          - curl -f -u "$${COUCHDB_USER}:$${COUCHDB_PASSWORD}" http://localhost:5984/_up
+        timeout: 10s
+  volumes:
+    couchdb-data: null

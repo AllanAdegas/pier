@@ -1,0 +1,42 @@
+name: Flowise
+description: Ferramenta low-code para fluxos de LLM e agentes de IA.
+category: IA
+website: https://docs.flowiseai.com/
+tags:
+  - lowcode
+  - nocode
+  - ai
+  - llm
+  - openai
+  - anthropic
+  - machine-learning
+  - rag
+routes:
+  - service: flowise
+    port: 3001
+compose: |
+  services:
+    flowise:
+      image: flowiseai/flowise:latest
+      environment:
+        - DEBUG=${DEBUG:-false}
+        - DISABLE_FLOWISE_TELEMETRY=${DISABLE_FLOWISE_TELEMETRY:-true}
+        - PORT=${PORT:-3001}
+        - DATABASE_PATH=/root/.flowise
+        - APIKEY_PATH=/root/.flowise
+        - SECRETKEY_PATH=/root/.flowise
+        - LOG_PATH=/root/.flowise/logs
+        - BLOB_STORAGE_PATH=/root/.flowise/storage
+        - FLOWISE_USERNAME=${PIER_USER_FLOWISE}
+        - FLOWISE_PASSWORD=${PIER_PASSWORD_FLOWISE}
+      volumes:
+        - flowise-data:/root/.flowise
+      healthcheck:
+        interval: 5s
+        retries: 3
+        test:
+          - CMD-SHELL
+          - wget -qO- http://127.0.0.1:3001 || exit 1
+        timeout: 5s
+  volumes:
+    flowise-data: null

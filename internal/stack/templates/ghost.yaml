@@ -1,0 +1,41 @@
+name: Ghost
+description: Plataforma de publicação para blogs e newsletters, com MySQL dedicado.
+category: CMS
+website: https://ghost.org
+verified: true
+routes:
+  - service: ghost
+    port: 2368
+compose: |
+  services:
+    ghost:
+      image: ghost:5-alpine
+      environment:
+        url: ${PIER_URL_GHOST:-http://localhost:2368}
+        database__client: mysql
+        database__connection__host: db
+        database__connection__user: ghost
+        database__connection__password: ${PIER_PASSWORD_DB}
+        database__connection__database: ghost
+      volumes:
+        - content:/var/lib/ghost/content
+      depends_on:
+        db:
+          condition: service_healthy
+    db:
+      image: mysql:8.4
+      environment:
+        MYSQL_DATABASE: ghost
+        MYSQL_USER: ghost
+        MYSQL_PASSWORD: ${PIER_PASSWORD_DB}
+        MYSQL_ROOT_PASSWORD: ${PIER_PASSWORD_ROOT}
+      volumes:
+        - db:/var/lib/mysql
+      healthcheck:
+        test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+        interval: 5s
+        timeout: 5s
+        retries: 30
+  volumes:
+    content:
+    db:

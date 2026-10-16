@@ -1,0 +1,24 @@
+name: Drizzle Gateway
+description: Drizzle Studio auto-hospedado.
+category: Desenvolvimento
+website: https://gateway.drizzle.team/
+tags:
+  - drizzle
+  - gateway
+  - self-hosted
+  - open-source
+  - low-code
+routes:
+  - service: drizzle-gateway
+    port: 4983
+compose: |
+  services:
+    drizzle-gateway:
+      image: ghcr.io/drizzle-team/gateway:latest
+      environment:
+        - STORE_PATH=/app
+        - MASTERPASS=$PIER_PASSWORD_DRIZZLE
+      volumes:
+        - drizzle-gateway-data:/app
+  volumes:
+    drizzle-gateway-data: null
