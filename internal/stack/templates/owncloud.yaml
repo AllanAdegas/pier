@@ -1,84 +1,38 @@
 name: ownCloud
 description: Arquivos na sua nuvem, com interface web.
+description_en: Files in your own cloud, with a web interface.
 category: Armazenamento
 website: https://owncloud.com/docs-guides/
-tags:
-  - owncloud
-  - file-management
-  - open-web-ui
-  - integration
-  - cloud
-routes:
-  - service: owncloud
+services:
+  owncloud:
+    image: owncloud/server:10.16.7
     port: 8080
-compose: |
-  services:
-    mariadb:
-      image: mariadb:latest
-      command:
-        - --character-set-server=utf8mb4
-        - --collation-server=utf8mb4_bin
-        - --max-allowed-packet=128M
-        - --innodb-log-file-size=64M
-      environment:
-        - MYSQL_ROOT_PASSWORD=${PIER_PASSWORD_MARIADBROOT}
-        - MYSQL_USER=${PIER_USER_MARIADB}
-        - MYSQL_PASSWORD=${PIER_PASSWORD_MARIADB}
-        - MYSQL_DATABASE=${DB_NAME:-owncloud}
-        - TZ=auto
-      volumes:
-        - owncloud-mysql-data:/var/lib/mysql
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - healthcheck.sh
-          - --connect
-          - --innodb_initialized
-        timeout: 20s
-    owncloud:
-      image: owncloud/server:latest
-      environment:
-        - OWNCLOUD_DOMAIN=${PIER_HOST_OWNCLOUD}
-        - OWNCLOUD_TRUSTED_DOMAINS=${PIER_HOST_OWNCLOUD}
-        - OWNCLOUD_DB_TYPE=mysql
-        - OWNCLOUD_DB_HOST=mariadb
-        - OWNCLOUD_DB_NAME=${DB_NAME:-owncloud}
-        - OWNCLOUD_DB_USERNAME=${PIER_USER_MARIADB}
-        - OWNCLOUD_DB_PASSWORD=${PIER_PASSWORD_MARIADB}
-        - OWNCLOUD_ADMIN_USERNAME=${PIER_USER_OWNCLOUD}
-        - OWNCLOUD_ADMIN_PASSWORD=${PIER_PASSWORD_OWNCLOUD}
-        - OWNCLOUD_MYSQL_UTF8MB4=${MYSQL_UTF8MB4:-true}
-        - OWNCLOUD_REDIS_ENABLED=${REDIS_ENABLED:-true}
-        - OWNCLOUD_REDIS_HOST=redis
-      volumes:
-        - owncloud-data:/mnt/data
-      depends_on:
-        mariadb:
-          condition: service_healthy
-        redis:
-          condition: service_healthy
-      healthcheck:
-        interval: 30s
-        retries: 5
-        test:
-          - CMD
-          - /usr/bin/healthcheck
-        timeout: 10s
-    redis:
-      image: redis:6
-      command:
-        - --databases
-        - "1"
-      healthcheck:
-        interval: 10s
-        retries: 5
-        test:
-          - CMD
-          - redis-cli
-          - ping
-        timeout: 5s
-  volumes:
-    owncloud-data: null
-    owncloud-mysql-data: null
+    data: /mnt/data
+    env:
+      OWNCLOUD_DOMAIN: ${PIER_HOST_OWNCLOUD}
+      OWNCLOUD_TRUSTED_DOMAINS: ${PIER_HOST_OWNCLOUD}
+      OWNCLOUD_DB_TYPE: mysql
+      OWNCLOUD_DB_HOST: mariadb
+      OWNCLOUD_DB_NAME: '{{mariadb.database}}'
+      OWNCLOUD_DB_USERNAME: '{{mariadb.user}}'
+      OWNCLOUD_DB_PASSWORD: '{{mariadb.password}}'
+      OWNCLOUD_ADMIN_USERNAME: ${PIER_USER_OWNCLOUD}
+      OWNCLOUD_ADMIN_PASSWORD: ${PIER_PASSWORD_OWNCLOUD}
+      OWNCLOUD_MYSQL_UTF8MB4: ${MYSQL_UTF8MB4:-true}
+      OWNCLOUD_REDIS_ENABLED: ${REDIS_ENABLED:-true}
+      OWNCLOUD_REDIS_HOST: redis
+with:
+  mariadb:
+    version: '11.8'
+    args:
+    - --character-set-server=utf8mb4
+    - --collation-server=utf8mb4_bin
+    - --max-allowed-packet=128M
+    - --innodb-log-file-size=64M
+    env:
+      TZ: auto
+    database: owncloud
+  redis:
+    args:
+    - --databases
+    - '1'

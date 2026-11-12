@@ -5,7 +5,7 @@
 # small runtime carrying the Docker CLI that Pier shells out to.
 
 ARG DENO_VERSION=2.9.5
-ARG GO_VERSION=1.26.9
+ARG GO_VERSION=1.27.4
 ARG ALPINE_VERSION=3.24
 
 # The interface and the binary are built on the machine's own architecture and

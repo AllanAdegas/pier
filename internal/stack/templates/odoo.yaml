@@ -1,55 +1,39 @@
+auth: generated
 name: Odoo
 description: Suíte de aplicações de negócio open source.
+description_en: Open source suite of business applications.
 category: Produtividade
 website: https://www.odoo.com/
-tags:
-  - business
-  - apps
-  - crm
-  - ecommerce
-  - accounting
-  - inventory
-  - point of sale
-  - project management
-routes:
-  - service: odoo
+services:
+  odoo-init:
+    image: busybox:1.37.0
+    restart: 'no'
+    volumes:
+    - odoo-config:/config
+    env:
+      ADMIN_PASSWORD: ${PIER_PASSWORD_ODOOADMIN}
+    entrypoint:
+    - sh
+    - -ec
+    - |
+      umask 022
+      printf '[options]\naddons_path = /mnt/extra-addons\ndata_dir = /var/lib/odoo\nadmin_passwd = %s\n' "$$ADMIN_PASSWORD" > /config/odoo.conf
+  odoo:
+    image: odoo:18
     port: 8069
-compose: |
-  services:
-    odoo:
-      image: odoo:18
-      environment:
-        - HOST=postgresql
-        - USER=$PIER_USER_POSTGRES
-        - PASSWORD=$PIER_PASSWORD_POSTGRES
-      volumes:
-        - odoo-web-data:/var/lib/odoo
-        - odoo-extra-addons:/mnt/extra-addons
-      healthcheck:
-        interval: 2s
-        retries: 30
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:8069
-        timeout: 10s
-    postgresql:
-      image: postgres:16-alpine
-      environment:
-        - POSTGRES_USER=$PIER_USER_POSTGRES
-        - POSTGRES_PASSWORD=$PIER_PASSWORD_POSTGRES
-        - POSTGRES_DB=postgres
-      volumes:
-        - postgresql-data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - pg_isready -U $${POSTGRES_USER} -d postgres
-        timeout: 20s
-  volumes:
-    odoo-extra-addons: null
-    odoo-web-data: null
-    postgresql-data: null
+    depends_on:
+      odoo-init:
+        condition: service_completed_successfully
+    volumes:
+    - odoo-config:/etc/odoo:ro
+    - odoo-web-data:/var/lib/odoo
+    - odoo-extra-addons:/mnt/extra-addons
+    env:
+      HOST: postgresql
+      USER: '{{postgresql.user}}'
+      PASSWORD: '{{postgresql.password}}'
+with:
+  postgresql:
+    kind: postgres
+    version: '16'
+    database: postgres

@@ -1,116 +1,54 @@
 name: EspoCRM
 description: Plataforma de CRM livre e open source.
+description_en: Free and open source CRM platform.
 category: Produtividade
 website: https://docs.espocrm.com
-tags:
-  - crm
-  - self-hosted
-  - open-source
-  - workflow
-  - automation
-  - project management
-routes:
-  - service: espocrm
+services:
+  espocrm:
+    image: espocrm/espocrm:10
     port: 80
-  - service: espocrm-websocket
+    container_name: espocrm
+    volumes:
+    - espocrm-data:/var/www/html/data
+    - espocrm-custom:/var/www/html/custom
+    - espocrm-custom-client:/var/www/html/client/custom
+    env:
+      ESPOCRM_ADMIN_USERNAME: ${ESPOCRM_ADMIN_USERNAME:-admin}
+      ESPOCRM_ADMIN_PASSWORD: ${PIER_PASSWORD_ADMIN}
+      ESPOCRM_DATABASE_PLATFORM: Mysql
+      ESPOCRM_DATABASE_HOST: espocrm-db
+      ESPOCRM_DATABASE_NAME: '{{espocrm-db.database}}'
+      ESPOCRM_DATABASE_USER: '{{espocrm-db.user}}'
+      ESPOCRM_DATABASE_PASSWORD: '{{espocrm-db.password}}'
+      ESPOCRM_SITE_URL: ${PIER_URL_ESPOCRM}
+    health:
+    - CMD
+    - bin/command
+    - app-check
+  espocrm-daemon:
+    image: espocrm/espocrm:10
+    entrypoint: docker-daemon.sh
+    volumes_from:
+    - espocrm
+    depends_on:
+      espocrm:
+        condition: service_healthy
+  espocrm-websocket:
+    image: espocrm/espocrm:10
     port: 8080
-compose: |
-  services:
-    espocrm:
-      image: espocrm/espocrm:10
-      container_name: espocrm
-      restart: unless-stopped
-      environment:
-        - ESPOCRM_ADMIN_USERNAME=${ESPOCRM_ADMIN_USERNAME:-admin}
-        - ESPOCRM_ADMIN_PASSWORD=${PIER_PASSWORD_ADMIN}
-        - ESPOCRM_DATABASE_PLATFORM=Mysql
-        - ESPOCRM_DATABASE_HOST=espocrm-db
-        - ESPOCRM_DATABASE_NAME=${MARIADB_DATABASE:-espocrm}
-        - ESPOCRM_DATABASE_USER=${PIER_USER_MARIADB}
-        - ESPOCRM_DATABASE_PASSWORD=${PIER_PASSWORD_MARIADB}
-        - ESPOCRM_SITE_URL=${PIER_URL_ESPOCRM}
-      volumes:
-        - espocrm-data:/var/www/html/data
-        - espocrm-custom:/var/www/html/custom
-        - espocrm-custom-client:/var/www/html/client/custom
-      depends_on:
-        espocrm-db:
-          condition: service_healthy
-      healthcheck:
-        interval: 60s
-        retries: 3
-        start_period: 20s
-        test:
-          - CMD
-          - bin/command
-          - app-check
-        timeout: 20s
-    espocrm-daemon:
-      image: espocrm/espocrm:10
-      container_name: espocrm-daemon
-      entrypoint: docker-daemon.sh
-      restart: unless-stopped
-      depends_on:
-        espocrm:
-          condition: service_healthy
-      healthcheck:
-        interval: 180s
-        retries: 3
-        start_period: 20s
-        test:
-          - CMD
-          - bin/command
-          - app-check
-        timeout: 20s
-      volumes_from:
-        - espocrm
-    espocrm-db:
-      image: mariadb:12.3
-      container_name: espocrm-db
-      restart: unless-stopped
-      environment:
-        - MARIADB_DATABASE=${MARIADB_DATABASE:-espocrm}
-        - MARIADB_USER=${PIER_USER_MARIADB}
-        - MARIADB_PASSWORD=${PIER_PASSWORD_MARIADB}
-        - MARIADB_ROOT_PASSWORD=${PIER_PASSWORD_ROOT}
-      volumes:
-        - espocrm-db:/var/lib/mysql
-      healthcheck:
-        interval: 20s
-        retries: 3
-        start_period: 10s
-        test:
-          - CMD
-          - healthcheck.sh
-          - --connect
-          - --innodb_initialized
-        timeout: 10s
-    espocrm-websocket:
-      image: espocrm/espocrm:10
-      container_name: espocrm-websocket
-      entrypoint: docker-websocket.sh
-      restart: unless-stopped
-      environment:
-        - ESPOCRM_CONFIG_USE_WEB_SOCKET=true
-        - ESPOCRM_CONFIG_WEB_SOCKET_URL=$PIER_URL_ESPOCRM_WEBSOCKET
-        - ESPOCRM_CONFIG_WEB_SOCKET_ZERO_M_Q_SUBSCRIBER_DSN=tcp://*:7777
-        - ESPOCRM_CONFIG_WEB_SOCKET_ZERO_M_Q_SUBMISSION_DSN=tcp://espocrm-websocket:7777
-      depends_on:
-        espocrm:
-          condition: service_healthy
-      healthcheck:
-        interval: 180s
-        retries: 3
-        start_period: 20s
-        test:
-          - CMD
-          - bin/command
-          - app-check
-        timeout: 20s
-      volumes_from:
-        - espocrm
-  volumes:
-    espocrm-custom: null
-    espocrm-custom-client: null
-    espocrm-data: null
-    espocrm-db: null
+    entrypoint: docker-websocket.sh
+    volumes_from:
+    - espocrm
+    env:
+      ESPOCRM_CONFIG_USE_WEB_SOCKET: 'true'
+      ESPOCRM_CONFIG_WEB_SOCKET_URL: $PIER_URL_ESPOCRM_WEBSOCKET
+      ESPOCRM_CONFIG_WEB_SOCKET_ZERO_M_Q_SUBSCRIBER_DSN: tcp://*:7777
+      ESPOCRM_CONFIG_WEB_SOCKET_ZERO_M_Q_SUBMISSION_DSN: tcp://espocrm-websocket:7777
+    depends_on:
+      espocrm:
+        condition: service_healthy
+with:
+  espocrm-db:
+    kind: mariadb
+    version: '11.8'
+    database: espocrm

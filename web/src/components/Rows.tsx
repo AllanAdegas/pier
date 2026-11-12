@@ -4,6 +4,7 @@ import { BUILD_PACK_LABEL, deploymentStatus, formatRelative, resourceStatus, sho
 import type { Deployment, Resources } from "../lib/types";
 import { StatusBadge } from "./Feedback";
 import { Icon, type IconName } from "./Icon";
+import { t } from "../i18n";
 
 interface ResourceRow {
   href: string;
@@ -19,7 +20,7 @@ function toRows(resources: Resources): ResourceRow[] {
       href: `/applications/${app.id}`,
       icon: "box" as const,
       name: app.name,
-      detail: app.config.network.domains[0] ?? BUILD_PACK_LABEL[app.config.build.pack] ?? "Aplicação",
+      detail: app.config.network.domains[0] ?? BUILD_PACK_LABEL[app.config.build.pack] ?? t("Aplicação"),
       status: app.status,
     })),
     ...resources.databases.map((database) => ({
@@ -33,7 +34,7 @@ function toRows(resources: Resources): ResourceRow[] {
       href: `/stacks/${stack.id}`,
       icon: "layers" as const,
       name: stack.name,
-      detail: stack.routes[0]?.domain ?? (stack.template || "Compose próprio"),
+      detail: stack.routes[0]?.domain ?? (stack.template || t("Compose próprio")),
       status: stack.status,
     })),
   ];

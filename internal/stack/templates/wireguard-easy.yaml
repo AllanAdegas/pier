@@ -1,39 +1,29 @@
 name: WireGuard Easy
 description: A forma mais fácil de rodar uma VPN WireGuard, com interface web.
+description_en: The easiest way to run a WireGuard VPN, with a web interface.
 category: Rede
 website: https://github.com/wg-easy/wg-easy
-tags:
-  - wireguard
-  - vpn
-  - web
-  - admin
-routes:
-  - service: wg-easy
+services:
+  wg-easy:
+    image: ghcr.io/wg-easy/wg-easy:15.5.0
     port: 51821
-compose: |
-  services:
-    wg-easy:
-      image: ghcr.io/wg-easy/wg-easy:latest
-      entrypoint:
-        - /bin/bash
-        - -c
-        - |
-          eval "wgpw '${PIER_PASSWORD_ADMIN}' > /pass-hash"
-          eval "$(cat /pass-hash) dumb-init node server.js"
-      environment:
-        - WG_HOST=${PIER_HOST_WG_EASY}
-        - LANG=${LANG:-en}
-        - WG_PORT=51820
-        - _PASSWORD=${PIER_PASSWORD_ADMIN}
-      volumes:
-        - wg-easy:/etc/wireguard
-      ports:
-        - 51820:51820/udp
-      cap_add:
-        - NET_ADMIN
-        - SYS_MODULE
-      sysctls:
-        - net.ipv4.conf.all.src_valid_mark=1
-        - net.ipv4.ip_forward=1
-  volumes:
-    wg-easy: null
+    data: /etc/wireguard
+    entrypoint:
+    - /bin/bash
+    - -c
+    - |
+      eval "wgpw '${PIER_PASSWORD_ADMIN}' > /pass-hash"
+      eval "$(cat /pass-hash) dumb-init node server.js"
+    ports:
+    - 51820:51820/udp
+    cap_add:
+    - NET_ADMIN
+    - SYS_MODULE
+    sysctls:
+    - net.ipv4.conf.all.src_valid_mark=1
+    - net.ipv4.ip_forward=1
+    env:
+      WG_HOST: ${PIER_HOST_WG_EASY}
+      LANG: ${LANG:-en}
+      WG_PORT: '51820'
+      _PASSWORD: ${PIER_PASSWORD_ADMIN}

@@ -1,0 +1,37 @@
+.monitor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 12px;
+}
+
+.monitor-metric {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+}
+
+.monitor-value {
+  font-size: 1.35rem;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.monitor-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding-block: 12px;
+  border-block: 1px solid var(--border);
+  font-size: 0.875rem;
+}
+
+.monitor-toolbar, .monitor-toolbar > .row {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.monitor-servers > section {
+  min-width: 0;
+}

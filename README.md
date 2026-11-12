@@ -10,16 +10,23 @@ Três níveis sobre a mesma infraestrutura — use o que o projeto pedir:
 | Docker puro | Todo container, imagem, volume e rede de um servidor, criado ou não pelo Pier | Infraestrutura › servidor › Docker |
 | Kubernetes (opcional) | Clusters importados por kubeconfig ou um K3s de nó único criado pelo Pier | Infraestrutura › Clusters |
 
-Os dois últimos têm o [Rancher](https://github.com/rancher/rancher) como referência. Para automação há a CLI `pierctl`, em [`../pier-cli`](../pier-cli).
+Os dois últimos têm o [Rancher](https://github.com/rancher/rancher) como referência. Para automação há a CLI `pierctl`, em [AllanAdegas/pier-cli](https://github.com/AllanAdegas/pier-cli).
 
-> Versão 0.4.0. Verificada em macOS com Docker Desktop; ainda não rodou em Linux nem em produção. O que foi e o que não foi provado está em `Docs/pier/technical/testing.md`.
+### Monitoramento
+
+Em **Infraestrutura › Monitoramento** (`/monitoring`), acompanhe cada servidor: CPU, RAM utilizada/disponível, disco do diretório de dados, swap, tempo ativo, carga média e containers. Clusters Kubernetes têm um resumo separado de nós, pods saudáveis e avisos. As leituras se atualizam a cada 15 segundos com a página visível; também há atualização manual.
+
+O consumo do host requer Linux com `/proc` acessível. Falta de suporte ou falha de coleta aparece como indisponível, nunca como consumo zero. O painel mostra snapshots, não histórico persistente;.
+
+> Versão 0.5.0 em beta. Em produção numa VPS Linux desde 11/11/2026: painel, proxy e cinco stacks validados. Instalação limpa, backup/restauração, deploy/rollback, segredos de build, promoção e alertas de uptime também exercitados em Docker local Linux/arm64. Essas verificações não cobrem todos os fluxos nem todo o catálogo.
 
 ## Instalar com Docker
 
 Só precisa do Docker com o plugin compose:
 
 ```sh
-git clone <repositório> pier && cd pier
+git clone --branch v0.5.0 --depth 1 https://github.com/AllanAdegas/pier.git
+cd pier
 ./install.sh
 ```
 
@@ -32,7 +39,6 @@ O script:
 
 Rodar de novo atualiza a instalação sem perder dados. Para outra porta: `PIER_PORT=8790 ./install.sh`. Para parar: `docker compose down`; o que o Pier implantou continua rodando.
 
-Consumo medido em `Docs/pier/technical/performance.md`.
 
 ## Rodar a partir do código
 
@@ -64,7 +70,7 @@ O Pier expõe um servidor [MCP](https://modelcontextprotocol.io) em `/mcp`. Agen
 - **Clientes só com stdio:** `PIER_URL=http://127.0.0.1:8700 PIER_TOKEN=<token> pier mcp`, ou `pierctl mcp` com o contexto da CLI.
 - **Cuidado:** logs de deploy e de containers chegam ao agente e podem conter instruções de terceiros. Dê ao token só o que a IA precisa.
 
-Requisitos para compilar: Go 1.26+ e Deno 2.x. Para gerenciar a própria máquina: Docker com o plugin compose.
+Requisitos para compilar: Go 1.27.4+ e Deno 2.x. Para gerenciar a própria máquina: Docker com o plugin compose.
 
 O proxy de cada servidor usa as portas 80 e 443 por padrão; em uma máquina de desenvolvimento, troque-as em Infraestrutura › servidor › Proxy antes de iniciá-lo.
 
@@ -95,7 +101,7 @@ O Pier nunca lê `~/.kube/config`: só usa o kubeconfig que você colar ou o que
 
 ## Permissões
 
-Todo usuário é administrador. Um token de API pode ser `read`, `deploy` ou `write`; **`write` equivale a root nos servidores** (Docker puro, compose próprio, K3s privilegiado) e a tudo o que um kubeconfig importado permite. Detalhes em `Docs/pier/technical/security.md`.
+Todo usuário é administrador. Um token de API pode ser `read`, `deploy` ou `write`; **`write` equivale a root nos servidores** (Docker puro, compose próprio, K3s privilegiado) e a tudo o que um kubeconfig importado permite.
 
 ## Desenvolver
 
@@ -127,11 +133,61 @@ web/             interface SolidJS
 
 ## Documentação
 
-Fica no vault, em `Docs/pier/`:
+O guia de uso fica em [`site/`](site): o site de lançamento, com a documentação escrita para quem vai instalar e operar o Pier. `cd site && deno task serve` abre em `http://localhost:8080`.
 
-- `progress.md` — estado atual e pendências
-- `spec/features.md` — matriz de features, com o estado de verificação de cada uma
-- `spec/docker.md`, `spec/clusters.md` — Docker puro e Kubernetes
-- `spec/directory-stacks.md`, `spec/catalog.md` — stack de pasta e catálogo
-- `architecture.md`, `technical/` — como funciona
-- `design.md` — guia da interface
+### Atualização de segurança: rede do painel
+
+O painel usa exclusivamente a rede Docker `pier-panel`. O proxy gerenciado se
+conecta a essa rede e às redes das aplicações. A publicação do painel vem do
+provider de arquivos do Traefik: ao iniciar com `PIER_DOMAIN`, o Pier escreve
+`<diretório do servidor local>/proxy/dynamic/pier-panel.yaml` com permissão 0600.
+Esse arquivo aponta para `http://pier-panel:8700` e configura HTTPS/ACME; nenhuma
+capacidade de roteamento ou token precisa entrar no compose. `PIER_DOMAIN` deve
+ser apenas o domínio. Sem essa variável, o Pier remove sua rota de painel.
+
+Ao atualizar uma instalação anterior, crie a rede (o `install.sh` faz isso):
+
+```sh
+docker network inspect pier-panel >/dev/null 2>&1 || docker network create pier-panel
+docker compose -f compose.yaml -f compose.proxy.yaml up --detach --build --force-recreate
+```
+
+Depois, recrie também o proxy em Infraestrutura → servidor local → Proxy. O painel
+e o proxy precisam ser recriados para abandonar a antiga rede compartilhada
+`pier`. Aplicações e stacks existentes devem ser reimplantadas para receber os
+labels que o novo filtro do proxy exige. Configure a URL pública HTTPS em
+Configurações; isso ativa HSTS. O override HTTPS força cookies Secure. Fora dele,
+`PIER_COOKIE_SECURE=1` permite a mesma proteção atrás de outro terminador TLS.
+
+Os limites de build também atravessam o compose: `PIER_BUILD_CPUS` (padrão 1),
+`PIER_BUILD_MEMORY` (2g), `PIER_BUILD_MIN_FREE_GB` (2) e `PIER_BUILD_CACHE_GB` (10).
+Builds de código exigem Docker Buildx.
+
+### Backup e restauração da instância
+
+Em Configurações → Backup da instância, baixe um arquivo `.pierbak` criptografado
+ou configure uma pasta local, agenda cron e retenção. A frase-senha tem pelo
+menos 16 caracteres; guarde-a fora do servidor. O backup inclui um snapshot
+consistente de `pier.db` e a chave efetiva das credenciais, inclusive quando a
+chave vem de `PIER_SECRET_KEY`. A frase-senha da agenda fica cifrada no banco.
+Os dumps de bancos, volumes, arquivos de aplicações e certificados dos proxies
+precisam de backups próprios. Copie os backups locais para outro servidor.
+
+Pare o Pier e restaure com o binário, usando o diretório de dados do host:
+
+```sh
+pier restore --file /backup/instance.pierbak --passphrase-file /seguro/frase-senha --data-dir /data/pier
+```
+
+O comando recusa um diretório bloqueado pelo Pier, verifica a autenticação do
+arquivo e a integridade SQLite antes de substituir arquivos. Os arquivos antigos
+recebem o sufixo `.before-restore-*`. Preserve essas cópias até verificar a
+restauração. Ao restaurar sem `PIER_SECRET_KEY`, a chave restaurada é usada;
+remova um override antigo ou mantenha exatamente a chave que originou o backup.
+Pare também versões antigas do Pier que ainda não usam o arquivo `pier.lock`.
+
+O checklist do Painel sugere `https://github.com/heroku/node-js-getting-started`
+para o primeiro deploy com Nixpacks: aplicação Node.js/Express com `npm start`,
+`PORT` e escuta em todas as interfaces. Use a porta interna 3000 e configure
+`PORT=3000`. O checklist pode ser dispensado por item; o aviso de backup na
+moldura permanece até existir um backup da instância.

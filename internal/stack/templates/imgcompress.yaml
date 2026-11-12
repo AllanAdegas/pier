@@ -1,28 +1,12 @@
 name: imgcompress
 description: Compressão e conversão de imagens offline, com remoção de fundo por IA.
+description_en: Offline image compression and conversion, with AI background removal.
 category: Mídia
 website: https://imgcompress.karimzouine.com
-tags:
-  - compress
-  - photo
-  - server
-  - metadata
-routes:
-  - service: imgcompress
+services:
+  imgcompress:
+    image: karimz1/imgcompress:0.6.0
     port: 5000
-compose: |
-  services:
-    imgcompress:
-      image: karimz1/imgcompress:0.6.0
-      environment:
-        - DISABLE_LOGO=${DISABLE_LOGO:-false}
-        - DISABLE_STORAGE_MANAGEMENT=${DISABLE_STORAGE_MANAGEMENT:-false}
-      healthcheck:
-        interval: 30s
-        retries: 3
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:5000
-        timeout: 10s
+    env:
+      DISABLE_LOGO: ${DISABLE_LOGO:-false}
+      DISABLE_STORAGE_MANAGEMENT: ${DISABLE_STORAGE_MANAGEMENT:-false}

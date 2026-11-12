@@ -1,57 +1,22 @@
 name: CodiMD
 description: Notas colaborativas em Markdown, em tempo real.
+description_en: Real-time collaborative Markdown notes.
 category: Produtividade
 website: https://hackmd.io/c/codimd-documentation
-tags:
-  - markdown
-  - md
-  - editor
-  - opensource
-  - collaborative
-  - realtime-collaboration
-  - notes
-routes:
-  - service: codimd
+services:
+  codimd:
+    image: nabo.codimd.dev/hackmdio/hackmd:2.6.1
     port: 3000
-compose: |
-  services:
-    codimd:
-      image: nabo.codimd.dev/hackmdio/hackmd:latest
-      environment:
-        - CMD_DOMAIN=${PIER_HOST_CODIMD}
-        - CMD_PROTOCOL_USESSL=${CMD_PROTOCOL_USESSL:-true}
-        - CMD_SESSION_SECRET=${PIER_PASSWORD_SESSIONSECRET}
-        - CMD_USECDN=${CMD_USECDN:-false}
-        - CMD_DB_URL=postgres://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@postgres:5432/${POSTGRES_DB:-codimd-db}
-        - CMD_EMAIL=${CMD_EMAIL:-true}
-        - CMD_ALLOW_EMAIL_REGISTER=${CMD_ALLOW_EMAIL_REGISTER:-true}
-      volumes:
-        - uploads_data:/home/hackmd/app/public/uploads
-      depends_on:
-        postgres:
-          condition: service_healthy
-      healthcheck:
-        interval: 5s
-        retries: 5
-        test:
-          - CMD-SHELL
-          - curl -f http://localhost:3000/ || exit 1
-        timeout: 20s
-    postgres:
-      image: postgres:16-alpine
-      environment:
-        - POSTGRES_USER=${PIER_USER_POSTGRES}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
-        - POSTGRES_DB=${POSTGRES_DB:-codimd-db}
-      volumes:
-        - codimd_postgres_data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
-        timeout: 20s
-  volumes:
-    codimd_postgres_data: null
-    uploads_data: null
+    data: /home/hackmd/app/public/uploads
+    env:
+      CMD_DOMAIN: ${PIER_HOST_CODIMD}
+      CMD_PROTOCOL_USESSL: ${CMD_PROTOCOL_USESSL:-true}
+      CMD_SESSION_SECRET: ${PIER_PASSWORD_SESSIONSECRET}
+      CMD_USECDN: ${CMD_USECDN:-false}
+      CMD_DB_URL: postgres://{{postgres.user}}:{{postgres.password}}@postgres:5432/{{postgres.database}}
+      CMD_EMAIL: ${CMD_EMAIL:-true}
+      CMD_ALLOW_EMAIL_REGISTER: ${CMD_ALLOW_EMAIL_REGISTER:-true}
+with:
+  postgres:
+    version: '16'
+    database: codimd-db

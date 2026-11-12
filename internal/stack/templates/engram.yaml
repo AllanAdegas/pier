@@ -1,49 +1,25 @@
 name: Engram
 description: Servidor de memória persistente para agentes de IA de programação (MCP).
+description_en: Persistent memory server for AI coding agents (MCP).
 category: IA
 website: https://github.com/Gentleman-Programming/engram
-tags:
-  - ai
-  - memory
-  - mcp
-  - agents
-  - self-hosted
-  - postgres
-routes:
-  - service: engram
+services:
+  engram:
+    image: ghcr.io/gentleman-programming/engram:1.20.0
     port: 8080
-compose: |
-  services:
-    engram:
-      image: ghcr.io/gentleman-programming/engram:1.20.0
-      command:
-        - cloud
-        - serve
-      environment:
-        - ENGRAM_CLOUD_HOST=0.0.0.0
-        - ENGRAM_PORT=8080
-        - ENGRAM_DATABASE_URL=postgres://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@postgresql:5432/${POSTGRES_DB}?sslmode=disable
-        - ENGRAM_JWT_SECRET=${PIER_PASSWORD_64_JWTSECRET}
-        - ENGRAM_CLOUD_TOKEN=${PIER_PASSWORD_64_CLOUDTOKEN}
-        - ENGRAM_CLOUD_ADMIN=${PIER_PASSWORD_64_ADMIN}
-        - ENGRAM_CLOUD_ALLOWED_PROJECTS=${ENGRAM_CLOUD_ALLOWED_PROJECTS:-*}
-      depends_on:
-        postgresql:
-          condition: service_healthy
-    postgresql:
-      image: postgres:18-alpine
-      environment:
-        - POSTGRES_USER=${PIER_USER_POSTGRES}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
-        - POSTGRES_DB=${POSTGRES_DB:-engram-db}
-      volumes:
-        - engram-postgresql-data:/var/lib/postgresql
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
-        timeout: 20s
-  volumes:
-    engram-postgresql-data: null
+    command:
+    - cloud
+    - serve
+    env:
+      ENGRAM_CLOUD_HOST: 0.0.0.0
+      ENGRAM_PORT: '8080'
+      ENGRAM_DATABASE_URL: postgres://{{postgresql.user}}:{{postgresql.password}}@postgresql:5432/{{postgresql.database}}?sslmode=disable
+      ENGRAM_JWT_SECRET: ${PIER_PASSWORD_64_JWTSECRET}
+      ENGRAM_CLOUD_TOKEN: ${PIER_PASSWORD_64_CLOUDTOKEN}
+      ENGRAM_CLOUD_ADMIN: ${PIER_PASSWORD_64_ADMIN}
+      ENGRAM_CLOUD_ALLOWED_PROJECTS: ${ENGRAM_CLOUD_ALLOWED_PROJECTS:-*}
+with:
+  postgresql:
+    kind: postgres
+    version: '18'
+    database: engram-db

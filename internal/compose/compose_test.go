@@ -241,3 +241,28 @@ func routerNames(labels map[string]string) string {
 	}
 	return ""
 }
+
+func TestMarshalRotatesLogsUnlessTheServiceChoseItsOwn(t *testing.T) {
+	file := &File{Services: map[string]*Service{
+		"app":    {Image: "app:1"},
+		"custom": {Image: "custom:1", Logging: &Logging{Driver: "json-file"}},
+	}}
+	out, err := file.Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var parsed struct {
+		Services map[string]struct {
+			Logging Logging `yaml:"logging"`
+		} `yaml:"services"`
+	}
+	if err := yaml.Unmarshal(out, &parsed); err != nil {
+		t.Fatal(err)
+	}
+	if got := parsed.Services["app"].Logging; got.Driver != "local" || got.Options["max-size"] != "10m" || got.Options["max-file"] != "3" {
+		t.Fatalf("default logging = %+v", got)
+	}
+	if got := parsed.Services["custom"].Logging; got.Driver != "json-file" {
+		t.Fatalf("custom logging overwritten: %+v", got)
+	}
+}

@@ -1,71 +1,30 @@
+auth: first-visitor
 name: Forgejo com MySQL
 description: Forja de software leve, fácil de instalar e manter.
+description_en: Lightweight software forge, easy to install and maintain.
 category: Git
 website: https://forgejo.org/docs
-tags:
-  - version control
-  - collaboration
-  - code
-  - hosting
-  - lightweight
-  - mysql
-routes:
-  - service: forgejo
+services:
+  forgejo:
+    image: codeberg.org/forgejo/forgejo:15
     port: 3000
-compose: |
-  services:
-    forgejo:
-      image: codeberg.org/forgejo/forgejo:15
-      environment:
-        - FORGEJO__server__ROOT_URL=${PIER_URL_FORGEJO}
-        - FORGEJO__migrations__ALLOWED_DOMAINS=${FORGEJO__migrations__ALLOWED_DOMAINS}
-        - FORGEJO__migrations__ALLOW_LOCALNETWORKS=${FORGEJO__migrations__ALLOW_LOCALNETWORKS-false}
-        - USER_UID=1000
-        - USER_GID=1000
-        - FORGEJO__database__DB_TYPE=mysql
-        - FORGEJO__database__HOST=mysql
-        - FORGEJO__database__NAME=${MYSQL_DATABASE-forgejo}
-        - FORGEJO__database__USER=$PIER_USER_MYSQL
-        - FORGEJO__database__PASSWD=$PIER_PASSWORD_MYSQL
-      volumes:
-        - forgejo-data:/data
-        - forgejo-timezone:/etc/timezone:ro
-        - forgejo-localtime:/etc/localtime:ro
-      ports:
-        - "22222:22"
-      depends_on:
-        mysql:
-          condition: service_healthy
-      healthcheck:
-        interval: 2s
-        retries: 15
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:3000
-        timeout: 10s
-    mysql:
-      image: mysql:8
-      environment:
-        - MYSQL_USER=${PIER_USER_MYSQL}
-        - MYSQL_PASSWORD=${PIER_PASSWORD_MYSQL}
-        - MYSQL_DATABASE=${MYSQL_DATABASE}
-        - MYSQL_ROOT_PASSWORD=${PIER_PASSWORD_MYSQLROOT}
-      volumes:
-        - forgejo-mysql-data:/var/lib/mysql
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - mysqladmin
-          - ping
-          - -h
-          - 127.0.0.1
-        timeout: 20s
-  volumes:
-    forgejo-data: null
-    forgejo-localtime: null
-    forgejo-mysql-data: null
-    forgejo-timezone: null
+    ports:
+    - '22222:22'
+    volumes:
+    - forgejo-data:/data
+    - forgejo-timezone:/etc/timezone:ro
+    - forgejo-localtime:/etc/localtime:ro
+    env:
+      FORGEJO__server__ROOT_URL: ${PIER_URL_FORGEJO}
+      FORGEJO__migrations__ALLOWED_DOMAINS: ${FORGEJO__migrations__ALLOWED_DOMAINS}
+      FORGEJO__migrations__ALLOW_LOCALNETWORKS: ${FORGEJO__migrations__ALLOW_LOCALNETWORKS-false}
+      USER_UID: '1000'
+      USER_GID: '1000'
+      FORGEJO__database__DB_TYPE: mysql
+      FORGEJO__database__HOST: mysql
+      FORGEJO__database__NAME: '{{mysql.database}}'
+      FORGEJO__database__USER: '{{mysql.user}}'
+      FORGEJO__database__PASSWD: '{{mysql.password}}'
+with:
+  mysql:
+    version: '8.0'

@@ -92,6 +92,16 @@ type rollbackInput struct {
 	DeploymentID string `json:"deployment_id" jsonschema:"ID of an earlier successful deployment whose image to run again"`
 }
 
+type deployTagInput struct {
+	ID  string `json:"id" jsonschema:"ID of the application"`
+	Ref string `json:"ref" jsonschema:"Git tag to build and deploy instead of the configured branch, e.g. v1.2.3"`
+}
+
+type promoteInput struct {
+	ID                  string `json:"id" jsonschema:"ID of the source application, whose running image is promoted"`
+	TargetApplicationID string `json:"target_application_id" jsonschema:"ID of the application (usually in another environment, same server) that receives the image"`
+}
+
 type templateSearchInput struct {
 	Query string `json:"query,omitempty" jsonschema:"words to look for in the name, description, category and tags; empty lists the first results"`
 }
@@ -186,6 +196,13 @@ func registerDeployTools(server *sdk.Server, api invoker) {
 	addTool(server, api, deploy("deploy_application", "Deploy application",
 		"Queues a new deployment of an application (build and zero-downtime rollout). Follow it with get_deployment.",
 		false), postByID("/applications/%s/deploy"))
+	addTool(server, api, deploy("deploy_application_tag", "Deploy Git tag",
+		"Queues a deployment that builds the given Git tag instead of the configured branch. Follow it with get_deployment.",
+		false), deployTag)
+	addTool(server, api, deploy("promote_application", "Promote image to another application",
+		"Deploys the image the source application runs now (no rebuild) into the target application, with the "+
+			"target's variables and release command. Both must be on the same server. Follow it with get_deployment.",
+		false), promote)
 	addTool(server, api, deploy("rollback_application", "Roll back application",
 		"Runs the image of an earlier successful deployment again.", false), rollback)
 	addTool(server, api, deploy("operate_application", "Start, stop or restart application",
@@ -253,7 +270,7 @@ func operate(format string, actions ...string) func(actionInput) (apiRequest, er
 				return apiRequest{Method: http.MethodPost, Path: apiPath(format, input.ID, action)}, nil
 			}
 		}
-		return apiRequest{}, fmt.Errorf("ação inválida %q: use %s", input.Action, strings.Join(actions, ", "))
+		return apiRequest{}, fmt.Errorf("invalid action %q: use %s", input.Action, strings.Join(actions, ", "))
 	}
 }
 
@@ -266,6 +283,29 @@ func rollback(input rollbackInput) (apiRequest, error) {
 	}
 	return apiRequest{Method: http.MethodPost, Path: apiPath("/applications/%s/rollback", input.ID),
 		Body: map[string]string{"deployment_id": input.DeploymentID}}, nil
+}
+
+func deployTag(input deployTagInput) (apiRequest, error) {
+	if err := requireIdentifier("id", input.ID); err != nil {
+		return apiRequest{}, err
+	}
+	ref := strings.TrimSpace(input.Ref)
+	if ref == "" || len(ref) > 200 || strings.ContainsAny(ref, " \t\n") {
+		return apiRequest{}, fmt.Errorf("ref must be a Git tag name, e.g. v1.2.3")
+	}
+	return apiRequest{Method: http.MethodPost, Path: apiPath("/applications/%s/deploy", input.ID),
+		Body: map[string]string{"ref": ref}}, nil
+}
+
+func promote(input promoteInput) (apiRequest, error) {
+	if err := requireIdentifier("id", input.ID); err != nil {
+		return apiRequest{}, err
+	}
+	if err := requireIdentifier("target_application_id", input.TargetApplicationID); err != nil {
+		return apiRequest{}, err
+	}
+	return apiRequest{Method: http.MethodPost, Path: apiPath("/applications/%s/promote", input.ID),
+		Body: map[string]string{"target_application_id": input.TargetApplicationID}}, nil
 }
 
 func createStack(input createStackInput) (apiRequest, error) {

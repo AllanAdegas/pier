@@ -1,11 +1,13 @@
 import { createSignal, For, Show } from "solid-js";
 import { Button } from "../../components/Button";
 import { Alert } from "../../components/Feedback";
-import { Select, TextInput } from "../../components/Form";
 import { Section } from "../../components/Page";
 import { api } from "../../lib/api";
 import { createAction } from "../../lib/query";
 import type { EdgeProxy, EdgeSync, Server } from "../../lib/types";
+import { Trans } from "../../i18n/Trans";
+import { t } from "../../i18n";
+import { Select, TextInput } from "../../components/Form";
 
 /**
  * Settings of the Caddy that owns ports 80/443 in front of Pier's proxy.
@@ -37,17 +39,14 @@ function EdgeFieldset(props: {
 }) {
   return (
     <fieldset class="stack" style={{ border: "0", padding: "0", margin: "0" }}>
-      <legend class="field-label" style={{ "margin-bottom": "var(--space-2)" }}>
-        Caddy na frente
+      <legend class="field-label" style={{ "margin-bottom": "var(--space-2)" }}>{t("Caddy na frente")}
       </legend>
-      <p class="small muted" style={{ margin: "0" }}>
-        Este servidor tem um Caddy. Se ele ocupa as portas 80 e 443, escolha-o: o proxy do Pier fica em outras portas e o Pier
-        mantém um bloco no Caddyfile com os domínios deste servidor; o Caddy emite os certificados e encaminha para o Pier.
+      <p class="small muted" style={{ margin: "0" }}>{t("Este servidor tem um Caddy. Se ele ocupa as portas 80 e 443, escolha-o: o proxy do Pier fica em outras portas e o Pier mantém um bloco no Caddyfile com os domínios deste servidor; o Caddy emite os certificados e encaminha para o Pier.")}
       </p>
       <div class="grid-2">
         <Select
-          label="Container do Caddy"
-          placeholder="Nenhum (o Pier atende direto)"
+          label={t("Container do Caddy")}
+          placeholder={t("Nenhum (o Pier atende direto)")}
           options={props.containers.map((name) => ({
             value: name,
             label: name,
@@ -58,8 +57,8 @@ function EdgeFieldset(props: {
         />
         <Show when={props.edge.container.trim()}>
           <TextInput
-            label="Caddyfile dentro do container"
-            hint="Precisa vir de um arquivo do servidor (montagem)."
+            label={t("Caddyfile dentro do container")}
+            hint={t("Precisa vir de um arquivo do servidor (montagem).")}
             placeholder="/etc/caddy/Caddyfile"
             value={props.edge.caddyfile}
             onValue={(value) => props.onChange("caddyfile", value)}
@@ -75,17 +74,19 @@ function EdgeFieldset(props: {
 export function EdgeSyncCard(props: { server: Server }) {
   const [result, setResult] = createSignal<EdgeSync | null>(null);
   const sync = createAction(() => api.post<EdgeSync>(`/servers/${props.server.id}/proxy/edge/sync`), {
-    success: (outcome) => (outcome.changed ? "Caddyfile atualizado e Caddy recarregado." : "O Caddyfile já estava em dia."),
+    success: (outcome) => (outcome.changed ? t("Caddyfile atualizado e Caddy recarregado.") : t("O Caddyfile já estava em dia.")),
     onSuccess: setResult,
   });
 
   return (
     <Section
-      title="Caddy na frente"
-      description={`O Pier atualiza o bloco dele no Caddyfile de ${props.server.proxy.edge.container} a cada deploy e remoção. Sincronize se o arquivo foi alterado por fora.`}
+      title={t("Caddy na frente")}
+      description={t(
+        "O Pier atualiza o bloco dele no Caddyfile de {container} a cada deploy e remoção. Sincronize se o arquivo foi alterado por fora.",
+        { container: props.server.proxy.edge.container },
+      )}
       actions={
-        <Button icon="refresh" pending={sync.pending()} onClick={() => void sync.run()}>
-          Sincronizar agora
+        <Button icon="refresh" pending={sync.pending()} onClick={() => void sync.run()}>{t("Sincronizar agora")}
         </Button>
       }
     >
@@ -94,10 +95,13 @@ export function EdgeSyncCard(props: { server: Server }) {
           <div class="stack-sm">
             <Show
               when={outcome().addresses.length > 0}
-              fallback={<Alert tone="info">Nenhum domínio publicado neste servidor: o bloco do Pier foi removido.</Alert>}
+              fallback={<Alert tone="info">{t("Nenhum domínio publicado neste servidor: o bloco do Pier foi removido.")}</Alert>}
             >
               <span class="small muted">
-                Encaminhados para <code>{outcome().upstream}</code> em <code>{outcome().caddyfile}</code>:
+                <Trans
+                  text="Encaminhados para {upstream} em {caddyfile}:"
+                  values={{ upstream: <code>{outcome().upstream}</code>, caddyfile: <code>{outcome().caddyfile}</code> }}
+                />
               </span>
               <ul class="small" style={{ margin: "0" }}>
                 <For each={outcome().addresses}>

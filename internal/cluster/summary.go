@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"pier/internal/kube"
+	"pier/internal/platform/i18n"
 )
 
 // Health values of a Row.
@@ -17,11 +18,12 @@ const (
 
 // summarize reduces an object to the few facts a listing shows. Kinds without
 // a dedicated reading (custom resources included) still get name and age.
-func summarize(kind string, object kube.Object) Row {
+func summarize(kind string, object kube.Object, language i18n.Language) Row {
 	row := Row{
 		Name:      text(object, "metadata", "name"),
 		Namespace: text(object, "metadata", "namespace"),
 		Created:   text(object, "metadata", "creationTimestamp"),
+		language:  language,
 	}
 	if describe, known := describers[kind]; known {
 		describe(object, &row)
@@ -66,7 +68,7 @@ func describePod(object kube.Object, row *Row) {
 	row.Status = fmt.Sprintf("%s · %d/%d", phase, ready, len(statuses))
 	row.Info = text(object, "spec", "nodeName")
 	if restarts > 0 {
-		row.Info = strings.TrimSpace(fmt.Sprintf("%s · %d reinício(s)", row.Info, restarts))
+		row.Info = strings.TrimSpace(row.language.Sprintf("%s · %d reinício(s)", row.Info, restarts))
 	}
 	switch {
 	case waiting != "" && waiting != "ContainerCreating" && waiting != "PodInitializing":
@@ -75,7 +77,7 @@ func describePod(object kube.Object, row *Row) {
 	case phase == "Failed":
 		row.Health = healthError
 	case phase == "Succeeded":
-		row.Status, row.Health = "Concluído", healthOK
+		row.Status, row.Health = row.language.Text("Concluído"), healthOK
 	case phase == "Running" && ready == len(statuses) && len(statuses) > 0:
 		row.Health = healthOK
 	default:
@@ -91,11 +93,11 @@ func describeReplicated(object kube.Object, row *Row) {
 		}
 	}
 	ready := int(number(object, "status", "readyReplicas"))
-	row.Status = fmt.Sprintf("%d/%d prontos", ready, desired)
+	row.Status = row.language.Sprintf("%d/%d prontos", ready, desired)
 	row.Info = firstImage(object)
 	switch {
 	case desired == 0:
-		row.Status = "Escalado para zero"
+		row.Status = row.language.Text("Escalado para zero")
 	case ready >= desired:
 		row.Health = healthOK
 	default:
@@ -106,7 +108,7 @@ func describeReplicated(object kube.Object, row *Row) {
 func describeDaemonSet(object kube.Object, row *Row) {
 	desired := int(number(object, "status", "desiredNumberScheduled"))
 	ready := int(number(object, "status", "numberReady"))
-	row.Status = fmt.Sprintf("%d/%d prontos", ready, desired)
+	row.Status = row.language.Sprintf("%d/%d prontos", ready, desired)
 	row.Info = firstImage(object)
 	row.Health = healthProgressing
 	if ready >= desired {
@@ -118,20 +120,20 @@ func describeJob(object kube.Object, row *Row) {
 	row.Info = firstImage(object)
 	switch {
 	case number(object, "status", "succeeded") > 0:
-		row.Status, row.Health = "Concluído", healthOK
+		row.Status, row.Health = row.language.Text("Concluído"), healthOK
 	case number(object, "status", "failed") > 0:
-		row.Status, row.Health = "Falhou", healthError
+		row.Status, row.Health = row.language.Text("Falhou"), healthError
 	default:
-		row.Status, row.Health = "Em execução", healthProgressing
+		row.Status, row.Health = row.language.Text("Em execução"), healthProgressing
 	}
 }
 
 func describeCronJob(object kube.Object, row *Row) {
 	row.Info = text(object, "spec", "schedule")
-	row.Status = "Ativo"
+	row.Status = row.language.Text("Ativo")
 	if spec, ok := object["spec"].(map[string]any); ok {
 		if suspended, _ := spec["suspend"].(bool); suspended {
-			row.Status = "Suspenso"
+			row.Status = row.language.Text("Suspenso")
 		}
 	}
 }
@@ -199,7 +201,7 @@ func describeIngress(object kube.Object, row *Row) {
 // their values.
 func describeKeys(object kube.Object, row *Row) {
 	data, _ := object["data"].(map[string]any)
-	row.Info = fmt.Sprintf("%d chave(s)", len(data))
+	row.Info = row.language.Sprintf("%d chave(s)", len(data))
 	row.Status = text(object, "type")
 }
 

@@ -59,11 +59,11 @@ func requireToken(tokens TokenAuthenticator, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, found := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 		if !found || strings.TrimSpace(token) == "" {
-			unauthorized(w, "Use um token de API do Pier: Authorization: Bearer <token>.")
+			unauthorized(w, "Use a Pier API token: Authorization: Bearer <token>.")
 			return
 		}
 		if _, err := tokens.AuthenticateToken(r.Context(), strings.TrimSpace(token)); err != nil {
-			unauthorized(w, "Token de API inválido ou revogado.")
+			unauthorized(w, "Invalid or revoked API token.")
 			return
 		}
 		next.ServeHTTP(w, r)

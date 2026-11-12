@@ -14,14 +14,16 @@ import { AutomationTab } from "./application/Automation";
 import { ConfigTab } from "./application/Config";
 import { DeploysTab } from "./application/Deploys";
 import { OverviewTab } from "./application/Overview";
+import { withProcessNames } from "./application/processes";
+import { t } from "../i18n";
 
 const TABS = [
-  { id: "overview", label: "Visão geral" },
+  { id: "overview", label: t("Visão geral") },
   { id: "deploys", label: "Deploys" },
   { id: "logs", label: "Logs" },
-  { id: "config", label: "Configuração" },
-  { id: "env", label: "Variáveis" },
-  { id: "automation", label: "Automação" },
+  { id: "config", label: t("Configuração") },
+  { id: "env", label: t("Variáveis") },
+  { id: "automation", label: t("Automação") },
 ];
 
 export function ApplicationPage() {
@@ -47,12 +49,12 @@ export function ApplicationPage() {
   );
 
   const deploy = createAction(() => api.post<Deployment>(`/applications/${params.id}/deploy`), {
-    success: "Deploy enfileirado.",
+    success: t("Deploy enfileirado."),
     onSuccess: (deployment) => navigate(`/deployments/${deployment.id}`),
   });
   const operate = createAction(
     (action: "start" | "stop" | "restart") => api.post<Application>(`/applications/${params.id}/actions/${action}`),
-    { success: "Operação concluída.", onSuccess: (updated) => application.set(updated) },
+    { success: t("Operação concluída."), onSuccess: (updated) => application.set(updated) },
   );
 
   return (
@@ -61,7 +63,7 @@ export function ApplicationPage() {
         {(app) => (
           <>
             <PageHeader
-              crumbs={[{ label: "Projetos", href: "/projects" }, { label: app().name }]}
+              crumbs={[{ label: t("Projetos"), href: "/projects" }, { label: app().name }]}
               title={
                 <span class="row">
                   {app().name}
@@ -69,7 +71,7 @@ export function ApplicationPage() {
                 </span>
               }
               description={
-                <Show when={app().config.network.domains.length > 0} fallback={app().description || "Sem domínio público."}>
+                <Show when={app().config.network.domains.length > 0} fallback={app().description || t("Sem domínio público.")}>
                   <span class="row">
                     <For each={app().config.network.domains}>
                       {(domain) => (
@@ -87,23 +89,19 @@ export function ApplicationPage() {
                     when={app().status === "stopped"}
                     fallback={
                       <>
-                        <Button icon="refresh" pending={operate.pending()} onClick={() => void operate.run("restart")}>
-                          Reiniciar
+                        <Button icon="refresh" pending={operate.pending()} onClick={() => void operate.run("restart")}>{t("Reiniciar")}
                         </Button>
-                        <Button icon="stop" pending={operate.pending()} onClick={() => void operate.run("stop")}>
-                          Parar
+                        <Button icon="stop" pending={operate.pending()} onClick={() => void operate.run("stop")}>{t("Parar")}
                         </Button>
                       </>
                     }
                   >
                     <Show when={app().current_image}>
-                      <Button icon="play" pending={operate.pending()} onClick={() => void operate.run("start")}>
-                        Iniciar
+                      <Button icon="play" pending={operate.pending()} onClick={() => void operate.run("start")}>{t("Iniciar")}
                       </Button>
                     </Show>
                   </Show>
-                  <Button variant="primary" icon="rocket" pending={deploy.pending()} onClick={() => void deploy.run()}>
-                    Implantar
+                  <Button variant="primary" icon="rocket" pending={deploy.pending()} onClick={() => void deploy.run()}>{t("Implantar")}
                   </Button>
                 </>
               }
@@ -118,7 +116,7 @@ export function ApplicationPage() {
               </Match>
               <Match when={tab() === "logs"}>
                 <QueryView query={containers}>
-                  {(list) => <ContainerLogs serverId={app().server_id} containers={list()} />}
+                  {(list) => <ContainerLogs serverId={app().server_id} containers={withProcessNames(list())} />}
                 </QueryView>
               </Match>
               <Match when={tab() === "config"}>
@@ -128,7 +126,7 @@ export function ApplicationPage() {
                 <EnvEditor
                   basePath={`/applications/${app().id}`}
                   allowBuildTime={app().config.build.pack !== "image"}
-                  note="As alterações valem a partir do próximo deploy."
+                  note={t("As alterações valem a partir do próximo deploy.")}
                 />
               </Match>
               <Match when={tab() === "automation"}>

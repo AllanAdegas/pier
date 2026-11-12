@@ -1,40 +1,17 @@
 name: Calibre-Web
 description: Interface web para navegar, ler e baixar e-books.
+description_en: Web interface to browse, read and download e-books.
 category: Mídia
 website: https://github.com/linuxserver/docker-calibre-web
-tags:
-  - calibre
-  - calibre-web
-  - ebook
-  - library
-  - epub
-  - ereader
-  - kindle
-  - book
-routes:
-  - service: calibre-web
+services:
+  calibre-web:
+    image: lscr.io/linuxserver/calibre-web@sha256:8eabbc9ac4d7fcbc252434493078ba22e4e8c3aa461e11b102020b040c5fc3e6
     port: 8083
-compose: |
-  services:
-    calibre-web:
-      image: lscr.io/linuxserver/calibre-web:latest
-      environment:
-        - PUID=1000
-        - PGID=1000
-        - TZ=${TZ:-Etc/UTC}
-        - DOCKER_MODS=${DOCKER_MODS:-linuxserver/mods:universal-calibre}
-      volumes:
-        - calibre_web_data:/config
-        - calibre_library:/books
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:8083
-        timeout: 20s
-  volumes:
-    calibre_library: null
-    calibre_web_data: null
+    volumes:
+    - calibre_web_data:/config
+    - calibre_library:/books
+    env:
+      PUID: '1000'
+      PGID: '1000'
+      TZ: ${TZ:-Etc/UTC}
+      DOCKER_MODS: ${DOCKER_MODS:-linuxserver/mods:universal-calibre}

@@ -45,6 +45,20 @@ export interface EdgeSync {
   changed: boolean;
 }
 
+export interface ServerCheck {
+  code: string;
+  status: "pass" | "warning" | "error" | "info";
+  message: string;
+  fix: string;
+}
+
+export interface DomainCheck {
+  ok: boolean;
+  addresses: string[];
+  expected: string[];
+  record_hint: string;
+}
+
 export interface Server {
   id: string;
   name: string;
@@ -60,6 +74,7 @@ export interface Server {
   status: "unknown" | "reachable" | "unreachable";
   status_message: string;
   docker_version: string;
+  checks?: ServerCheck[];
   last_checked_at: string | null;
   created_at: string;
 }
@@ -82,9 +97,25 @@ export interface ContainerUsage {
   cpu_percent: string;
   memory_usage: string;
   memory_percent: string;
+  state: string;
+  status: string;
 }
 
 export interface ServerMetrics {
+  collected_at: string;
+  cpu_percent: number | null;
+  memory_used_bytes: number | null;
+  memory_available_bytes: number | null;
+  swap_total_bytes: number | null;
+  swap_used_bytes: number | null;
+  uptime_seconds: number | null;
+  load_average: number[] | null;
+  disk_available_bytes: number | null;
+  containers_total: number;
+  containers_stopped: number;
+  containers_paused: number;
+  host_error: string;
+  disk_error: string;
   operating_system: string;
   architecture: string;
   cpus: number;
@@ -113,6 +144,8 @@ export interface PrivateKey {
 }
 
 export interface Environment {
+  protected: boolean;
+  frozen: boolean;
   id: string;
   project_id: string;
   name: string;
@@ -136,7 +169,16 @@ export interface Storage {
 }
 
 export interface ApplicationConfig {
-  source: { repository: string; branch: string; commit: string; private_key_id: string; image: string };
+  source: {
+    repository: string;
+    branch: string;
+    commit: string;
+    private_key_id: string;
+    image: string;
+    watch_paths: string[];
+    tag: string;
+    tag_pattern: string;
+  };
   build: {
     pack: BuildPack;
     base_directory: string;
@@ -159,8 +201,18 @@ export interface ApplicationConfig {
   };
   limits: { cpus: string; memory: string };
   hooks: { pre_deploy: string; post_deploy: string };
+  release: { command: string };
   storages: Storage[];
   auto_deploy: boolean;
+  /** Empty or null means a single "web" process. */
+  processes?: Process[] | null;
+}
+
+export interface Process {
+  name: string;
+  command: string;
+  replicas: number;
+  limits: { cpus: string; memory: string };
 }
 
 export interface Application {
@@ -183,12 +235,18 @@ export interface Deployment {
   application_id: string;
   application_name: string;
   status: DeploymentStatus;
-  trigger: "manual" | "webhook" | "api" | "rollback";
+  trigger: "manual" | "webhook" | "api" | "rollback" | "archive" | "promotion";
+  source: string;
+  ref: string;
+  promoted_from: string;
   commit_sha: string;
   commit_message: string;
   image: string;
   rollback_image: string;
   error: string;
+  hints: { Code: string; Title: string; Fix: string; DocURL: string }[];
+  suggested_port?: number;
+  retired_logs: { container: string; output: string }[];
   created_at: string;
   started_at: string | null;
   finished_at: string | null;
@@ -210,6 +268,8 @@ export interface Container {
   type: string;
   resource_id: string;
   deployment: string;
+  /** Application containers only: the process the container runs. */
+  process?: string;
 }
 
 export interface EnvVariable {
@@ -217,6 +277,7 @@ export interface EnvVariable {
   key: string;
   value: string;
   build_time: boolean;
+  secret_build: boolean;
 }
 
 export interface WebhookInfo {
@@ -261,7 +322,7 @@ export interface DatabaseConfig {
   public_port: number;
   cpus: string;
   memory: string;
-  backup: { enabled: boolean; cron: string; retention: number };
+  backup: { enabled: boolean; cron: string; retention: number; s3?: boolean; restore_test?: boolean; restore_test_cron?: string };
 }
 
 export interface Database {
@@ -345,6 +406,8 @@ export interface StackVariable extends ComposeVariable {
 
 /** Catalog entry. Listings omit `compose` and `variables`. */
 export interface StackTemplate {
+  auth?: string;
+  host_ports?: string[];
   slug: string;
   name: string;
   description: string;
@@ -419,6 +482,8 @@ export interface NotificationChannel {
 export interface InstanceSettings {
   instance_name: string;
   public_url: string;
+  /** Language of deploy logs, notifications and API answers without Accept-Language. */
+  language: "pt-BR" | "en";
 }
 
 /* ---------- Plain Docker ---------- */

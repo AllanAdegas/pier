@@ -1,76 +1,34 @@
 name: HeyForm
 description: Formulários conversacionais para pesquisas, questionários e enquetes, sem código.
+description_en: Conversational forms for surveys, quizzes and polls, with no code.
 category: Produtividade
 website: https://docs.heyform.net/open-source/self-hosting
-tags:
-  - form
-  - builder
-  - forms
-  - survey
-  - quiz
-  - open source
-  - self-hosted
-  - docker
-routes:
-  - service: heyform
+services:
+  heyform:
+    image: heyform/community-edition:v3.0.6
     port: 9157
-compose: |
-  services:
-    heyform:
-      image: heyform/community-edition:latest
-      environment:
-        - APP_HOMEPAGE_URL=${PIER_URL_HEYFORM}
-        - SESSION_KEY=${PIER_PASSWORD_64_SESSION}
-        - FORM_ENCRYPTION_KEY=${PIER_PASSWORD_64_FORM}
-        - MONGO_URI=mongodb://mongo:27017/heyform
-        - REDIS_HOST=keydb
-        - REDIS_PORT=6379
-        - REDIS_PASSWORD=${PIER_PASSWORD_KEYDB}
-      volumes:
-        - heyform-assets:/app/static/upload
-      depends_on:
-        keydb:
-          condition: service_healthy
-        mongo:
-          condition: service_healthy
-      healthcheck:
-        interval: 5s
-        retries: 3
-        test:
-          - CMD-SHELL
-          - wget -qO- http://127.0.0.1:9157 || exit 1
-        timeout: 5s
-    keydb:
-      image: eqalpha/keydb:latest
-      command: keydb-server --appendonly yes
-      environment:
-        - KEYDB_PASSWORD=${PIER_PASSWORD_KEYDB}
-      volumes:
-        - heyform-keydb-data:/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        start_period: 5s
-        test:
-          - CMD-SHELL
-          - keydb-cli
-          - --pass
-          - ${PIER_PASSWORD_KEYDB}
-          - ping
-        timeout: 5s
-    mongo:
-      image: percona/percona-server-mongodb:latest
-      volumes:
-        - heyform-mongo-data:/data/db
-      healthcheck:
-        interval: 5s
-        retries: 10
-        start_period: 5s
-        test:
-          - CMD-SHELL
-          - echo 'ok' > /dev/null 2>&1
-        timeout: 5s
-  volumes:
-    heyform-assets: null
-    heyform-keydb-data: null
-    heyform-mongo-data: null
+    data: /app/static/upload
+    env:
+      APP_HOMEPAGE_URL: ${PIER_URL_HEYFORM}
+      SESSION_KEY: ${PIER_PASSWORD_64_SESSION}
+      FORM_ENCRYPTION_KEY: ${PIER_PASSWORD_64_FORM}
+      MONGO_URI: mongodb://mongo:27017/heyform
+      REDIS_HOST: keydb
+      REDIS_PORT: '6379'
+      REDIS_PASSWORD: ${PIER_PASSWORD_KEYDB}
+    depends_on:
+      keydb:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+  keydb:
+    image: eqalpha/keydb@sha256:6537505c42355ca1f571276bddf83f5b750f760f07b2a185a676481791e388ac
+    data: /data
+    command: keydb-server --appendonly yes
+    env:
+      KEYDB_PASSWORD: ${PIER_PASSWORD_KEYDB}
+    health: 'cmd: keydb-cli --pass ${PIER_PASSWORD_KEYDB} ping'
+  mongo:
+    image: percona/percona-server-mongodb:8.3.13
+    data: /data/db
+    health: 'cmd: echo ''ok'' > /dev/null 2>&1'

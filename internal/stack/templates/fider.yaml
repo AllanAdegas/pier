@@ -1,55 +1,30 @@
 name: Fider
 description: Plataforma para coletar e gerir feedback de usuários.
+description_en: Platform to collect and manage user feedback.
 category: Produtividade
 website: https://fider.io
-tags:
-  - feedback
-  - user-feedback
-routes:
-  - service: fider
+services:
+  fider:
+    image: getfider/fider:v0.39.0
     port: 3000
-compose: |
-  services:
-    database:
-      image: postgres:12
-      environment:
-        - POSTGRES_USER=$PIER_USER_POSTGRES
-        - POSTGRES_PASSWORD=$PIER_PASSWORD_POSTGRES
-        - POSTGRES_DB=${POSTGRES_DB:-fider}
-      volumes:
-        - pg_data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}
-        timeout: 20s
-    fider:
-      image: getfider/fider:stable
-      environment:
-        - BASE_URL=$PIER_URL_FIDER
-        - DATABASE_URL=postgres://$PIER_USER_POSTGRES:$PIER_PASSWORD_POSTGRES@database:5432/fider?sslmode=disable
-        - JWT_SECRET=$PIER_PASSWORD_64_FIDER
-        - EMAIL_NOREPLY=${EMAIL_NOREPLY:-noreply@example.com}
-        - EMAIL_MAILGUN_API=$EMAIL_MAILGUN_API
-        - EMAIL_MAILGUN_DOMAIN=$EMAIL_MAILGUN_DOMAIN
-        - EMAIL_MAILGUN_REGION=$EMAIL_MAILGUN_REGION
-        - EMAIL_SMTP_HOST=${EMAIL_SMTP_HOST:-smtp.mailgun.com}
-        - EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT:-587}
-        - EMAIL_SMTP_USERNAME=${EMAIL_SMTP_USERNAME:-postmaster@mailgun.com}
-        - EMAIL_SMTP_PASSWORD=$EMAIL_SMTP_PASSWORD
-        - EMAIL_SMTP_ENABLE_STARTTLS=$EMAIL_SMTP_ENABLE_STARTTLS
-        - EMAIL_AWSSES_REGION=$EMAIL_AWSSES_REGION
-        - EMAIL_AWSSES_ACCESS_KEY_ID=$EMAIL_AWSSES_ACCESS_KEY_ID
-        - EMAIL_AWSSES_SECRET_ACCESS_KEY=$EMAIL_AWSSES_SECRET_ACCESS_KEY
-      healthcheck:
-        interval: 2s
-        retries: 10
-        test:
-          - CMD
-          - /app/fider
-          - ping
-        timeout: 10s
-  volumes:
-    pg_data: null
+    env:
+      BASE_URL: $PIER_URL_FIDER
+      DATABASE_URL: postgres://{{database.user}}:{{database.password}}@database:5432/fider?sslmode=disable
+      JWT_SECRET: $PIER_PASSWORD_64_FIDER
+      EMAIL_NOREPLY: ${EMAIL_NOREPLY:-noreply@example.com}
+      EMAIL_MAILGUN_API: $EMAIL_MAILGUN_API
+      EMAIL_MAILGUN_DOMAIN: $EMAIL_MAILGUN_DOMAIN
+      EMAIL_MAILGUN_REGION: $EMAIL_MAILGUN_REGION
+      EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:-smtp.mailgun.com}
+      EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT:-587}
+      EMAIL_SMTP_USERNAME: ${EMAIL_SMTP_USERNAME:-postmaster@mailgun.com}
+      EMAIL_SMTP_PASSWORD: $EMAIL_SMTP_PASSWORD
+      EMAIL_SMTP_ENABLE_STARTTLS: $EMAIL_SMTP_ENABLE_STARTTLS
+      EMAIL_AWSSES_REGION: $EMAIL_AWSSES_REGION
+      EMAIL_AWSSES_ACCESS_KEY_ID: $EMAIL_AWSSES_ACCESS_KEY_ID
+      EMAIL_AWSSES_SECRET_ACCESS_KEY: $EMAIL_AWSSES_SECRET_ACCESS_KEY
+with:
+  database:
+    kind: postgres
+    version: '16'
+    database: fider

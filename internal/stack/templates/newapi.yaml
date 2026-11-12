@@ -1,65 +1,21 @@
 name: New API
 description: Gateway de LLM e gestão de ativos de IA.
+description_en: LLM gateway and AI asset management.
 category: Desenvolvimento
 website: https://docs.newapi.pro/en/getting-started/
-tags:
-  - api
-  - openai
-  - llm
-  - api-gateway
-  - api-management
-routes:
-  - service: new-api
+services:
+  new-api:
+    image: calciumion/new-api:v0.9.2.0
     port: 3000
-compose: |
-  services:
-    new-api:
-      image: calciumion/new-api:v0.9.2.0
-      environment:
-        - SQL_DSN=postgres://$PIER_USER_POSTGRES:$PIER_PASSWORD_POSTGRES@postgresql:5432/${POSTGRES_DATABASE:-newapi}?sslmode=disable&TimeZone=${TZ:-Asia/Shanghai}
-        - REDIS_CONN_STRING=redis://redis:6379
-        - TZ=${TZ:-Asia/Shanghai}
-        - SESSION_SECRET=$PIER_PASSWORD_64_SESSION_SECRET
-        - ERROR_LOG_ENABLED=${ERROR_LOG_ENABLED:-true}
-      depends_on:
-        postgresql:
-          condition: service_healthy
-        redis:
-          condition: service_healthy
-      healthcheck:
-        interval: 30s
-        retries: 3
-        test:
-          - CMD-SHELL
-          - 'wget -q -O - http://localhost:3000/api/status | grep -o ''"success":\s*true'' | awk -F: ''{print $2}'''
-        timeout: 10s
-    postgresql:
-      image: postgres:16-alpine
-      environment:
-        - POSTGRES_USER=$PIER_USER_POSTGRES
-        - POSTGRES_PASSWORD=$PIER_PASSWORD_POSTGRES
-        - POSTGRES_DB=${POSTGRES_DATABASE:-newapi}
-      volumes:
-        - postgresql-data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 5s
-        retries: 20
-        test:
-          - CMD-SHELL
-          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB:-newapi}
-        timeout: 10s
-    redis:
-      image: redis:7-alpine
-      volumes:
-        - redis-data:/data
-      healthcheck:
-        interval: 5s
-        retries: 20
-        test:
-          - CMD
-          - redis-cli
-          - PING
-        timeout: 10s
-  volumes:
-    postgresql-data: null
-    redis-data: null
+    env:
+      SQL_DSN: postgres://{{postgresql.user}}:{{postgresql.password}}@postgresql:5432/{{postgresql.database}}?sslmode=disable&TimeZone=${TZ:-Asia/Shanghai}
+      REDIS_CONN_STRING: redis://redis:6379
+      TZ: ${TZ:-Asia/Shanghai}
+      SESSION_SECRET: $PIER_PASSWORD_64_SESSION_SECRET
+      ERROR_LOG_ENABLED: ${ERROR_LOG_ENABLED:-true}
+with:
+  postgresql:
+    kind: postgres
+    version: '16'
+    database: newapi
+  redis: {}

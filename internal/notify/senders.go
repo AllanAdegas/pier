@@ -3,6 +3,7 @@ package notify
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -52,7 +53,7 @@ type slackSender struct{ client *http.Client }
 func (slackSender) RequiredConfig() []string { return []string{"webhook_url"} }
 
 func (s slackSender) Send(ctx context.Context, config map[string]string, event Event) error {
-	payload := map[string]any{"text": "*" + event.Title + "*\n" + event.Message}
+	payload := map[string]any{"text": "*" + escapeSlack(event.Title) + "*\n" + escapeSlack(event.Message)}
 	return postJSON(ctx, s.client, config["webhook_url"], payload)
 }
 
@@ -78,7 +79,7 @@ type emailSender struct{}
 
 func (emailSender) RequiredConfig() []string { return []string{"host", "port", "from", "to"} }
 
-func (emailSender) Send(_ context.Context, config map[string]string, event Event) error {
+func (emailSender) Send(ctx context.Context, config map[string]string, event Event) error {
 	address := net.JoinHostPort(config["host"], config["port"])
 	var auth smtp.Auth
 	if config["username"] != "" {
@@ -93,10 +94,64 @@ func (emailSender) Send(_ context.Context, config map[string]string, event Event
 		"Subject: " + sanitizeHeader(event.Title) + "\r\n" +
 		"MIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n" +
 		event.Message + "\r\n"
-	if err := smtp.SendMail(address, auth, config["from"], recipients, []byte(message)); err != nil {
+	if err := sendMail(ctx, address, config["host"], auth, config["from"], recipients, []byte(message), config["require_tls"] == "true"); err != nil {
 		return fmt.Errorf("send e-mail via %s: %w", address, err)
 	}
 	return nil
+}
+
+// sendMail does what smtp.SendMail does (STARTTLS when offered, then auth)
+// but within ctx: smtp.SendMail has no deadline, so a server that stops
+// answering would hold the delivery, and every channel after it, forever.
+func sendMail(ctx context.Context, address, host string, auth smtp.Auth, from string, to []string, message []byte, requireTLS ...bool) error {
+	conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", address)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	if deadline, ok := ctx.Deadline(); ok {
+		_ = conn.SetDeadline(deadline)
+	}
+	stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
+	defer stop()
+	client, err := smtp.NewClient(conn, host)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+	supported, _ := client.Extension("STARTTLS")
+	if len(requireTLS) > 0 && requireTLS[0] && !supported {
+		return fmt.Errorf("SMTP server does not offer required STARTTLS")
+	}
+	if supported {
+		if err := client.StartTLS(&tls.Config{ServerName: host, MinVersion: tls.VersionTLS12}); err != nil {
+			return err
+		}
+	}
+	if auth != nil {
+		if err := client.Auth(auth); err != nil {
+			return err
+		}
+	}
+	if err := client.Mail(from); err != nil {
+		return err
+	}
+	for _, recipient := range to {
+		if err := client.Rcpt(recipient); err != nil {
+			return err
+		}
+	}
+	writer, err := client.Data()
+	if err != nil {
+		return err
+	}
+	if _, err := writer.Write(message); err != nil {
+		return err
+	}
+	if err := writer.Close(); err != nil {
+		return err
+	}
+	return client.Quit()
 }
 
 func sanitizeHeader(value string) string {
@@ -132,4 +187,8 @@ func redactURL(err error) error {
 		return urlErr.Err
 	}
 	return err
+}
+
+func escapeSlack(value string) string {
+	return strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;").Replace(value)
 }

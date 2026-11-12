@@ -7,13 +7,15 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"pier/internal/platform/httpclient"
+	"pier/internal/platform/i18n"
 )
 
 const (
@@ -39,11 +41,15 @@ type StatusError struct {
 	Message string
 }
 
-func (e *StatusError) Error() string {
+func (e *StatusError) Error() string { return e.Localize(i18n.Portuguese) }
+
+// Localize keeps the cluster's own message, which Kubernetes writes in
+// English, and translates Pier's fallback.
+func (e *StatusError) Localize(language i18n.Language) string {
 	if e.Message != "" {
 		return e.Message
 	}
-	return fmt.Sprintf("o cluster respondeu HTTP %d", e.Code)
+	return language.Sprintf("o cluster respondeu HTTP %d", e.Code)
 }
 
 // IsNotFound reports whether the error is a 404 from the API server.
@@ -58,14 +64,14 @@ func NewClient(config Config) (*Client, error) {
 	if len(config.CAData) > 0 {
 		pool := x509.NewCertPool()
 		if !pool.AppendCertsFromPEM(config.CAData) {
-			return nil, errors.New("o certificado da CA no kubeconfig não é um PEM válido")
+			return nil, i18n.Errorf("o certificado da CA no kubeconfig não é um PEM válido")
 		}
 		tlsConfig.RootCAs = pool
 	}
 	if len(config.ClientCert) > 0 {
 		pair, err := tls.X509KeyPair(config.ClientCert, config.ClientKey)
 		if err != nil {
-			return nil, fmt.Errorf("certificado de cliente inválido no kubeconfig: %w", err)
+			return nil, i18n.Errorf("certificado de cliente inválido no kubeconfig: %w", err)
 		}
 		tlsConfig.Certificates = []tls.Certificate{pair}
 	}
@@ -77,8 +83,10 @@ func NewClient(config Config) (*Client, error) {
 	}
 	return &Client{
 		config: config,
-		http:   &http.Client{Transport: transport, Timeout: requestTimeout},
-		stream: &http.Client{Transport: transport},
+		// The API server never redirects; following one would present the
+		// cluster credentials to whatever host it names.
+		http:   &http.Client{Transport: transport, Timeout: requestTimeout, CheckRedirect: httpclient.Never},
+		stream: &http.Client{Transport: transport, CheckRedirect: httpclient.Never},
 	}, nil
 }
 
@@ -120,7 +128,7 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 	}
 	response, err := c.http.Do(request)
 	if err != nil {
-		return fmt.Errorf("não foi possível contatar o cluster: %w", unwrapURLError(err))
+		return i18n.Errorf("não foi possível contatar o cluster: %w", unwrapURLError(err))
 	}
 	defer response.Body.Close()
 	if response.StatusCode >= 300 {
@@ -131,7 +139,7 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 		return nil
 	}
 	if err := json.NewDecoder(response.Body).Decode(out); err != nil {
-		return fmt.Errorf("resposta inesperada do cluster: %w", err)
+		return i18n.Errorf("resposta inesperada do cluster: %w", err)
 	}
 	return nil
 }
@@ -210,7 +218,7 @@ func (c *Client) ApplyObject(ctx context.Context, resource Resource, namespace s
 	metadata, _ := object["metadata"].(map[string]any)
 	name, _ := metadata["name"].(string)
 	if name == "" {
-		return errors.New("o manifesto não tem metadata.name")
+		return i18n.Errorf("o manifesto não tem metadata.name")
 	}
 	body, err := json.Marshal(object)
 	if err != nil {
@@ -266,7 +274,7 @@ func (c *Client) PodLogs(ctx context.Context, namespace, pod, container string, 
 	request.Header.Set("Accept", "*/*")
 	response, err := c.stream.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("não foi possível contatar o cluster: %w", unwrapURLError(err))
+		return nil, i18n.Errorf("não foi possível contatar o cluster: %w", unwrapURLError(err))
 	}
 	if response.StatusCode >= 300 {
 		defer response.Body.Close()

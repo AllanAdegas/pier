@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"pier/internal/platform/executor"
+	"pier/internal/platform/i18n"
 	"pier/internal/platform/shell"
 )
 
@@ -194,7 +195,7 @@ func Explain(err error) error {
 	if err == nil || !strings.Contains(err.Error(), addressPoolsExhausted) {
 		return err
 	}
-	return fmt.Errorf("o Docker deste servidor não tem mais faixas de IP para redes novas (cada stack usa ao menos "+
+	return i18n.Errorf("o Docker deste servidor não tem mais faixas de IP para redes novas (cada stack usa ao menos "+
 		"uma, e o padrão do Docker comporta cerca de 31). Remova redes sem uso com `docker network prune` ou "+
 		"amplie as faixas em \"default-address-pools\" do /etc/docker/daemon.json (ex.: "+
 		"{\"base\":\"10.200.0.0/16\",\"size\":24}, 256 redes) e reinicie o Docker. Erro original: %w", err)

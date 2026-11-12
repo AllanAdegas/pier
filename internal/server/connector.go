@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"time"
 
 	"pier/internal/platform/apperr"
 	"pier/internal/platform/executor"
@@ -58,7 +59,11 @@ func (c *Connector) Executor(ctx context.Context, serverID string) (executor.Exe
 		PrivateKey:   privateKey,
 		KnownHostKey: server.HostKey,
 		// Trust on first use: pin the key the server presents the first time.
-		OnHostKey: func(hostKey string) { _ = c.store.setHostKey(context.WithoutCancel(ctx), serverID, hostKey) },
+		OnHostKey: func(hostKey string) error {
+			pinCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			return c.store.setHostKey(pinCtx, serverID, hostKey, server.Host, server.Port)
+		},
 	})
 	c.connections[serverID] = connection
 	return connection, server, nil

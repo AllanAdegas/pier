@@ -1,33 +1,10 @@
 name: Vvveb
 description: CMS para construir sites, blogs e lojas.
+description_en: CMS to build websites, blogs and shops.
 category: CMS
 website: https://docs.vvveb.com
-tags:
-  - cms
-  - blog
-  - content
-  - management
-  - ecommerce
-  - page-builder
-  - nocode
-  - mysql
-routes:
-  - service: vvveb
+services:
+  vvveb:
+    image: vvveb/vvvebcms:php8.5-fpm-alpine
     port: 80
-compose: |
-  services:
-    vvveb:
-      image: vvveb/vvvebcms:latest
-      volumes:
-        - vvveb-data:/var/www/html
-      healthcheck:
-        interval: 2s
-        retries: 10
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1
-        timeout: 10s
-  volumes:
-    vvveb-data: null
+    data: /var/www/html

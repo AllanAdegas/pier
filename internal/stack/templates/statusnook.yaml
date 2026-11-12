@@ -1,34 +1,10 @@
 name: Statusnook
 description: Página de status e monitoramento de endpoints em minutos.
+description_en: Status page and endpoint monitoring in minutes.
 category: Monitoramento
 website: https://statusnook.com
-tags:
-  - go
-  - html
-  - monitoring
-  - sqlite
-  - status
-  - page
-  - htmx
-  - smtp
-routes:
-  - service: statusnook
+services:
+  statusnook:
+    image: goksan/statusnook@sha256:9b2c87213312b1856d52d576d7512aeae71190437b502739f352feba0bcc12e0
     port: 8000
-compose: |
-  services:
-    statusnook:
-      image: goksan/statusnook
-      volumes:
-        - statusnook-data:/app/statusnook-data
-      healthcheck:
-        interval: 2s
-        retries: 15
-        test:
-          - CMD
-          - wget
-          - -q
-          - --spider
-          - http://127.0.0.1:8000
-        timeout: 10s
-  volumes:
-    statusnook-data: null
+    data: /app/statusnook-data

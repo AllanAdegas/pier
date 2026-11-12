@@ -1,38 +1,15 @@
 name: Bulwark
 description: Plataforma moderna de webmail.
+description_en: Modern webmail platform.
 category: E-mail
 website: https://bulwarkmail.org/docs
-tags:
-  - mail
-  - webmail
-  - jmap
-  - email
-  - messaging
-routes:
-  - service: bulwark
+services:
+  bulwark:
+    image: ghcr.io/bulwarkmail/webmail:v1.8.1
     port: 3000
-compose: |
-  services:
-    bulwark:
-      image: ghcr.io/bulwarkmail/webmail:v1.8.1
-      environment:
-        - JMAP_SERVER_URL=${JMAP_SERVER_URL:?}
-        - SESSION_SECRET=${PIER_HEX_64_BULWARK}
-      volumes:
-        - bulwark-config:/app/data/admin
-        - bulwark-state:/app/data/admin-state
-      healthcheck:
-        interval: 30s
-        retries: 3
-        start_period: 10s
-        test:
-          - CMD
-          - wget
-          - --no-verbose
-          - --tries=1
-          - --spider
-          - http://127.0.0.1:3000/api/health
-        timeout: 5s
-  volumes:
-    bulwark-config: null
-    bulwark-state: null
+    volumes:
+    - bulwark-config:/app/data/admin
+    - bulwark-state:/app/data/admin-state
+    env:
+      JMAP_SERVER_URL: ${JMAP_SERVER_URL:?}
+      SESSION_SECRET: ${PIER_HEX_64_BULWARK}

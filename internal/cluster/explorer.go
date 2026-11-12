@@ -12,6 +12,7 @@ import (
 
 	"pier/internal/kube"
 	"pier/internal/platform/apperr"
+	"pier/internal/platform/i18n"
 )
 
 // ResourceRef addresses a kind of resource the way the API server names it.
@@ -39,6 +40,8 @@ type Row struct {
 	Health string `json:"health"`
 	// Info is secondary detail (image, hosts, type…).
 	Info string `json:"info"`
+
+	language i18n.Language
 }
 
 // Resources lists the kinds of resource the cluster serves. The discovery is
@@ -90,7 +93,7 @@ func (s *Service) Rows(ctx context.Context, id string, ref ResourceRef, namespac
 	}
 	rows := make([]Row, len(objects))
 	for i, object := range objects {
-		rows[i] = summarize(resource.Kind, object)
+		rows[i] = summarize(resource.Kind, object, i18n.FromContext(ctx))
 	}
 	sort.SliceStable(rows, func(i, j int) bool { return rows[i].Created > rows[j].Created })
 	return rows, nil

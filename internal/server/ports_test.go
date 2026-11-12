@@ -20,7 +20,7 @@ LISTEN 0 4096 [::]:8443 [::]:*`
 
 func TestPortHoldersNameWhoHoldsThePort(t *testing.T) {
 	holders := portHolders(realDockerPS, realSockets, []int{80, 443})
-	if !strings.Contains(holders[80], "docker-caddy-1 (caddy:2-alpine)") || !strings.Contains(holders[443], "docker-caddy-1") {
+	if !strings.Contains(holders[80].String(), "docker-caddy-1 (caddy:2-alpine)") || !strings.Contains(holders[443].String(), "docker-caddy-1") {
 		t.Errorf("the container holding 80/443 must be named: %v", holders)
 	}
 	// The proxy's own ports are not a conflict: restarting it must work.
@@ -28,7 +28,7 @@ func TestPortHoldersNameWhoHoldsThePort(t *testing.T) {
 		t.Errorf("the proxy does not conflict with itself: %v", holders)
 	}
 	// A program outside docker is found through ss, with or without its name.
-	if holders := portHolders(realDockerPS, realSockets, []int{9000, 8443}); holders[9000] != "o processo php-fpm" || holders[8443] != "outro programa" {
+	if holders := portHolders(realDockerPS, realSockets, []int{9000, 8443}); holders[9000].String() != "o processo php-fpm" || holders[8443].String() != "outro programa" {
 		t.Errorf("non-docker holders: %v", holders)
 	}
 	// Free ports, and a machine without ss.

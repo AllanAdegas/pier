@@ -1,42 +1,17 @@
 name: PG Back Web
 description: Backups de PostgreSQL com interface web.
+description_en: PostgreSQL backups with a web interface.
 category: Desenvolvimento
 website: https://github.com/eduardolat/pgbackweb
-tags:
-  - backup
-  - postgresql
-  - web-interface
-routes:
-  - service: pgbackweb
+services:
+  pgbackweb:
+    image: eduardolat/pgbackweb:0.5.2
     port: 8085
-compose: |
-  services:
-    pgbackweb:
-      image: eduardolat/pgbackweb:latest
-      environment:
-        - PBW_ENCRYPTION_KEY=${PIER_PASSWORD_64_PGBACKWEB}
-        - PBW_POSTGRES_CONN_STRING=postgresql://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@postgres:5432/${POSTGRES_DB:-pgbackweb-db}?sslmode=disable
-        - TZ=${TIME_ZONE:-UTC}
-      volumes:
-        - pgbackweb_backups:/backups
-      depends_on:
-        postgres:
-          condition: service_healthy
-    postgres:
-      image: postgres:17
-      environment:
-        - POSTGRES_USER=${PIER_USER_POSTGRES}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
-        - POSTGRES_DB=${POSTGRES_DB:-pgbackweb-db}
-      volumes:
-        - pgbackweb_postgres_data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 5s
-        retries: 5
-        test:
-          - CMD-SHELL
-          - pg_isready -U ${PIER_USER_POSTGRES} -d pgbackweb
-        timeout: 5s
-  volumes:
-    pgbackweb_backups: null
-    pgbackweb_postgres_data: null
+    data: /backups
+    env:
+      PBW_ENCRYPTION_KEY: ${PIER_PASSWORD_64_PGBACKWEB}
+      PBW_POSTGRES_CONN_STRING: postgresql://{{postgres.user}}:{{postgres.password}}@postgres:5432/{{postgres.database}}?sslmode=disable
+      TZ: ${TIME_ZONE:-UTC}
+with:
+  postgres:
+    database: pgbackweb-db

@@ -8,3 +8,12 @@
 .DS_Store
 /.data-dev/
 /.env
+# Local secrets of any kind: env variants and key material.
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+secret.key
+/pier

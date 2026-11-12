@@ -1,18 +1,13 @@
 name: NocoDB
 description: Planilhas inteligentes sobre banco de dados, alternativa ao Airtable.
+description_en: Smart spreadsheets on top of a database, an alternative to Airtable.
 category: Dados
 website: https://nocodb.com
 verified: true
-routes:
-  - service: nocodb
+services:
+  nocodb:
+    image: nocodb/nocodb:2026.10.1
     port: 8080
-compose: |
-  services:
-    nocodb:
-      image: nocodb/nocodb:latest
-      environment:
-        NC_AUTH_JWT_SECRET: ${PIER_SECRET_JWT}
-      volumes:
-        - data:/usr/app/data
-  volumes:
-    data:
+    data: /usr/app/data
+    env:
+      NC_AUTH_JWT_SECRET: ${PIER_SECRET_JWT}

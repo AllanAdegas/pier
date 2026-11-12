@@ -1,35 +1,16 @@
 name: Elasticsearch
 description: Motor de busca distribuído e RESTful.
+description_en: Distributed, RESTful search engine.
 category: Busca
 website: https://www.elastic.co/products/elasticsearch
-tags:
-  - search
-  - engine
-  - fulltext
-  - full
-  - text
-  - elasticsearch
-routes:
-  - service: elasticsearch
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch-wolfi:8.19.0
     port: 9200
-compose: |
-  services:
-    elasticsearch:
-      image: docker.elastic.co/elasticsearch/elasticsearch-wolfi:8.19.0
-      environment:
-        - ELASTIC_PASSWORD=${PIER_PASSWORD_ELASTICSEARCH}
-        - ES_JAVA_OPTS=-Xms512m -Xmx512m
-        - discovery.type=single-node
-        - bootstrap.memory_lock=true
-        - xpack.security.http.ssl.enabled=false
-      volumes:
-        - elasticsearch-data:/usr/share/elasticsearch/data
-      healthcheck:
-        interval: 10s
-        retries: 24
-        test:
-          - CMD-SHELL
-          - curl --user elastic:${PIER_PASSWORD_ELASTICSEARCH} --silent --fail http://localhost:9200/_cluster/health
-        timeout: 10s
-  volumes:
-    elasticsearch-data: null
+    data: /usr/share/elasticsearch/data
+    env:
+      ELASTIC_PASSWORD: ${PIER_PASSWORD_ELASTICSEARCH}
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+      discovery.type: single-node
+      bootstrap.memory_lock: 'true'
+      xpack.security.http.ssl.enabled: 'false'

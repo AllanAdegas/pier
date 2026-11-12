@@ -4,22 +4,24 @@ import { createStore } from "solid-js/store";
 import { Button, IconButton } from "../components/Button";
 import { EnvEditor } from "../components/EnvEditor";
 import { Alert, QueryView, StatusBadge } from "../components/Feedback";
-import { NumberInput, Select, TextArea, TextInput } from "../components/Form";
 import { Icon } from "../components/Icon";
 import { ContainerLogs } from "../components/LogViewer";
-import { ConfirmDelete } from "../components/Modal";
+import { ConfirmDelete, deleteQuery, type DeleteOptions } from "../components/Modal";
 import { PageHeader, Section, Tabs } from "../components/Page";
 import { api } from "../lib/api";
 import { resourceStatus } from "../lib/format";
 import { createAction, createQuery, type Query } from "../lib/query";
 import type { Container, OperationSnapshot, Stack, StackRoute } from "../lib/types";
+import { createDomainDnsCheck } from "./application/DomainDnsStatus";
 import { DirectorySource } from "./stack/DirectorySource";
 import { ExpectedVariables } from "./stack/ExpectedVariables";
+import { t } from "../i18n";
+import { NumberInput, Select, TextArea, TextInput } from "../components/Form";
 
 const TABS = [
-  { id: "overview", label: "Visão geral" },
-  { id: "compose", label: "Compose e domínios" },
-  { id: "env", label: "Variáveis" },
+  { id: "overview", label: t("Visão geral") },
+  { id: "compose", label: t("Compose e domínios") },
+  { id: "env", label: t("Variáveis") },
   { id: "logs", label: "Logs" },
 ];
 
@@ -62,7 +64,7 @@ export function StackPage() {
         {(data) => (
           <>
             <PageHeader
-              crumbs={[{ label: "Projetos", href: "/projects" }, { label: data().name }]}
+              crumbs={[{ label: t("Projetos"), href: "/projects" }, { label: data().name }]}
               title={
                 <span class="row">
                   {data().name}
@@ -70,7 +72,7 @@ export function StackPage() {
                 </span>
               }
               description={
-                <Show when={data().routes.length > 0} fallback={data().description || "Sem domínio público."}>
+                <Show when={data().routes.length > 0} fallback={data().description || t("Sem domínio público.")}>
                   <span class="row">
                     <For each={data().routes}>
                       {(route) => (
@@ -84,14 +86,11 @@ export function StackPage() {
               }
               actions={
                 <>
-                  <Button icon="refresh" disabled={busy()} onClick={() => void operate.run("restart")}>
-                    Reiniciar
+                  <Button icon="refresh" disabled={busy()} onClick={() => void operate.run("restart")}>{t("Reiniciar")}
                   </Button>
-                  <Button icon="stop" disabled={busy()} onClick={() => void operate.run("stop")}>
-                    Parar
+                  <Button icon="stop" disabled={busy()} onClick={() => void operate.run("stop")}>{t("Parar")}
                   </Button>
-                  <Button variant="primary" icon="rocket" pending={busy()} onClick={() => void operate.run("deploy")}>
-                    Implantar
+                  <Button variant="primary" icon="rocket" pending={busy()} onClick={() => void operate.run("deploy")}>{t("Implantar")}
                   </Button>
                 </>
               }
@@ -109,7 +108,7 @@ export function StackPage() {
                   <ExpectedVariables stackId={data().id} />
                   <EnvEditor
                     basePath={`/stacks/${data().id}`}
-                    note="Disponíveis no compose como ${NOME}. Senhas e chaves geradas (PIER_* e SERVICE_*) ficam aqui. Implante para aplicar."
+                    note={t("Disponíveis no compose como ${NOME}. Senhas e chaves geradas (PIER_*) ficam aqui. Implante para aplicar.")}
                   />
                 </div>
               </Match>
@@ -131,7 +130,7 @@ function OverviewTab(props: { containers: Container[]; operation?: OperationSnap
     <div class="stack-lg">
       <Show when={props.operation && props.operation.lines.length > 0 ? props.operation : undefined}>
         {(operation) => (
-          <Section title={operation().title} description={operation().running ? "Em andamento…" : "Última operação."}>
+          <Section title={operation().title} description={operation().running ? t("Em andamento…") : t("Última operação.")}>
             <Show when={operation().error}>
               <Alert tone="danger">{operation().error}</Alert>
             </Show>
@@ -141,8 +140,8 @@ function OverviewTab(props: { containers: Container[]; operation?: OperationSnap
           </Section>
         )}
       </Show>
-      <Section title="Containers">
-        <Show when={props.containers.length > 0} fallback={<p class="muted">Nenhum container. Clique em “Implantar”.</p>}>
+      <Section title={t("Containers")}>
+        <Show when={props.containers.length > 0} fallback={<p class="muted">{t("Nenhum container. Clique em “Implantar”.")}</p>}>
           <div class="list">
             <For each={props.containers}>
               {(container) => (
@@ -193,7 +192,7 @@ function ComposeTab(props: { stack: Stack; onSaved: (stack: Stack) => void }) {
         routes,
       }),
     {
-      success: "Stack salva. Implante para aplicar.",
+      success: t("Stack salva. Implante para aplicar."),
       onSuccess: (saved) => {
         props.onSaved(saved);
         void services.refetch();
@@ -201,10 +200,11 @@ function ComposeTab(props: { stack: Stack; onSaved: (stack: Stack) => void }) {
     },
   );
   const remove = createAction(
-    (options: { volumes: boolean; force: boolean }) =>
-      api.delete(`/stacks/${initial.id}?volumes=${options.volumes ? 1 : 0}&force=${options.force ? 1 : 0}`),
-    { success: "Stack removida.", onSuccess: () => navigate("/projects") },
+    (options: DeleteOptions) =>
+      api.delete(`/stacks/${initial.id}?${deleteQuery(options)}`),
+    { success: t("Stack removida."), onSuccess: () => navigate("/projects") },
   );
+  const dns = createDomainDnsCheck(() => initial.server_id);
   // A new domain usually publishes the same service as the existing one, so it
   // starts from its service and port (the right port is rarely 80).
   const addRoute = () =>
@@ -222,8 +222,8 @@ function ComposeTab(props: { stack: Stack; onSaved: (stack: Stack) => void }) {
         void save.run();
       }}
     >
-      <Section title="Definição">
-        <TextInput label="Nome" required value={name()} onValue={setName} error={save.errors().name} />
+      <Section title={t("Definição")}>
+        <TextInput label={t("Nome")} required value={name()} onValue={setName} error={save.errors().name} />
         <Show
           when={fromDirectory}
           fallback={
@@ -231,7 +231,7 @@ function ComposeTab(props: { stack: Stack; onSaved: (stack: Stack) => void }) {
               label="docker-compose.yaml"
               mono
               rows={18}
-              hint="O Pier adiciona labels de identificação e a rede do proxy aos serviços com domínio; o resto é respeitado como está."
+              hint={t("O Pier adiciona labels de identificação e a rede do proxy aos serviços com domínio; o resto é respeitado como está.")}
               value={compose()}
               onValue={setCompose}
               error={save.errors().compose}
@@ -240,18 +240,18 @@ function ComposeTab(props: { stack: Stack; onSaved: (stack: Stack) => void }) {
         >
           <div class="grid-2">
             <TextInput
-              label="Pasta no servidor"
+              label={t("Pasta no servidor")}
               mono
-              hint="O compose, o .env e os arquivos de segredo são lidos daqui a cada deploy; nada é copiado."
+              hint={t("O compose, o .env e os arquivos de segredo são lidos daqui a cada deploy; nada é copiado.")}
               value={directory()}
               onValue={setDirectory}
               error={save.errors().directory}
             />
-            <TextInput label="Arquivo compose" mono value={composeFile()} onValue={setComposeFile} error={save.errors().compose_file} />
+            <TextInput label={t("Arquivo compose")} mono value={composeFile()} onValue={setComposeFile} error={save.errors().compose_file} />
           </div>
           <Show when={initial.project_name}>
             <p class="small muted">
-              Projeto compose: <span class="mono">{initial.project_name}</span>
+              {t("Projeto compose:")} <span class="mono">{initial.project_name}</span>
             </p>
           </Show>
           <DirectorySource stackId={initial.id} />
@@ -259,30 +259,30 @@ function ComposeTab(props: { stack: Stack; onSaved: (stack: Stack) => void }) {
       </Section>
 
       <Section
-        title="Domínios"
-        description="Publica um serviço do compose pelo proxy, com HTTPS automático."
+        title={t("Domínios")}
+        description={t("Publica um serviço do compose pelo proxy, com HTTPS automático.")}
         actions={
-          <Button small icon="plus" onClick={addRoute}>
-            Adicionar
+          <Button small icon="plus" onClick={addRoute}>{t("Adicionar")}
           </Button>
         }
       >
-        <Show when={routes.length > 0} fallback={<p class="muted">Nenhum serviço publicado.</p>}>
+        <Show when={routes.length > 0} fallback={<p class="muted">{t("Nenhum serviço publicado.")}</p>}>
+          <div class="stack" onFocusOut={() => void dns.check(routes.map((route) => route.domain))}>
           <For each={routes}>
             {(route, index) => (
               <div class="stack-sm">
                 <div class="grid-3">
                   <Select
-                    label="Serviço"
+                    label={t("Serviço")}
                     value={route.service}
                     onValue={(value) => setRoutes(index(), "service", value)}
                     options={(services.data() ?? [route.service]).map((service) => ({ value: service, label: service }))}
                   />
-                  <NumberInput label="Porta" min={1} max={65535} value={route.port} onValue={(value) => setRoutes(index(), "port", value)} />
+                  <NumberInput label={t("Porta")} min={1} max={65535} value={route.port} onValue={(value) => setRoutes(index(), "port", value)} />
                   <TextInput
-                    label="Domínio"
+                    label={t("Domínio")}
                     mono
-                    placeholder="https://servico.exemplo.com"
+                    placeholder={t("https://servico.exemplo.com")}
                     value={route.domain}
                     onValue={(value) => setRoutes(index(), "domain", value)}
                   />
@@ -291,39 +291,40 @@ function ComposeTab(props: { stack: Stack; onSaved: (stack: Stack) => void }) {
                   <span class="field-error">{save.errors()[`routes.${index()}`]}</span>
                   <IconButton
                     icon="trash"
-                    label="Remover domínio"
+                    label={t("Remover domínio")}
                     onClick={() => setRoutes((list) => list.filter((_, position) => position !== index()))}
                   />
                 </div>
               </div>
             )}
           </For>
+          </div>
+          <dns.View />
         </Show>
       </Section>
 
       <div class="form-actions">
-        <Button type="submit" variant="primary" pending={save.pending()}>
-          Salvar stack
+        <Button type="submit" variant="primary" pending={save.pending()}>{t("Salvar stack")}
         </Button>
       </div>
 
-      <Section title="Zona de perigo" description="Derruba todos os containers da stack e remove o registro.">
+      <Section title={t("Zona de perigo")} description={t("Derruba todos os containers da stack e remove o registro.")}>
         <div>
-          <Button variant="danger" icon="trash" onClick={() => setDeleting(true)}>
-            Remover stack
+          <Button variant="danger" icon="trash" onClick={() => setDeleting(true)}>{t("Remover stack")}
           </Button>
         </div>
       </Section>
       <Show when={deleting()}>
         <ConfirmDelete
-          title="Remover stack"
+          title={t("Remover stack")}
           resourceName={initial.name}
+          environmentId={initial.environment_id}
           description={
             fromDirectory
-              ? "Todos os serviços da stack saem do ar. A pasta do projeto e os arquivos dela não são tocados."
-              : "Todos os serviços da stack saem do ar. Esta ação não pode ser desfeita."
+              ? t("Todos os serviços da stack saem do ar. A pasta do projeto e os arquivos dela não são tocados.")
+              : t("Todos os serviços da stack saem do ar. Esta ação não pode ser desfeita.")
           }
-          volumesLabel="Apagar também os volumes da stack"
+          volumesLabel={t("Apagar também os volumes da stack")}
           allowForce
           pending={remove.pending()}
           onConfirm={(options) => void remove.run(options)}

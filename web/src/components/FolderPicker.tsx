@@ -6,6 +6,7 @@ import { Button } from "./Button";
 import { Alert, QueryView } from "./Feedback";
 import { Checkbox, TextInput } from "./Form";
 import { Icon } from "./Icon";
+import { t } from "../i18n";
 
 /**
  * Browses the folders of a server to choose where a compose project lives.
@@ -53,23 +54,22 @@ export function FolderPicker(props: { serverId: string; onChange: (listing: Fold
         }}
       >
         <div class="grow">
-          <TextInput label="Pasta no servidor" mono placeholder="/home/deploy/meu-projeto" value={typed()} onValue={setTyped} />
+          <TextInput label={t("Pasta no servidor")} mono placeholder={t("/home/deploy/meu-projeto")} value={typed()} onValue={setTyped} />
         </div>
-        <Button type="submit">Abrir</Button>
+        <Button type="submit">{t("Abrir")}</Button>
       </form>
 
       <QueryView query={listing}>
         {(current) => (
           <div class="stack-sm">
             <div class="row-between">
-              <Button small disabled={current().parent === ""} onClick={() => setPath(current().parent)}>
-                ↑ Subir um nível
+              <Button small disabled={current().parent === ""} onClick={() => setPath(current().parent)}>{t("↑ Subir um nível")}
               </Button>
-              <Checkbox label="Mostrar pastas ocultas" checked={showHidden()} onChange={setShowHidden} />
+              <Checkbox label={t("Mostrar pastas ocultas")} checked={showHidden()} onChange={setShowHidden} />
             </div>
             <Show
               when={folders().length > 0}
-              fallback={<p class="muted small">Esta pasta não tem subpastas{showHidden() ? "" : " visíveis"}.</p>}
+              fallback={<p class="muted small">{showHidden() ? t("Esta pasta não tem subpastas.") : t("Esta pasta não tem subpastas visíveis.")}</p>}
             >
               <div class="list folder-list">
                 <For each={folders()}>
@@ -83,7 +83,7 @@ export function FolderPicker(props: { serverId: string; onChange: (listing: Fold
               </div>
             </Show>
             <Show when={current().truncated}>
-              <Alert tone="warning">A pasta tem itens demais para listar todos; digite o caminho da subpasta.</Alert>
+              <Alert tone="warning">{t("A pasta tem itens demais para listar todos; digite o caminho da subpasta.")}</Alert>
             </Show>
           </div>
         )}

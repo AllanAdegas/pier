@@ -4,6 +4,7 @@ import { createSignal } from "solid-js";
 import { api, handleSessionExpired } from "./api";
 import type { AuthStatus, User } from "./types";
 import type { Tone } from "./format";
+import { t } from "../i18n";
 
 /* ---------- Session ---------- */
 
@@ -30,7 +31,7 @@ export function signIn(user: User): void {
 }
 
 export async function signOut(): Promise<void> {
-  await api.post("/auth/logout").catch(() => undefined);
+  await api.post("/auth/logout");
   setCurrentUser(null);
   setPhase("anonymous");
 }
@@ -39,7 +40,7 @@ handleSessionExpired(() => {
   if (phase() === "authenticated") {
     setCurrentUser(null);
     setPhase("anonymous");
-    notify("Sua sessão expirou. Entre novamente.", "danger");
+    notify(t("Sua sessão expirou. Entre novamente."), "danger");
   }
 });
 
@@ -98,4 +99,12 @@ export function notify(message: string, tone: Tone = "success"): void {
 
 export function dismissToast(id: number): void {
   setToasts((current) => current.filter((toast) => toast.id !== id));
+}
+
+/** Dismissals belong to the current browser and user, never another account. */
+export function readOnboardingDismissals(userID: string): string[] {
+ try {const value: unknown=JSON.parse(localStorage.getItem(`pier.onboarding.${userID}`) ?? "[]");return Array.isArray(value)?value.filter((v):v is string=>typeof v==="string"):[];} catch {return [];}
+}
+export function saveOnboardingDismissals(userID: string,items: string[]): void {
+ try {localStorage.setItem(`pier.onboarding.${userID}`,JSON.stringify(items));} catch { /* Dismissals remain in memory when storage is unavailable. */ }
 }

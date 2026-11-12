@@ -1,25 +1,10 @@
 name: PrivateBin
 description: Pastebin minimalista em que o servidor não conhece o conteúdo.
+description_en: Minimalist pastebin where the server never knows the content.
 category: Segurança
 website: https://github.com/PrivateBin/PrivateBin/blob/master/doc/README.md
-tags:
-  - text
-  - sharing
-routes:
-  - service: privatebin
+services:
+  privatebin:
+    image: privatebin/nginx-fpm-alpine:2.1.1
     port: 8080
-compose: |
-  services:
-    privatebin:
-      image: privatebin/nginx-fpm-alpine
-      volumes:
-        - privatebin_data:/srv/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - wget -qO- http://127.0.0.1:8080/
-        timeout: 20s
-  volumes:
-    privatebin_data: null
+    data: /srv/data

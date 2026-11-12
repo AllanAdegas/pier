@@ -1,55 +1,23 @@
 name: Vikunja com PostgreSQL
 description: Lista de tarefas open source para organizar tudo.
+description_en: Open source to-do list to organize everything.
 category: Produtividade
 website: https://vikunja.io
-tags:
-  - productivity
-  - todo
-routes:
-  - service: vikunja
+services:
+  vikunja:
+    image: vikunja/vikunja:2.8.0
     port: 3456
-compose: |
-  services:
-    postgresql:
-      image: postgres:16-alpine
-      environment:
-        - POSTGRES_USER=${PIER_USER_POSTGRESQL}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRESQL}
-        - POSTGRES_DB=${POSTGRESQL_DATABASE}
-      volumes:
-        - vikunja-postgresql-data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
-        timeout: 20s
-    vikunja:
-      image: vikunja/vikunja
-      environment:
-        - VIKUNJA_SERVICE_PUBLICURL=$PIER_URL_VIKUNJA
-        - VIKUNJA_SERVICE_SECRET=$PIER_PASSWORD_JWTSECRET
-        - VIKUNJA_SERVICE_ENABLEREGISTRATION=true
-        - VIKUNJA_DATABASE_TYPE=postgres
-        - VIKUNJA_DATABASE_HOST=postgresql
-        - VIKUNJA_DATABASE_PASSWORD=${PIER_PASSWORD_POSTGRESQL}
-        - VIKUNJA_DATABASE_USER=${PIER_USER_POSTGRESQL}
-        - VIKUNJA_DATABASE_DATABASE=${POSTGRESQL_DATABASE}
-      volumes:
-        - vikunja-data:/app/vikunja/
-      depends_on:
-        postgresql:
-          condition: service_healthy
-      healthcheck:
-        interval: 30s
-        retries: 3
-        start_period: 15s
-        test:
-          - CMD
-          - /app/vikunja/vikunja
-          - healthcheck
-        timeout: 5s
-  volumes:
-    vikunja-data: null
-    vikunja-postgresql-data: null
+    data: /app/vikunja/
+    env:
+      VIKUNJA_SERVICE_PUBLICURL: $PIER_URL_VIKUNJA
+      VIKUNJA_SERVICE_SECRET: $PIER_PASSWORD_JWTSECRET
+      VIKUNJA_SERVICE_ENABLEREGISTRATION: 'true'
+      VIKUNJA_DATABASE_TYPE: postgres
+      VIKUNJA_DATABASE_HOST: postgresql
+      VIKUNJA_DATABASE_PASSWORD: '{{postgresql.password}}'
+      VIKUNJA_DATABASE_USER: '{{postgresql.user}}'
+      VIKUNJA_DATABASE_DATABASE: '{{postgresql.database}}'
+with:
+  postgresql:
+    kind: postgres
+    version: '16'

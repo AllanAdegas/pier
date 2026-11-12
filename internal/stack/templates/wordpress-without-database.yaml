@@ -1,29 +1,11 @@
+auth: first-visitor
 name: WordPress (sem banco)
 description: Software open source para criar sites, blogs e aplicações.
+description_en: Open source software to create websites, blogs and apps.
 category: CMS
 website: https://wordpress.org
-tags:
-  - cms
-  - blog
-  - content
-  - management
-routes:
-  - service: wordpress
+services:
+  wordpress:
+    image: wordpress:7.1.4
     port: 80
-compose: |
-  services:
-    wordpress:
-      image: wordpress:latest
-      volumes:
-        - wordpress-files:/var/www/html
-      healthcheck:
-        interval: 2s
-        retries: 10
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1
-        timeout: 10s
-  volumes:
-    wordpress-files: null
+    data: /var/www/html

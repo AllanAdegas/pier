@@ -1,72 +1,35 @@
 name: Linkwarden
 description: Gerenciador de favoritos colaborativo que preserva as páginas.
+description_en: Collaborative bookmark manager that preserves pages.
 category: Produtividade
 website: https://docs.linkwarden.app/self-hosting/setup
-tags:
-  - bookmarks
-  - collaboration
-  - archive
-  - links
-  - self-hosted
-routes:
-  - service: linkwarden
+services:
+  linkwarden:
+    image: ghcr.io/linkwarden/linkwarden:v2.16.1
     port: 3000
-compose: |
-  services:
-    linkwarden:
-      image: ghcr.io/linkwarden/linkwarden:v2.16.1
-      environment:
-        - NEXTAUTH_URL=${PIER_URL_LINKWARDEN}/api/v1/auth
-        - NEXTAUTH_SECRET=${PIER_PASSWORD_LINKWARDENNEXTAUTH}
-        - MEILI_MASTER_KEY=${PIER_PASSWORD_MEILI}
-        - DATABASE_URL=postgresql://$PIER_USER_POSTGRES:$PIER_PASSWORD_POSTGRES@postgresql:5432/${POSTGRES_DB:-linkwarden}
-      volumes:
-        - linkwarden-data:/data/data
-      depends_on:
-        meilisearch:
-          condition: service_healthy
-        postgresql:
-          condition: service_healthy
-      healthcheck:
-        interval: 10s
-        retries: 10
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:3000
-        timeout: 20s
-    meilisearch:
-      image: getmeili/meilisearch:v1.12.8
-      environment:
-        - MEILI_MASTER_KEY=${PIER_PASSWORD_MEILI}
-      volumes:
-        - meilisearch-data:/meili_data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:7700/health
-        timeout: 10s
-    postgresql:
-      image: postgres:16-alpine
-      environment:
-        - POSTGRES_USER=$PIER_USER_POSTGRES
-        - POSTGRES_PASSWORD=$PIER_PASSWORD_POSTGRES
-        - POSTGRES_DB=${POSTGRES_DB:-linkwarden}
-      volumes:
-        - postgresql-data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
-        timeout: 20s
-  volumes:
-    linkwarden-data: null
-    meilisearch-data: null
-    postgresql-data: null
+    data: /data/data
+    env:
+      NEXTAUTH_URL: ${PIER_URL_LINKWARDEN}/api/v1/auth
+      NEXTAUTH_SECRET: ${PIER_PASSWORD_LINKWARDENNEXTAUTH}
+      MEILI_MASTER_KEY: ${PIER_PASSWORD_MEILI}
+      DATABASE_URL: postgresql://{{postgresql.user}}:{{postgresql.password}}@postgresql:5432/{{postgresql.database}}
+    depends_on:
+      meilisearch:
+        condition: service_healthy
+      postgresql:
+        condition: service_healthy
+  meilisearch:
+    image: getmeili/meilisearch:v1.12.8
+    data: /meili_data
+    env:
+      MEILI_MASTER_KEY: ${PIER_PASSWORD_MEILI}
+    health:
+    - CMD
+    - curl
+    - -f
+    - http://127.0.0.1:7700/health
+with:
+  postgresql:
+    kind: postgres
+    version: '16'
+    database: linkwarden

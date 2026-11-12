@@ -49,6 +49,9 @@ func loadTemplate(file string) (Template, error) {
 		return Template{}, fmt.Errorf("template %s: %w", file, err)
 	}
 	template.Slug = strings.TrimSuffix(path.Base(file), ".yaml")
+	if err := expandBlueprint(&template); err != nil {
+		return Template{}, fmt.Errorf("template %s: %w", file, err)
+	}
 	doc, err := parseCompose(template.Compose)
 	if err != nil {
 		return Template{}, fmt.Errorf("template %s: %w", file, err)
@@ -61,6 +64,16 @@ func loadTemplate(file string) (Template, error) {
 	}
 	template.Variables = userVariables(doc)
 	template.Risks = doc.risks()
+	template.HostPorts = doc.hostPorts()
+	switch template.Auth {
+	case "first-visitor":
+		template.Risks = append(template.Risks, "first-visitor-setup")
+	case "none":
+		template.Risks = append(template.Risks, "no-auth")
+	case "", "generated":
+	default:
+		return Template{}, fmt.Errorf("template %s: invalid auth metadata", file)
+	}
 	return template, nil
 }
 
@@ -89,15 +102,42 @@ func (d document) risks() []string {
 		if pid, _ := service["pid"].(string); pid == "host" {
 			found[RiskHostPID] = true
 		}
+		if ports, _ := service["ports"].([]any); len(ports) > 0 {
+			found["host-ports"] = true
+		}
+		if devices, _ := service["devices"].([]any); len(devices) > 0 {
+			found["capabilities"] = true
+		}
+		for _, cap := range stringList(service["cap_add"]) {
+			switch strings.ToUpper(cap) {
+			case "ALL", "SYS_ADMIN", "SYS_MODULE", "SYS_PTRACE", "SYS_TIME", "NET_ADMIN", "DAC_READ_SEARCH":
+				found["capabilities"] = true
+			}
+		}
+		for _, opt := range stringList(service["security_opt"]) {
+			if opt == "seccomp:unconfined" || opt == "apparmor:unconfined" || opt == "seccomp=unconfined" || opt == "apparmor=unconfined" {
+				found["unconfined"] = true
+			}
+		}
+		for _, key := range []string{"ipc", "userns_mode", "cgroup"} {
+			if service[key] == "host" {
+				found["unconfined"] = true
+			}
+		}
 		volumes, _ := service["volumes"].([]any)
 		for _, volume := range volumes {
-			if strings.Contains(fmt.Sprint(volume), "docker.sock") {
+			source, target, ro := bindParts(volume)
+			source = hostBindSource(source)
+			if source == "/var/run/docker.sock" || source == "/run/docker.sock" {
 				found[RiskDockerSocket] = true
+			}
+			if strings.HasPrefix(source, "/") && !allowedHostBind(source, target, ro) {
+				found["host-path"] = true
 			}
 		}
 	}
 	risks := []string{}
-	for _, risk := range []string{RiskDockerSocket, RiskPrivileged, RiskHostNetwork, RiskHostPID} {
+	for _, risk := range []string{RiskDockerSocket, RiskPrivileged, RiskHostNetwork, RiskHostPID, "host-ports", "capabilities", "unconfined", "host-path"} {
 		if found[risk] {
 			risks = append(risks, risk)
 		}

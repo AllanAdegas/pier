@@ -7,6 +7,7 @@
 # Overrides, all optional: PIER_PORT, PIER_BIND, PIER_DATA_DIR, TZ.
 #   PIER_PORT=8790 ./install.sh
 set -eu
+umask 077
 
 cd "$(dirname "$0")"
 
@@ -43,8 +44,14 @@ fi
 . ./.env
 mkdir -p "$PIER_DATA_DIR" 2>/dev/null || fail "Não foi possível criar $PIER_DATA_DIR. Crie-o com permissão de escrita ou defina PIER_DATA_DIR no .env."
 
+docker network inspect pier-panel >/dev/null 2>&1 || docker network create pier-panel >/dev/null
+
 say "Construindo a imagem e subindo o Pier"
-docker compose up --detach --build
+if [ -n "${PIER_DOMAIN:-}" ]; then
+  docker compose -f compose.yaml -f compose.proxy.yaml up --detach --build
+else
+  docker compose up --detach --build
+fi
 
 url="http://${PIER_BIND}:${PIER_PORT}"
 [ "$PIER_BIND" = "0.0.0.0" ] && url="http://localhost:${PIER_PORT}"
@@ -56,7 +63,14 @@ until docker compose exec -T pier wget -q -O /dev/null http://127.0.0.1:8700/api
   sleep 1
 done
 
-code=$(docker compose logs pier 2>/dev/null | sed -n 's/.*setup_code=\([A-Z0-9-]*\).*/\1/p' | tail -n 1)
+# Logs survive a restart and can contain a code that was already consumed.
+# Consult current state before presenting the first-account instructions.
+auth_status=$(docker compose exec -T pier wget -q -O - http://127.0.0.1:8700/api/v1/auth/status) \
+  || fail "Não foi possível verificar a configuração da instância."
+code=
+if printf '%s' "$auth_status" | grep -q '"needs_setup":true'; then
+  code=$(docker compose logs pier 2>/dev/null | sed -n 's/.*setup_code=\([A-Z0-9-]*\).*/\1/p' | tail -n 1)
+fi
 echo
 say "Pier no ar: $url"
 if [ -n "$code" ]; then

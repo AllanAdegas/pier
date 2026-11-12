@@ -1,41 +1,20 @@
 name: Keycloak
 description: Gestão de identidade e acesso open source.
+description_en: Open source identity and access management.
 category: Autenticação
 website: https://www.keycloak.org
-tags:
-  - keycloak
-  - identity
-  - access
-  - management
-  - iam
-  - authentication
-  - authorization
-  - security
-routes:
-  - service: keycloak
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
     port: 8080
-compose: |
-  services:
-    keycloak:
-      image: quay.io/keycloak/keycloak:26.1
-      command:
-        - start
-      environment:
-        - TZ=${TIMEZONE:-UTC}
-        - KC_BOOTSTRAP_ADMIN_USERNAME=${PIER_USER_ADMIN}
-        - KC_BOOTSTRAP_ADMIN_PASSWORD=${PIER_PASSWORD_ADMIN}
-        - KC_HOSTNAME=${PIER_URL_KEYCLOAK}
-        - KC_HTTP_ENABLED=${KC_HTTP_ENABLED:-true}
-        - KC_HEALTH_ENABLED=${KC_HEALTH_ENABLED:-true}
-        - KC_PROXY_HEADERS=${KC_PROXY_HEADERS:-xforwarded}
-      volumes:
-        - keycloak-data:/opt/keycloak/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - "exec 3<>/dev/tcp/127.0.0.1/9000; echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost:9000\r\nConnection: close\r\n\r\n' >&3;cat <&3 | grep -q '\"status\": \"UP\"' && exit 0 || exit 1"
-        timeout: 20s
-  volumes:
-    keycloak-data: null
+    data: /opt/keycloak/data
+    command:
+    - start
+    env:
+      TZ: ${TIMEZONE:-UTC}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${PIER_USER_ADMIN}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${PIER_PASSWORD_ADMIN}
+      KC_HOSTNAME: ${PIER_URL_KEYCLOAK}
+      KC_HTTP_ENABLED: ${KC_HTTP_ENABLED:-true}
+      KC_HEALTH_ENABLED: ${KC_HEALTH_ENABLED:-true}
+      KC_PROXY_HEADERS: ${KC_PROXY_HEADERS:-xforwarded}

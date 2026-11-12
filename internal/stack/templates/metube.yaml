@@ -1,32 +1,13 @@
 name: MeTube
 description: Interface web para o youtube-dl, com suporte a playlists.
+description_en: Web interface for youtube-dl, with playlist support.
 category: Mídia
 website: https://github.com/alexta69/metube
-tags:
-  - youtube
-  - download
-  - videos
-  - playlist
-routes:
-  - service: metube
+services:
+  metube:
+    image: ghcr.io/alexta69/metube:2026.11.06
     port: 8081
-compose: |
-  services:
-    metube:
-      image: ghcr.io/alexta69/metube:latest
-      environment:
-        - UID=1000
-        - GID=1000
-      volumes:
-        - metube-downloads:/downloads
-      healthcheck:
-        interval: 2s
-        retries: 15
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:8081
-        timeout: 10s
-  volumes:
-    metube-downloads: null
+    data: /downloads
+    env:
+      UID: '1000'
+      GID: '1000'

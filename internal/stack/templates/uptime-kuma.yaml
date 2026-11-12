@@ -1,16 +1,12 @@
+auth: first-visitor
 name: Uptime Kuma
 description: Monitoramento de disponibilidade com páginas de status e alertas.
+description_en: Uptime monitoring with status pages and alerts.
 category: Monitoramento
 website: https://github.com/louislam/uptime-kuma
 verified: true
-routes:
-  - service: uptime-kuma
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
     port: 3001
-compose: |
-  services:
-    uptime-kuma:
-      image: louislam/uptime-kuma:1
-      volumes:
-        - data:/app/data
-  volumes:
-    data:
+    data: /app/data

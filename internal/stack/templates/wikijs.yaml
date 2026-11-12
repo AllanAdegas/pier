@@ -1,45 +1,20 @@
 name: Wiki.js
 description: Software de wiki open source, poderoso e extensível.
+description_en: Powerful, extensible open source wiki software.
 category: CMS
 website: https://docs.requarks.io
-tags:
-  - wiki
-  - collaboration
-  - documentation
-routes:
-  - service: wikijs
+services:
+  wikijs:
+    image: ghcr.io/requarks/wiki:2
     port: 3000
-compose: |
-  services:
-    postgres:
-      image: postgres:16-alpine
-      environment:
-        - POSTGRES_DB=${POSTGRESQL_DATABASE:-wiki-db}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
-        - POSTGRES_USER=${PIER_USER_POSTGRES}
-      volumes:
-        - wikijs-postgresql-data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
-        timeout: 20s
-      logging:
-        driver: none
-    wikijs:
-      image: ghcr.io/requarks/wiki:2
-      environment:
-        - DB_TYPE=postgres
-        - DB_HOST=postgres
-        - DB_PORT=5432
-        - DB_USER=${PIER_USER_POSTGRES}
-        - DB_PASS=${PIER_PASSWORD_POSTGRES}
-        - DB_NAME=${POSTGRESQL_DATABASE:-wiki-db}
-      depends_on:
-        - postgres
-      healthcheck:
-        test: curl --fail http://localhost:3000 || exit 1
-  volumes:
-    wikijs-postgresql-data: null
+    env:
+      DB_TYPE: postgres
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      DB_USER: '{{postgres.user}}'
+      DB_PASS: '{{postgres.password}}'
+      DB_NAME: '{{postgres.database}}'
+with:
+  postgres:
+    version: '16'
+    database: wiki-db

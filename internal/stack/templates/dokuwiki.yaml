@@ -1,33 +1,14 @@
 name: DokuWiki
 description: Wiki leve e fácil para documentação e bases de conhecimento.
+description_en: Lightweight, easy wiki for documentation and knowledge bases.
 category: CMS
 website: https://www.dokuwiki.org/
-tags:
-  - wiki
-  - documentation
-  - knowledge
-  - base
-routes:
-  - service: dokuwiki
+services:
+  dokuwiki:
+    image: lscr.io/linuxserver/dokuwiki@sha256:20bcd28540072a01c2364bc0ead5b280427c13b38e3c268b632a6496541d2da0
     port: 80
-compose: |
-  services:
-    dokuwiki:
-      image: lscr.io/linuxserver/dokuwiki:latest
-      environment:
-        - PUID=1000
-        - PGID=1000
-        - TZ=Europe/Madrid
-      volumes:
-        - dokuwiki-config:/config
-      healthcheck:
-        interval: 2s
-        retries: 15
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:80
-        timeout: 10s
-  volumes:
-    dokuwiki-config: null
+    data: /config
+    env:
+      PUID: '1000'
+      PGID: '1000'
+      TZ: Europe/Madrid

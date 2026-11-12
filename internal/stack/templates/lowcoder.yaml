@@ -1,33 +1,14 @@
 name: Lowcoder
 description: Plataforma low-code open source para ferramentas internas.
+description_en: Open source low-code platform for internal tools.
 category: Produtividade
 website: https://docs.lowcoder.cloud/
-tags:
-  - lowcoder
-  - openblocks
-  - code
-  - platform
-routes:
-  - service: lowcoder
+services:
+  lowcoder:
+    image: lowcoderorg/lowcoder-ce:3.0.0
     port: 3000
-compose: |
-  services:
-    lowcoder:
-      image: lowcoderorg/lowcoder-ce
-      environment:
-        - LOWCODER_EMAIL_SIGNUP_ENABLED=${LOWCODER_EMAIL_SIGNUP_ENABLED:-true}
-        - LOWCODER_DB_ENCRYPTION_PASSWORD=${PIER_PASSWORD_ENCRYPTION}
-        - LOWCODER_DB_ENCRYPTION_SALT=${PIER_PASSWORD_SALT}
-      volumes:
-        - lowcoder_data:/lowcoder-stacks
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:3000/health
-        timeout: 20s
-  volumes:
-    lowcoder_data: null
+    data: /lowcoder-stacks
+    env:
+      LOWCODER_EMAIL_SIGNUP_ENABLED: ${LOWCODER_EMAIL_SIGNUP_ENABLED:-true}
+      LOWCODER_DB_ENCRYPTION_PASSWORD: ${PIER_PASSWORD_ENCRYPTION}
+      LOWCODER_DB_ENCRYPTION_SALT: ${PIER_PASSWORD_SALT}

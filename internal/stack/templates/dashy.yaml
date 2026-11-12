@@ -1,28 +1,15 @@
 name: Dashy
 description: Painel pessoal com verificação de status, widgets e temas.
+description_en: Personal dashboard with status checks, widgets and themes.
 category: Produtividade
 website: https://dashy.to/docs
-tags:
-  - dashboard
-  - personal
-  - self-hostable
-routes:
-  - service: dashy
+services:
+  dashy:
+    image: lissy93/dashy:4.9.17
     port: 8080
-compose: |
-  services:
-    dashy:
-      image: lissy93/dashy
-      environment:
-        - PUID=1000
-        - PGID=1000
-        - TZ=${TIMEZONE:-UTC}
-      volumes:
-        - ./dashy/conf.yml:/app/public/conf.yml
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - wget -qO- http://127.0.0.1:8080/
-        timeout: 20s
+    volumes:
+    - ./dashy/conf.yml:/app/public/conf.yml
+    env:
+      PUID: '1000'
+      PGID: '1000'
+      TZ: ${TIMEZONE:-UTC}

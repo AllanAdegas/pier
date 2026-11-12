@@ -1,52 +1,31 @@
 name: Hermes Agent
 description: Agente de IA autônomo com memória persistente, agendamento e painel web.
+description_en: Autonomous AI agent with persistent memory, scheduling and a web dashboard.
 category: IA
 website: https://github.com/NousResearch/hermes-agent
-tags:
-  - ai
-  - agent
-  - llm
-  - chatbot
-  - hermes
-  - openrouter
-  - anthropic
-  - openai
-routes:
-  - service: hermes-agent
+services:
+  hermes-agent:
+    image: nousresearch/hermes-agent:v2026.8.3
     port: 9119
-compose: |
-  services:
-    hermes-agent:
-      image: nousresearch/hermes-agent:v2026.8.3
-      command: gateway run
-      environment:
-        - HERMES_DASHBOARD=1
-        - HERMES_DASHBOARD_HOST=0.0.0.0
-        - HERMES_DASHBOARD_PORT=9119
-        - HERMES_DASHBOARD_BASIC_AUTH_USERNAME=${PIER_USER_HERMESAGENT}
-        - HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=${PIER_PASSWORD_HERMESAGENT}
-        - HERMES_DASHBOARD_BASIC_AUTH_SECRET=${PIER_PASSWORD_64_HERMESAGENT}
-        - HERMES_HOME=/opt/data
-        - GATEWAY_ALLOW_ALL_USERS=true
-        - HERMES_REDACT_SECRETS=true
-        - HERMES_UID=1000
-        - HERMES_GID=1000
-        - HERMES_ENABLE_PROJECT_PLUGINS=${HERMES_ENABLE_PROJECT_PLUGINS:-true}
-        - HERMES_ALLOW_PRIVATE_URLS=${HERMES_ALLOW_PRIVATE_URLS:-false}
-        - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
-        - FIRECRAWL_API_URL=${FIRECRAWL_API_URL:-https://api.firecrawl.dev}
-        - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
-        - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-        - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-        - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
-      volumes:
-        - hermes-home:/opt/data
-      healthcheck:
-        interval: 10s
-        retries: 5
-        test:
-          - CMD-SHELL
-          - test -d /opt/data || exit 1
-        timeout: 5s
-  volumes:
-    hermes-home: null
+    data: /opt/data
+    command: gateway run
+    env:
+      HERMES_DASHBOARD: '1'
+      HERMES_DASHBOARD_HOST: 0.0.0.0
+      HERMES_DASHBOARD_PORT: '9119'
+      HERMES_DASHBOARD_BASIC_AUTH_USERNAME: ${PIER_USER_HERMESAGENT}
+      HERMES_DASHBOARD_BASIC_AUTH_PASSWORD: ${PIER_PASSWORD_HERMESAGENT}
+      HERMES_DASHBOARD_BASIC_AUTH_SECRET: ${PIER_PASSWORD_64_HERMESAGENT}
+      HERMES_HOME: /opt/data
+      GATEWAY_ALLOW_ALL_USERS: 'true'
+      HERMES_REDACT_SECRETS: 'true'
+      HERMES_UID: '1000'
+      HERMES_GID: '1000'
+      HERMES_ENABLE_PROJECT_PLUGINS: ${HERMES_ENABLE_PROJECT_PLUGINS:-true}
+      HERMES_ALLOW_PRIVATE_URLS: ${HERMES_ALLOW_PRIVATE_URLS:-false}
+      FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY:-}
+      FIRECRAWL_API_URL: ${FIRECRAWL_API_URL:-https://api.firecrawl.dev}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}

@@ -1,31 +1,14 @@
 name: Deno KV
 description: Banco chave-valor da Deno.
+description_en: Deno's key-value database.
 category: Dados
 website: https://docs.deno.com/deploy/kv/manual/
-tags:
-  - deno
-  - kv
-  - key-value
-  - database
-routes:
-  - service: denokv
+services:
+  denokv:
+    image: ghcr.io/denoland/denokv:0.14.0
     port: 4512
-compose: |
-  services:
-    denokv:
-      image: ghcr.io/denoland/denokv:latest
-      command: --sqlite-path /data/denokv.sqlite serve --access-token ${PIER_PASSWORD_DENOKV}
-      environment:
-        - ACCESS_TOKEN=${PIER_PASSWORD_DENOKV}
-      volumes:
-        - ./data:/data
-      healthcheck:
-        interval: 5s
-        retries: 3
-        test:
-          - CMD
-          - nc
-          - -zv
-          - 127.0.0.1
-          - "4512"
-        timeout: 5s
+    command: --sqlite-path /data/denokv.sqlite serve --access-token ${PIER_PASSWORD_DENOKV}
+    volumes:
+    - ./data:/data
+    env:
+      ACCESS_TOKEN: ${PIER_PASSWORD_DENOKV}

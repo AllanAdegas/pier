@@ -2,6 +2,7 @@
 import { assertEquals } from "jsr:@std/assert@1";
 import type { DockerContainer, Project, Resources } from "../../lib/types";
 import { groupContainers, placementLabel, placements } from "./containerGroups";
+import { t } from "../../i18n";
 
 function container(name: string, extra: Partial<DockerContainer> = {}): DockerContainer {
   return {
@@ -36,12 +37,12 @@ Deno.test("containers are grouped by Pier project, then infrastructure, compose 
   );
   assertEquals(
     groups.map((group) => `${group.title}:${group.running}/${group.containers.length}`),
-    ["Blog:1/1", "Concord:1/2", "Infraestrutura do Pier:1/1", "Recursos sem registro:1/1", "cvat:1/1", "Containers avulsos:1/1"],
+    ["Blog:1/1", "Concord:1/2", `${t("Infraestrutura do Pier")}:1/1`, `${t("Recursos sem registro")}:1/1`, "cvat:1/1", `${t("Containers avulsos")}:1/1`],
   );
   assertEquals(placementLabel(groups[1].containers[0], index), "Concord · produção");
 });
 
 Deno.test("without resources loaded, managed containers are not lost", () => {
   const groups = groupContainers([container("frontend", { managed: true, owner: { type: "stack", id: "stk1" } })], placements(undefined, undefined));
-  assertEquals(groups.map((group) => group.title), ["Recursos sem registro"]);
+  assertEquals(groups.map((group) => group.title), [t("Recursos sem registro")]);
 });

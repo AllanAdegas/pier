@@ -1,80 +1,32 @@
 name: Sequin
 description: Captura de mudanças (CDC) do Postgres, rápida.
+description_en: Fast change data capture (CDC) for Postgres.
 category: Analytics
 website: https://sequinstream.com/docs/
-tags:
-  - postgres
-  - sync
-  - data
-routes:
-  - service: sequin
+services:
+  sequin:
+    image: sequin/sequin:v0.14.6
     port: 7376
-compose: |
-  services:
-    postgres:
-      image: postgres:16
-      command:
-        - postgres
-        - -c
-        - wal_level=logical
-      environment:
-        - POSTGRES_DB=${POSTGRES_DB:-sequin-db}
-        - POSTGRES_USER=${PIER_USER_POSTGRES}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
-      volumes:
-        - postgres_data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 10s
-        retries: 5
-        start_interval: 1s
-        start_period: 2s
-        test:
-          - CMD-SHELL
-          - pg_isready -U ${PIER_USER_POSTGRES} -d sequin
-        timeout: 2s
-    redis:
-      image: redis:7
-      command:
-        - redis-server
-        - --port
-        - "6379"
-      volumes:
-        - redis_data:/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - redis-cli
-          - ping
-        timeout: 20s
-    sequin:
-      image: sequin/sequin:latest
-      environment:
-        - SERVER_HOST=${PIER_HOST_SEQUIN}
-        - PG_HOSTNAME=postgres
-        - PG_DATABASE=${POSTGRES_DB:-sequin-db}
-        - PG_PORT=5432
-        - PG_USERNAME=${PIER_USER_POSTGRES}
-        - PG_PASSWORD=${PIER_PASSWORD_POSTGRES}
-        - PG_POOL_SIZE=20
-        - SECRET_KEY_BASE=${PIER_BASE64_64_SECRETKEY}
-        - VAULT_KEY=${PIER_BASE64_VAULTKEY}
-        - REDIS_URL=redis://redis:6379
-        - CONFIG_FILE_PATH=/config/playground.yml
-        - FEATURE_ACCOUNT_SELF_SIGNUP=${FEATURE_ACCOUNT_SELF_SIGNUP:-false}
-        - SEQUIN_TELEMETRY_DISABLED=${SEQUIN_TELEMETRY_DISABLED:-false}
-        - CRASH_REPORTING_DISABLED=${CRASH_REPORTING_DISABLED:-false}
-      depends_on:
-        postgres:
-          condition: service_healthy
-        redis:
-          condition: service_healthy
-      healthcheck:
-        test:
-          - CMD
-          - curl
-          - http://localhost:7376/health
-  volumes:
-    postgres_data: null
-    redis_data: null
+    env:
+      SERVER_HOST: ${PIER_HOST_SEQUIN}
+      PG_HOSTNAME: postgres
+      PG_DATABASE: '{{postgres.database}}'
+      PG_PORT: '5432'
+      PG_USERNAME: '{{postgres.user}}'
+      PG_PASSWORD: '{{postgres.password}}'
+      PG_POOL_SIZE: '20'
+      SECRET_KEY_BASE: ${PIER_BASE64_64_SECRETKEY}
+      VAULT_KEY: ${PIER_BASE64_VAULTKEY}
+      REDIS_URL: redis://redis:6379
+      CONFIG_FILE_PATH: /config/playground.yml
+      FEATURE_ACCOUNT_SELF_SIGNUP: ${FEATURE_ACCOUNT_SELF_SIGNUP:-false}
+      SEQUIN_TELEMETRY_DISABLED: ${SEQUIN_TELEMETRY_DISABLED:-false}
+      CRASH_REPORTING_DISABLED: ${CRASH_REPORTING_DISABLED:-false}
+with:
+  postgres:
+    version: '16'
+    args:
+    - -c
+    - wal_level=logical
+    database: sequin-db
+  redis: {}

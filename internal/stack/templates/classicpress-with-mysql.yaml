@@ -1,56 +1,19 @@
 name: ClassicPress com MySQL
 description: CMS leve e estável baseado no WordPress, sem o editor de blocos.
+description_en: Lightweight, stable CMS based on WordPress, without the block editor.
 category: CMS
 website: https://www.classicpress.net/
-tags:
-  - cms
-  - blog
-  - content
-  - management
-routes:
-  - service: classicpress
+services:
+  classicpress:
+    image: classicpress/classicpress@sha256:4f171f959f80420fd6ef1c46ef4031dcc4f87ed1bf1c97c60d13c17bacbaaaec
     port: 80
-compose: |
-  services:
-    classicpress:
-      image: classicpress/classicpress:latest
-      environment:
-        - CLASSICPRESS_DB_HOST=mysql
-        - CLASSICPRESS_DB_USER=$PIER_USER_CLASSICPRESS
-        - CLASSICPRESS_DB_PASSWORD=$PIER_PASSWORD_CLASSICPRESS
-        - CLASSICPRESS_DB_NAME=classicpress
-      volumes:
-        - classicpress-files:/var/www/html
-      depends_on:
-        - mysql
-      healthcheck:
-        interval: 2s
-        retries: 10
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1
-        timeout: 10s
-    mysql:
-      image: mysql:8
-      environment:
-        - MYSQL_ROOT_PASSWORD=$PIER_PASSWORD_ROOT
-        - MYSQL_DATABASE=classicpress
-        - MYSQL_USER=$PIER_USER_CLASSICPRESS
-        - MYSQL_PASSWORD=$PIER_PASSWORD_CLASSICPRESS
-      volumes:
-        - mysql-data:/var/lib/mysql
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - mysqladmin
-          - ping
-          - -h
-          - 127.0.0.1
-        timeout: 20s
-  volumes:
-    classicpress-files: null
-    mysql-data: null
+    data: /var/www/html
+    env:
+      CLASSICPRESS_DB_HOST: mysql
+      CLASSICPRESS_DB_USER: '{{mysql.user}}'
+      CLASSICPRESS_DB_PASSWORD: '{{mysql.password}}'
+      CLASSICPRESS_DB_NAME: classicpress
+with:
+  mysql:
+    version: '8.0'
+    database: classicpress

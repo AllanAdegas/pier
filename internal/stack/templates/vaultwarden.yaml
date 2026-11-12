@@ -1,20 +1,15 @@
 name: Vaultwarden
 description: Servidor de senhas compatível com os aplicativos Bitwarden.
+description_en: Password server compatible with the Bitwarden apps.
 category: Segurança
 website: https://github.com/dani-garcia/vaultwarden
 verified: true
-routes:
-  - service: vaultwarden
+services:
+  vaultwarden:
+    image: vaultwarden/server:1.37.5
     port: 80
-compose: |
-  services:
-    vaultwarden:
-      image: vaultwarden/server:latest
-      environment:
-        DOMAIN: ${PIER_URL_VAULTWARDEN:-http://localhost}
-        ADMIN_TOKEN: ${PIER_SECRET_ADMIN}
-        SIGNUPS_ALLOWED: "true"
-      volumes:
-        - data:/data
-  volumes:
-    data:
+    data: /data
+    env:
+      DOMAIN: ${PIER_URL_VAULTWARDEN:-http://localhost}
+      ADMIN_TOKEN: ${PIER_SECRET_ADMIN}
+      SIGNUPS_ALLOWED: 'true'

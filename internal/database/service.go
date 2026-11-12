@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"pier/internal/compose"
@@ -27,6 +28,8 @@ type Connector interface {
 
 // Service implements the database use cases.
 type Service struct {
+	mu        sync.Mutex
+	active    map[string]bool
 	store     *Store
 	connector Connector
 	events    notify.Publisher
@@ -36,7 +39,7 @@ type Service struct {
 
 // NewService creates the service.
 func NewService(store *Store, connector Connector, events notify.Publisher) *Service {
-	return &Service{store: store, connector: connector, events: events, onScheduleChange: func() {}}
+	return &Service{active: make(map[string]bool), store: store, connector: connector, events: events, onScheduleChange: func() {}}
 }
 
 // OnScheduleChange registers the callback fired when backup policies change.
@@ -100,6 +103,14 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Database, erro
 
 // Update changes the definition; runtime changes apply on the next start.
 func (s *Service) Update(ctx context.Context, id string, input UpdateInput) (Database, error) {
+	release, err := s.acquire(id)
+	if err != nil {
+		return Database{}, err
+	}
+	defer release()
+	if err := s.ensureIdle(ctx, id); err != nil {
+		return Database{}, err
+	}
 	database, err := s.Get(ctx, id)
 	if err != nil {
 		return Database{}, err
@@ -126,6 +137,15 @@ func (s *Service) Update(ctx context.Context, id string, input UpdateInput) (Dat
 // Start writes the compose project and brings the container up, applying the
 // current configuration.
 func (s *Service) Start(ctx context.Context, id string) error {
+	release, err := s.acquire(id)
+	if err != nil {
+		return err
+	}
+	defer release()
+	if err := s.ensureIdle(ctx, id); err != nil {
+		return err
+	}
+
 	database, ex, project, err := s.reach(ctx, id)
 	if err != nil {
 		return err
@@ -155,6 +175,15 @@ func (s *Service) Start(ctx context.Context, id string) error {
 
 // Stop stops the container keeping the data volume.
 func (s *Service) Stop(ctx context.Context, id string) error {
+	release, err := s.acquire(id)
+	if err != nil {
+		return err
+	}
+	defer release()
+	if err := s.ensureIdle(ctx, id); err != nil {
+		return err
+	}
+
 	_, ex, _, err := s.reach(ctx, id)
 	if err != nil {
 		return err
@@ -181,10 +210,19 @@ func (s *Service) Restart(ctx context.Context, id string) error {
 // data: the volume and every backup file. Without it both are kept on the
 // server. With force, an unreachable server does not block removing the record.
 func (s *Service) Delete(ctx context.Context, id string, deleteVolume, force bool) error {
+	release, err := s.acquire(id)
+	if err != nil {
+		return err
+	}
+	defer release()
+
 	if _, err := s.Get(ctx, id); err != nil {
 		return err
 	}
-	if err := s.cleanup(ctx, id, deleteVolume); err != nil && !force {
+	if err := s.ensureIdle(ctx, id); err != nil {
+		return err
+	}
+	if err := s.cleanup(ctx, id, deleteVolume); err != nil && (!force || deleteVolume) {
 		return apperr.Unavailable("Não foi possível limpar o servidor (%s). Use a remoção forçada para "+
 			"apagar apenas o registro.", err)
 	}
@@ -220,15 +258,27 @@ func (s *Service) cleanup(ctx context.Context, id string, deleteData bool) error
 // so no copy of the data lingers on the server after the user asked to
 // destroy it, and none is lost when they did not.
 func (s *Service) destroyData(ctx context.Context, ex executor.Executor, database Database) error {
-	if _, err := ex.Run(ctx, shell.Join("docker", "volume", "rm", "--force", database.ID+"_data")); err != nil {
+	backups, err := s.store.listBackups(ctx, database.ID)
+	if err != nil {
 		return err
+	}
+	for _, b := range backups {
+		if err := s.removeRemote(ctx, b, ex); err != nil {
+			return fmt.Errorf("S3: %w", err)
+		}
+	}
+	if _, err := ex.Run(ctx, shell.Join("docker", "volume", "rm", "--force", database.ID+"_data")); err != nil {
+		return fmt.Errorf("volume: %w", err)
 	}
 	_, target, err := s.connector.Executor(ctx, database.ServerID)
 	if err != nil {
 		return err
 	}
 	_, err = ex.Run(ctx, shell.Join("rm", "-rf", target.BackupDir(database.ID)))
-	return err
+	if err != nil {
+		return fmt.Errorf("backups: %w", err)
+	}
+	return nil
 }
 
 // Connection returns credentials and URLs to reach the database.

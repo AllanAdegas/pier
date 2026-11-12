@@ -1,13 +1,16 @@
 import { A } from "@solidjs/router";
-import { For, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import { EmptyState, QueryView, StatusBadge } from "../components/Feedback";
 import { Icon } from "../components/Icon";
+import { Button } from "../components/Button";
+import { currentUser,readOnboardingDismissals,saveOnboardingDismissals } from "../lib/state";
 import { PageHeader } from "../components/Page";
 import { DeploymentList } from "../components/Rows";
 import { api } from "../lib/api";
 import { serverStatus } from "../lib/format";
 import { createQuery } from "../lib/query";
 import type { Dashboard } from "../lib/types";
+import { t } from "../i18n";
 
 function Stat(props: { label: string; value: number; tone?: "danger" }) {
   return (
@@ -29,7 +32,8 @@ export function DashboardPage() {
 
   return (
     <div class="page">
-      <PageHeader title="Painel" description="O que está no ar e o que mudou por último." />
+      <PageHeader title={t("Painel")} description={t("O que está no ar e o que mudou por último.")} actions={<A href="/monitoring" class="btn">{t("Monitoramento")}</A>} />
+      <OnboardingChecklist />
       <QueryView query={dashboard} skeletonLines={4}>
         {(data) => (
           <Show
@@ -37,36 +41,34 @@ export function DashboardPage() {
             fallback={
               <EmptyState
                 icon="rocket"
-                title="Nada implantado ainda"
+                title={t("Nada implantado ainda")}
                 action={
                   <A href="/projects" class="btn btn-primary">
-                    <Icon name="plus" size={16} />
-                    Criar o primeiro projeto
+                    <Icon name="plus" size={16} />{t("Criar o primeiro projeto")}
                   </A>
                 }
-              >
-                Um projeto agrupa aplicações, bancos de dados e stacks. Crie um e faça seu primeiro deploy.
+              >{t("Um projeto agrupa aplicações, bancos de dados e stacks. Crie um e faça seu primeiro deploy.")}
               </EmptyState>
             }
           >
             <div class="stack-lg">
               <div class="grid-cards" style={{ "grid-template-columns": "repeat(auto-fill, minmax(160px, 1fr))" }}>
-                <Stat label="Projetos" value={data().projects} />
-                <Stat label="Aplicações" value={data().applications} />
-                <Stat label="Bancos de dados" value={data().databases} />
-                <Stat label="Stacks" value={data().stacks} />
-                <Stat label="Em execução" value={data().running} />
-                <Stat label="Com problema" value={data().unhealthy} tone="danger" />
+                <Stat label={t("Projetos")} value={data().projects} />
+                <Stat label={t("Aplicações")} value={data().applications} />
+                <Stat label={t("Bancos de dados")} value={data().databases} />
+                <Stat label={t("Stacks")} value={data().stacks} />
+                <Stat label={t("Em execução")} value={data().running} />
+                <Stat label={t("Com problema")} value={data().unhealthy} tone="danger" />
               </div>
 
               <section class="stack">
                 <div class="row-between">
-                  <h2>Deploys recentes</h2>
-                  <A href="/deployments">Ver todos</A>
+                  <h2>{t("Deploys recentes")}</h2>
+                  <A href="/deployments">{t("Ver todos")}</A>
                 </div>
                 <Show
                   when={data().deployments.length > 0}
-                  fallback={<p class="muted">Nenhum deploy ainda. Abra uma aplicação e clique em “Implantar”.</p>}
+                  fallback={<p class="muted">{t("Nenhum deploy ainda. Abra uma aplicação e clique em “Implantar”.")}</p>}
                 >
                   <DeploymentList deployments={data().deployments} showApplication />
                 </Show>
@@ -74,8 +76,8 @@ export function DashboardPage() {
 
               <section class="stack">
                 <div class="row-between">
-                  <h2>Servidores</h2>
-                  <A href="/servers">Gerenciar</A>
+                  <h2>{t("Servidores")}</h2>
+                  <A href="/servers">{t("Gerenciar")}</A>
                 </div>
                 <div class="list">
                   <For each={data().servers}>
@@ -87,7 +89,7 @@ export function DashboardPage() {
                         <div class="grow stack-sm" style={{ gap: "0" }}>
                           <strong class="truncate">{server.name}</strong>
                           <span class="small muted truncate">
-                            {server.kind === "local" ? "Máquina local" : `${server.user}@${server.host}`}
+                            {server.kind === "local" ? t("Máquina local") : `${server.user}@${server.host}`}
                             <Show when={server.docker_version}> · Docker {server.docker_version}</Show>
                           </span>
                         </div>
@@ -103,4 +105,22 @@ export function DashboardPage() {
       </QueryView>
     </div>
   );
+}
+
+function OnboardingChecklist() {
+ const status=createQuery(()=>true,()=>api.get<{https:boolean;backup:boolean;notifications:boolean;deployed:boolean}>("/instance/onboarding"),{pollMs:30000});
+ const [dismissed,setDismissed]=createSignal(readOnboardingDismissals(currentUser()?.id ?? ""));
+ const dismiss=(id:string)=>{const items=[...dismissed(),id];setDismissed(items);saveOnboardingDismissals(currentUser()?.id ?? "",items);};
+ const items=()=>[
+ {id:"https",label:t("Ativar HTTPS no painel"),href:"/settings",done:status.data()?.https},
+ {id:"backup",label:t("Criar um backup da instância"),href:"/settings#instance-backup",done:status.data()?.backup},
+ {id:"notifications",label:t("Configurar notificações"),href:"/notifications",done:status.data()?.notifications},
+ {id:"deploy",label:t("Faça seu primeiro deploy"),href:"/projects",done:status.data()?.deployed},
+ {id:"2fa",label:t("Autenticação em dois fatores — em breve"),href:"/security",done:false}
+ ].filter(item=>!dismissed().includes(item.id));
+ return <Show when={status.data() && items().length>0}><section class="card stack">
+ <h2>{t("Primeiros passos")}</h2>
+ <For each={items()}>{item=><div class="row-between"><A href={item.href}>{item.done?"✓ ":""}{item.label}</A><Button small variant="ghost" onClick={()=>dismiss(item.id)}>{t("Dispensar item")}</Button></div>}</For>
+ <Show when={!status.data()?.deployed && !dismissed().includes("deploy")}><p class="small muted">{t("Para experimentar, use o exemplo Node.js com Nixpacks:")} <a href="https://github.com/heroku/node-js-getting-started" target="_blank" rel="noopener noreferrer">heroku/node-js-getting-started</a></p></Show>
+ </section></Show>;
 }

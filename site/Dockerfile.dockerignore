@@ -1,0 +1,8 @@
+# Only what site/Dockerfile reads; the rest of the repository stays out.
+*
+!internal/version/version.go
+!site/deno.json
+!site/deno.lock
+!site/src/
+!site/content/
+!site/assets/

@@ -1,29 +1,12 @@
 name: DocuSeal
 description: Assinatura de documentos; alternativa open source ao DocuSign.
+description_en: Document signing; an open source alternative to DocuSign.
 category: Produtividade
 website: https://www.docuseal.co/
-tags:
-  - documentation
-routes:
-  - service: docuseal
+services:
+  docuseal:
+    image: docuseal/docuseal:3.3.6
     port: 3000
-compose: |
-  services:
-    docuseal:
-      image: docuseal/docuseal:latest
-      environment:
-        - HOST=${PIER_URL_DOCUSEAL}
-      volumes:
-        - docuseal-data:/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - wget
-          - -q
-          - --spider
-          - http://127.0.0.1:3000
-        timeout: 20s
-  volumes:
-    docuseal-data: null
+    data: /data
+    env:
+      HOST: ${PIER_URL_DOCUSEAL}

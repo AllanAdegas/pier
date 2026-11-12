@@ -1,27 +1,15 @@
 name: PocketBase
 description: Backend open source em um único arquivo.
+description_en: Open source backend in a single file.
 category: Backend
 website: https://pocketbase.io/docs/
-tags:
-  - pocketbase
-  - backend
-  - saas
-  - mobile
-  - api
-routes:
-  - service: pocketbase
+services:
+  pocketbase:
+    image: ghcr.io/muchobien/pocketbase:0.41.1
     port: 8090
-compose: |
-  services:
-    pocketbase:
-      image: ghcr.io/muchobien/pocketbase:latest
-      environment:
-        # Cria o superusuário na primeira subida; a senha fica nas variáveis da stack.
-        - PB_ADMIN_EMAIL=${PB_ADMIN_EMAIL:?Informe o e-mail do administrador do PocketBase}
-        - PB_ADMIN_PASSWORD=${PIER_PASSWORD_POCKETBASE}
-      volumes:
-        - pocketbase-data:/pb_data
-        - pocketbase-hooks:/pb_hooks
-  volumes:
-    pocketbase-data: null
-    pocketbase-hooks: null
+    volumes:
+    - pocketbase-data:/pb_data
+    - pocketbase-hooks:/pb_hooks
+    env:
+      PB_ADMIN_EMAIL: ${PB_ADMIN_EMAIL:?Informe o e-mail do administrador do PocketBase}
+      PB_ADMIN_PASSWORD: ${PIER_PASSWORD_POCKETBASE}

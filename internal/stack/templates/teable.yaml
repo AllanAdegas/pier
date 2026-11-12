@@ -1,100 +1,60 @@
 name: Teable
 description: Interface visual poderosa sobre bancos relacionais (PostgreSQL).
+description_en: Powerful visual interface on top of relational databases (PostgreSQL).
 category: Produtividade
 website: https://help.teable.io/
-tags:
-  - airtable
-  - teable
-  - database
-  - visual
-  - interface
-  - relational
-  - postgresql
-routes:
-  - service: teable
+services:
+  teable:
+    image: ghcr.io/teableio/teable:release.2026-11-10T05-38-53Z.3830
     port: 3000
-compose: |
-  services:
-    teable:
-      image: ghcr.io/teableio/teable:latest
-      environment:
-        - PUBLIC_ORIGIN=${PIER_URL_TEABLE}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
-        - SECRET_KEY=${PIER_PASSWORD_64_SECRET}
-        - TZ=${TIMEZONE}
-        - PRISMA_DATABASE_URL=postgresql://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@teable-db:${POSTGRES_PORT}/${POSTGRES_DB}
-        - NEXT_ENV_IMAGES_ALL_REMOTE=true
-        - PORT=3000
-        - REDIS_PASSWORD=${PIER_PASSWORD_REDIS}
-        - BACKEND_CACHE_PROVIDER=redis
-        - BACKEND_CACHE_REDIS_URI=redis://default:${PIER_PASSWORD_REDIS}@teable-cache:6379/0
-        - BACKEND_MAIL_HOST=${BACKEND_MAIL_HOST}
-        - BACKEND_MAIL_PORT=${BACKEND_MAIL_PORT}
-        - BACKEND_MAIL_SECURE=${BACKEND_MAIL_SECURE}
-        - BACKEND_MAIL_SENDER=${BACKEND_MAIL_SENDER}
-        - BACKEND_MAIL_SENDER_NAME=${BACKEND_MAIL_SENDER_NAME}
-        - BACKEND_MAIL_AUTH_USER=${BACKEND_MAIL_AUTH_USER}
-        - BACKEND_MAIL_AUTH_PASS=${BACKEND_MAIL_AUTH_PASS}
-      volumes:
-        - teable_data:/app/.assets:rw
-      depends_on:
-        teable-cache:
-          condition: service_healthy
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:3000
-        timeout: 20s
-    teable-cache:
-      image: redis:7.2.4
-      command: redis-server --appendonly yes --requirepass ${PIER_PASSWORD_REDIS}
-      environment:
-        - REDIS_PORT=6379
-        - REDIS_DB=0
-        - REDIS_PASSWORD=${PIER_PASSWORD_REDIS}
-      volumes:
-        - teable_cache_data:/data:rw
-      healthcheck:
-        interval: 10s
-        retries: 3
-        test:
-          - CMD
-          - redis-cli
-          - --raw
-          - incr
-          - ping
-        timeout: 3s
-    teable-db:
-      image: postgres:15.4
-      environment:
-        - TZ=${TIMEZONE}
-        - POSTGRES_DB=${POSTGRES_DB:-teable}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
-        - POSTGRES_USER=${PIER_USER_POSTGRES}
-        - POSTGRES_PORT=${POSTGRES_PORT:-5432}
-      volumes:
-        - teable_db_data:/var/lib/postgresql/data:rw
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
-        timeout: 20s
-    teable-db-migrate:
-      image: ghcr.io/teableio/teable-db-migrate:latest
-      restart: "no"
-      environment:
-        - TZ=${TIMEZONE}
-        - PRISMA_DATABASE_URL=postgresql://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@teable-db:${POSTGRES_PORT}/${POSTGRES_DB}
-      depends_on:
-        teable-db:
-          condition: service_healthy
-  volumes:
-    teable_cache_data: null
-    teable_data: null
-    teable_db_data: null
+    volumes:
+    - teable_data:/app/.assets:rw
+    env:
+      PUBLIC_ORIGIN: ${PIER_URL_TEABLE}
+      POSTGRES_PASSWORD: '{{teable-db.password}}'
+      SECRET_KEY: ${PIER_PASSWORD_64_SECRET}
+      TZ: ${TIMEZONE}
+      PRISMA_DATABASE_URL: postgresql://{{teable-db.user}}:{{teable-db.password}}@teable-db:${POSTGRES_PORT}/{{teable-db.database}}
+      NEXT_ENV_IMAGES_ALL_REMOTE: 'true'
+      PORT: '3000'
+      REDIS_PASSWORD: ${PIER_PASSWORD_REDIS}
+      BACKEND_CACHE_PROVIDER: redis
+      BACKEND_CACHE_REDIS_URI: redis://default:${PIER_PASSWORD_REDIS}@teable-cache:6379/0
+      BACKEND_MAIL_HOST: ${BACKEND_MAIL_HOST}
+      BACKEND_MAIL_PORT: ${BACKEND_MAIL_PORT}
+      BACKEND_MAIL_SECURE: ${BACKEND_MAIL_SECURE}
+      BACKEND_MAIL_SENDER: ${BACKEND_MAIL_SENDER}
+      BACKEND_MAIL_SENDER_NAME: ${BACKEND_MAIL_SENDER_NAME}
+      BACKEND_MAIL_AUTH_USER: ${BACKEND_MAIL_AUTH_USER}
+      BACKEND_MAIL_AUTH_PASS: ${BACKEND_MAIL_AUTH_PASS}
+    depends_on:
+      teable-cache:
+        condition: service_healthy
+  teable-cache:
+    image: redis:7.2.4
+    command: redis-server --appendonly yes --requirepass ${PIER_PASSWORD_REDIS}
+    volumes:
+    - teable_cache_data:/data:rw
+    env:
+      REDIS_PORT: '6379'
+      REDIS_DB: '0'
+      REDIS_PASSWORD: ${PIER_PASSWORD_REDIS}
+    health:
+    - CMD
+    - redis-cli
+    - --raw
+    - incr
+    - ping
+  teable-db-migrate:
+    image: ghcr.io/teableio/teable-db-migrate@sha256:f046bef9c10888af0fc3e78c92dda8d47fe8ffdc09b3fb77cc2c298253dd3e2d
+    restart: 'no'
+    env:
+      TZ: ${TIMEZONE}
+      PRISMA_DATABASE_URL: postgresql://{{teable-db.user}}:{{teable-db.password}}@teable-db:${POSTGRES_PORT}/{{teable-db.database}}
+with:
+  teable-db:
+    kind: postgres
+    version: '15'
+    env:
+      TZ: ${TIMEZONE}
+    database: teable

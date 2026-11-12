@@ -1,59 +1,18 @@
 name: OrangeHRM
 description: Gestão de RH open source.
+description_en: Open source HR management.
 category: Produtividade
 website: https://starterhelp.orangehrm.com/hc/en-us
-tags:
-  - hr
-  - hris
-  - hrms
-  - human resource management
-  - orangehrm
-  - hr management
-routes:
-  - service: orangehrm
+services:
+  orangehrm:
+    image: orangehrm/orangehrm:5.9
     port: 80
-compose: |
-  services:
-    mariadb:
-      image: mariadb:11
-      environment:
-        - MYSQL_ROOT_PASSWORD=${PIER_PASSWORD_MYSQLROOT}
-        - MYSQL_DATABASE=${MYSQL_DATABASE:-orangehrm-db}
-        - MYSQL_USER=${PIER_USER_MYSQL}
-        - MYSQL_PASSWORD=${PIER_PASSWORD_MYSQL}
-      volumes:
-        - orangehrm_mariadb_data:/var/lib/mysql
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - healthcheck.sh
-          - --connect
-          - --innodb_initialized
-        timeout: 20s
-    orangehrm:
-      image: orangehrm/orangehrm:latest
-      environment:
-        - ORANGEHRM_DATABASE_HOST=mariadb
-        - ORANGEHRM_DATABASE_USER=${PIER_USER_MYSQL}
-        - ORANGEHRM_DATABASE_PASSWORD=${PIER_PASSWORD_MYSQL}
-        - ORANGEHRM_DATABASE_NAME=${MYSQL_DATABASE:-orangehrm-db}
-      volumes:
-        - orangehrm-data:/orangehrm
-      depends_on:
-        mariadb:
-          condition: service_healthy
-      healthcheck:
-        interval: 2s
-        retries: 10
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1
-        timeout: 10s
-      platform: linux/amd64
-  volumes:
-    orangehrm-data: null
-    orangehrm_mariadb_data: null
+    data: /orangehrm
+    env:
+      ORANGEHRM_DATABASE_HOST: mariadb
+      ORANGEHRM_DATABASE_USER: '{{mariadb.user}}'
+      ORANGEHRM_DATABASE_PASSWORD: '{{mariadb.password}}'
+      ORANGEHRM_DATABASE_NAME: '{{mariadb.database}}'
+with:
+  mariadb:
+    database: orangehrm-db

@@ -1,32 +1,16 @@
 name: Gotenberg
 description: API sem estado para gerar e converter PDFs.
+description_en: Stateless API to generate and convert PDFs.
 category: Desenvolvimento
 website: https://gotenberg.dev/docs/getting-started/introduction
-tags:
-  - api
-  - backend
-  - pdf
-  - tool
-routes:
-  - service: gotenberg
+services:
+  gotenberg:
+    image: gotenberg/gotenberg:9.3.0
     port: 3000
-compose: |
-  services:
-    gotenberg:
-      image: gotenberg/gotenberg:latest
-      command:
-        - gotenberg
-        - --api-enable-basic-auth
-        - --api-disable-health-check-logging
-      environment:
-        - GOTENBERG_API_BASIC_AUTH_USERNAME=${PIER_USER_GOTENBERG}
-        - GOTENBERG_API_BASIC_AUTH_PASSWORD=${PIER_PASSWORD_GOTENBERG}
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:3000/health
-        timeout: 20s
+    command:
+    - gotenberg
+    - --api-enable-basic-auth
+    - --api-disable-health-check-logging
+    env:
+      GOTENBERG_API_BASIC_AUTH_USERNAME: ${PIER_USER_GOTENBERG}
+      GOTENBERG_API_BASIC_AUTH_PASSWORD: ${PIER_PASSWORD_GOTENBERG}

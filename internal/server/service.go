@@ -14,6 +14,7 @@ import (
 	"pier/internal/docker"
 	"pier/internal/platform/apperr"
 	"pier/internal/platform/executor"
+	"pier/internal/platform/i18n"
 	"pier/internal/platform/idgen"
 	"pier/internal/platform/memo"
 	"pier/internal/platform/shell"
@@ -77,7 +78,7 @@ func (s *Service) EnsureLocal(ctx context.Context, dataDir string) error {
 	return s.store.insert(ctx, Server{
 		ID:          idgen.New(),
 		Name:        "localhost",
-		Description: "Máquina onde o Pier está instalado.",
+		Description: i18n.Instance().Text("Máquina onde o Pier está instalado."),
 		Kind:        KindLocal,
 		Port:        22,
 		DataDir:     dataDir,
@@ -113,19 +114,14 @@ func (s *Service) Update(ctx context.Context, id string, input Input) (Server, e
 	if err != nil {
 		return Server{}, err
 	}
-	previousEndpoint := server.Host + ":" + strconv.Itoa(server.Port)
 	if err := applyInput(&server, input); err != nil {
 		return Server{}, err
-	}
-	if previousEndpoint != server.Host+":"+strconv.Itoa(server.Port) {
-		// A different machine legitimately has a different host key.
-		server.HostKey = ""
 	}
 	if err := s.store.update(ctx, server); err != nil {
 		return Server{}, err
 	}
 	s.connector.Forget(id)
-	return server, nil
+	return s.Get(ctx, id)
 }
 
 // Delete removes a server that no longer hosts resources.
@@ -154,7 +150,7 @@ func (s *Service) ResetHostKey(ctx context.Context, id string) error {
 		return err
 	}
 	s.connector.Forget(id)
-	return s.store.setHostKey(ctx, id, "")
+	return s.store.clearHostKey(ctx, id)
 }
 
 // Validate checks connectivity and Docker, prepares the server and records the result.
@@ -164,7 +160,7 @@ func (s *Service) Validate(ctx context.Context, id string) (Server, error) {
 	dockerVersion, err := s.prepare(ctx, id)
 	if err != nil {
 		s.connector.Forget(id)
-		_ = s.store.setStatus(context.WithoutCancel(ctx), id, StatusUnreachable, describeFailure(err), "")
+		_ = s.store.setStatus(context.WithoutCancel(ctx), id, StatusUnreachable, describeFailure(err).Localize(i18n.Instance()), "")
 	} else {
 		_ = s.store.setStatus(context.WithoutCancel(ctx), id, StatusReachable, "", dockerVersion)
 	}
@@ -176,20 +172,17 @@ func (s *Service) prepare(ctx context.Context, id string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	dockerVersion, err := ex.Run(ctx, "docker version --format '{{.Server.Version}}'")
-	if err != nil {
-		return "", fmt.Errorf("Docker não respondeu: %w", err)
+	checks, version := collectChecks(ctx, ex, server.Proxy, time.Now)
+	if err := s.store.setChecks(ctx, id, checks); err != nil {
+		return "", err
 	}
-	if _, err := ex.Run(ctx, "docker compose version --short"); err != nil {
-		return "", fmt.Errorf("plugin docker compose ausente: %w", err)
-	}
-	if _, err := ex.Run(ctx, shell.Join("mkdir", "-p", server.DataDir)); err != nil {
-		return "", fmt.Errorf("não foi possível criar %s: %w", server.DataDir, err)
+	if err := prepareCheckedServer(ctx, ex, server, checks); err != nil {
+		return "", err
 	}
 	if err := docker.EnsureNetwork(ctx, ex); err != nil {
 		return "", err
 	}
-	return dockerVersion, nil
+	return version, nil
 }
 
 // Ping is a cheap reachability probe used by the status monitor.
@@ -200,7 +193,7 @@ func (s *Service) Ping(ctx context.Context, id string) error {
 	}
 	if err != nil {
 		s.connector.Forget(id)
-		return s.store.setStatus(ctx, id, StatusUnreachable, describeFailure(err), "")
+		return s.store.setStatus(ctx, id, StatusUnreachable, describeFailure(err).Localize(i18n.Instance()), "")
 	}
 	return s.store.setStatus(ctx, id, StatusReachable, "", "")
 }
@@ -220,14 +213,20 @@ func (s *Service) collectMetrics(ctx context.Context, id string) (Metrics, error
 	if err != nil {
 		return Metrics{}, apperr.Unavailable("Não foi possível consultar o servidor: %s", describeFailure(err))
 	}
-	metrics.DiskTotalBytes, metrics.DiskUsedBytes = readDiskUsage(ctx, ex, server.DataDir)
+	if err := readHostMetrics(ctx, ex, &metrics); err != nil {
+		metrics.HostError = i18n.Instance().Sprintf("Métricas do host indisponíveis ou incompletas. A coleta requer /proc do Linux acessível no servidor.")
+	}
+	if err := readDiskUsage(ctx, ex, server.DataDir, &metrics); err != nil {
+		metrics.DiskError = i18n.Instance().Sprintf("Não foi possível consultar o espaço do diretório de dados.")
+	}
 	metrics.Containers, err = readContainerUsage(ctx, ex)
+	metrics.CollectedAt = time.Now().UTC()
 	return metrics, err
 }
 
 func readDockerInfo(ctx context.Context, ex executor.Executor) (Metrics, error) {
 	format := docker.FormatColumns("{{.OperatingSystem}}", "{{.Architecture}}", "{{.NCPU}}", "{{.MemTotal}}",
-		"{{.ContainersRunning}}", "{{.Images}}")
+		"{{.ContainersRunning}}", "{{.Images}}", "{{.Containers}}", "{{.ContainersStopped}}", "{{.ContainersPaused}}")
 	output, err := ex.Run(ctx, shell.Join("docker", "info", "--format", format))
 	if err != nil {
 		return Metrics{}, err
@@ -241,21 +240,33 @@ func readDockerInfo(ctx context.Context, ex executor.Executor) (Metrics, error) 
 	metrics.MemoryTotalBytes, _ = strconv.ParseInt(fields[3], 10, 64)
 	metrics.ContainersRunning, _ = strconv.Atoi(fields[4])
 	metrics.Images, _ = strconv.Atoi(fields[5])
+	if len(fields) >= 9 {
+		metrics.ContainersTotal, _ = strconv.Atoi(fields[6])
+		metrics.ContainersStopped, _ = strconv.Atoi(fields[7])
+		metrics.ContainersPaused, _ = strconv.Atoi(fields[8])
+	}
 	return metrics, nil
 }
 
-func readDiskUsage(ctx context.Context, ex executor.Executor, dir string) (total, used int64) {
+func readDiskUsage(ctx context.Context, ex executor.Executor, dir string, metrics *Metrics) error {
 	output, err := ex.Run(ctx, "df -Pk "+shell.Quote(dir)+" | tail -n 1")
 	if err != nil {
-		return 0, 0
+		return err
 	}
 	fields := strings.Fields(output)
-	if len(fields) < 4 {
-		return 0, 0
+	if len(fields) < 5 {
+		return fmt.Errorf("unexpected df output")
 	}
-	totalKB, _ := strconv.ParseInt(fields[1], 10, 64)
-	usedKB, _ := strconv.ParseInt(fields[2], 10, 64)
-	return totalKB * 1024, usedKB * 1024
+	totalKB, totalErr := strconv.ParseInt(fields[1], 10, 64)
+	usedKB, usedErr := strconv.ParseInt(fields[2], 10, 64)
+	availableKB, availableErr := strconv.ParseInt(fields[3], 10, 64)
+	if totalErr != nil || usedErr != nil || availableErr != nil || totalKB <= 0 || totalKB > (1<<63-1)/1024 || usedKB < 0 || usedKB > totalKB || availableKB < 0 || availableKB > totalKB {
+		return fmt.Errorf("invalid df counters")
+	}
+	metrics.DiskTotalBytes, metrics.DiskUsedBytes = totalKB*1024, usedKB*1024
+	available := availableKB * 1024
+	metrics.DiskAvailableBytes = &available
+	return nil
 }
 
 func readContainerUsage(ctx context.Context, ex executor.Executor) ([]ContainerUsage, error) {
@@ -272,20 +283,24 @@ func readContainerUsage(ctx context.Context, ex executor.Executor) ([]ContainerU
 	if err != nil {
 		return nil, fmt.Errorf("docker stats: %w", err)
 	}
-	usage := []ContainerUsage{}
+	stats := make(map[string][]string)
 	for _, line := range strings.Split(output, "\n") {
 		fields := strings.Split(line, "\t")
 		if len(fields) < 4 {
 			continue
 		}
-		container, isManaged := byName[fields[0]]
-		if !isManaged {
-			continue
+		if _, isManaged := byName[fields[0]]; isManaged {
+			stats[fields[0]] = fields
 		}
-		usage = append(usage, ContainerUsage{
-			Name: fields[0], ResourceType: container.Type, ResourceID: container.ResourceID,
-			CPUPercent: fields[1], MemoryUsage: fields[2], MemoryPercent: fields[3],
-		})
+	}
+	usage := make([]ContainerUsage, 0, len(managed))
+	for _, container := range managed {
+		item := ContainerUsage{Name: container.Name, ResourceType: container.Type, ResourceID: container.ResourceID,
+			State: container.State, Status: container.Status}
+		if fields, ok := stats[container.Name]; ok && container.State == "running" {
+			item.CPUPercent, item.MemoryUsage, item.MemoryPercent = fields[1], fields[2], fields[3]
+		}
+		usage = append(usage, item)
 	}
 	return usage, nil
 }
@@ -409,15 +424,17 @@ func lastLine(output string) string {
 	return lines[len(lines)-1]
 }
 
-func describeFailure(err error) string {
+// describeFailure explains a failure to reach a server in words the
+// operator can act on.
+func describeFailure(err error) i18n.Message {
 	if errors.Is(err, executor.ErrHostKeyMismatch) {
-		return "A chave de host SSH mudou desde o primeiro acesso. Se a máquina foi reinstalada, " +
-			"redefina a chave de host do servidor."
+		return i18n.M("A chave de host SSH mudou desde o primeiro acesso. Se a máquina foi reinstalada, " +
+			"redefina a chave de host do servidor.")
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
-		return "Tempo esgotado ao contatar o servidor."
+		return i18n.M("Tempo esgotado ao contatar o servidor.")
 	}
-	return err.Error()
+	return i18n.M("%s", err)
 }
 
 func serverNotFound(err error) error {

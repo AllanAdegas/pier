@@ -1,82 +1,35 @@
 name: Activepieces
 description: Automação de processos de negócio sem código, open source.
+description_en: No-code business process automation, open source.
 category: Automação
 website: https://www.activepieces.com/docs/getting-started/introduction
-tags:
-  - workflow
-  - automation
-  - no code
-  - open source
-routes:
-  - service: activepieces
+services:
+  activepieces:
+    image: ghcr.io/activepieces/activepieces:0.75.0
     port: 80
-compose: |
-  services:
-    activepieces:
-      image: ghcr.io/activepieces/activepieces:0.75.0
-      environment:
-        - AP_API_KEY=$PIER_PASSWORD_64_APIKEY
-        - AP_ENCRYPTION_KEY=$PIER_PASSWORD_ENCRYPTIONKEY
-        - AP_ENGINE_EXECUTABLE_PATH=${AP_ENGINE_EXECUTABLE_PATH:-dist/packages/engine/main.js}
-        - AP_ENVIRONMENT=${AP_ENVIRONMENT:-prod}
-        - AP_EXECUTION_MODE=${AP_EXECUTION_MODE:-UNSANDBOXED}
-        - AP_FRONTEND_URL=${PIER_URL_ACTIVEPIECES}
-        - AP_JWT_SECRET=$PIER_PASSWORD_64_JWT
-        - AP_POSTGRES_DATABASE=${POSTGRES_DB:-activepieces}
-        - AP_POSTGRES_HOST=${POSTGRES_HOST:-postgres}
-        - AP_POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
-        - AP_POSTGRES_PORT=${POSTGRES_PORT:-5432}
-        - AP_POSTGRES_USERNAME=$PIER_USER_POSTGRES
-        - AP_REDIS_HOST=${REDIS_HOST:-redis}
-        - AP_REDIS_PORT=${REDIS_PORT:-6379}
-        - AP_SANDBOX_RUN_TIME_SECONDS=${AP_SANDBOX_RUN_TIME_SECONDS:-600}
-        - AP_TELEMETRY_ENABLED=${AP_TELEMETRY_ENABLED:-false}
-        - AP_TEMPLATES_SOURCE_URL=${AP_TEMPLATES_SOURCE_URL:-https://cloud.activepieces.com/api/v1/flow-templates}
-        - AP_TRIGGER_DEFAULT_POLL_INTERVAL=${AP_TRIGGER_DEFAULT_POLL_INTERVAL:-5}
-        - AP_SIGN_UP_ENABLED=${AP_SIGN_UP_ENABLED:-true}
-        - AP_WEBHOOK_TIMEOUT_SECONDS=${AP_WEBHOOK_TIMEOUT_SECONDS:-30}
-      depends_on:
-        postgres:
-          condition: service_healthy
-        redis:
-          condition: service_started
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:80
-        timeout: 20s
-    postgres:
-      image: postgres:18-alpine
-      environment:
-        - POSTGRES_DB=${POSTGRES_DB:-activepieces}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
-        - POSTGRES_USER=${PIER_USER_POSTGRES}
-        - POSTGRES_PORT=${POSTGRES_PORT:-5432}
-      volumes:
-        - pg-data:/var/lib/postgresql
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
-        timeout: 20s
-    redis:
-      image: redis:7-alpine
-      volumes:
-        - redis_data:/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - redis-cli
-          - ping
-        timeout: 20s
-  volumes:
-    pg-data: null
-    redis_data: null
+    env:
+      AP_API_KEY: $PIER_PASSWORD_64_APIKEY
+      AP_ENCRYPTION_KEY: $PIER_PASSWORD_ENCRYPTIONKEY
+      AP_ENGINE_EXECUTABLE_PATH: ${AP_ENGINE_EXECUTABLE_PATH:-dist/packages/engine/main.js}
+      AP_ENVIRONMENT: ${AP_ENVIRONMENT:-prod}
+      AP_EXECUTION_MODE: ${AP_EXECUTION_MODE:-UNSANDBOXED}
+      AP_FRONTEND_URL: ${PIER_URL_ACTIVEPIECES}
+      AP_JWT_SECRET: $PIER_PASSWORD_64_JWT
+      AP_POSTGRES_DATABASE: '{{postgres.database}}'
+      AP_POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      AP_POSTGRES_PASSWORD: '{{postgres.password}}'
+      AP_POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      AP_POSTGRES_USERNAME: '{{postgres.user}}'
+      AP_REDIS_HOST: ${REDIS_HOST:-redis}
+      AP_REDIS_PORT: ${REDIS_PORT:-6379}
+      AP_SANDBOX_RUN_TIME_SECONDS: ${AP_SANDBOX_RUN_TIME_SECONDS:-600}
+      AP_TELEMETRY_ENABLED: ${AP_TELEMETRY_ENABLED:-false}
+      AP_TEMPLATES_SOURCE_URL: ${AP_TEMPLATES_SOURCE_URL:-https://cloud.activepieces.com/api/v1/flow-templates}
+      AP_TRIGGER_DEFAULT_POLL_INTERVAL: ${AP_TRIGGER_DEFAULT_POLL_INTERVAL:-5}
+      AP_SIGN_UP_ENABLED: ${AP_SIGN_UP_ENABLED:-true}
+      AP_WEBHOOK_TIMEOUT_SECONDS: ${AP_WEBHOOK_TIMEOUT_SECONDS:-30}
+with:
+  postgres:
+    version: '18'
+    database: activepieces
+  redis: {}

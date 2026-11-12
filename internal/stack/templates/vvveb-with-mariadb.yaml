@@ -1,61 +1,19 @@
 name: Vvveb com MariaDB
 description: CMS para construir sites, blogs e lojas.
+description_en: CMS to build websites, blogs and shops.
 category: CMS
 website: https://docs.vvveb.com
-tags:
-  - cms
-  - blog
-  - content
-  - management
-  - ecommerce
-  - page-builder
-  - nocode
-  - mysql
-routes:
-  - service: vvveb
+services:
+  vvveb:
+    image: vvveb/vvvebcms:php8.5-fpm-alpine
     port: 80
-compose: |
-  services:
-    mariadb:
-      image: mariadb:11
-      environment:
-        - MYSQL_ROOT_PASSWORD=${PIER_PASSWORD_ROOT}
-        - MYSQL_DATABASE=${MARIADB_DATABASE:-vvveb}
-        - MYSQL_USER=${PIER_USER_VVVEB}
-        - MYSQL_PASSWORD=${PIER_PASSWORD_VVVEB}
-      volumes:
-        - vvveb-mariadb-data:/var/lib/mysql
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - healthcheck.sh
-          - --connect
-          - --innodb_initialized
-        timeout: 20s
-    vvveb:
-      image: vvveb/vvvebcms:latest
-      environment:
-        - DB_ENGINE=mysqli
-        - DB_HOST=mariadb
-        - DB_USER=${PIER_USER_VVVEB}
-        - DB_PASSWORD=${PIER_PASSWORD_VVVEB}
-        - DB_NAME=${MARIADB_DATABASE:-vvveb}
-      volumes:
-        - vvveb-data:/var/www/html
-      depends_on:
-        mariadb:
-          condition: service_healthy
-      healthcheck:
-        interval: 2s
-        retries: 10
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1
-        timeout: 10s
-  volumes:
-    vvveb-data: null
-    vvveb-mariadb-data: null
+    data: /var/www/html
+    env:
+      DB_ENGINE: mysqli
+      DB_HOST: mariadb
+      DB_USER: '{{mariadb.user}}'
+      DB_PASSWORD: '{{mariadb.password}}'
+      DB_NAME: '{{mariadb.database}}'
+with:
+  mariadb:
+    database: vvveb

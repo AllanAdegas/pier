@@ -1,43 +1,19 @@
 name: Obsidian
 description: Notas com links e plugins, no navegador via área de trabalho remota.
+description_en: Notes with links and plugins, in the browser through a remote desktop.
 category: Produtividade
 website: https://docs.linuxserver.io/images/docker-obsidian
-tags:
-  - notes
-  - obsidian
-  - markdown
-  - desktop
-  - gui
-  - productivity
-routes:
-  - service: obsidian
+services:
+  obsidian:
+    image: lscr.io/linuxserver/obsidian:1.15.0
     port: 3000
-compose: |
-  services:
-    obsidian:
-      image: lscr.io/linuxserver/obsidian:latest
-      environment:
-        - PUID=${PUID:-1000}
-        - PGID=${PGID:-1000}
-        - TZ=${TZ:-Etc/UTC}
-        - CUSTOM_USER=${PIER_USER_OBSIDIAN}
-        - PASSWORD=${PIER_PASSWORD_OBSIDIAN}
-      volumes:
-        - obsidian-config:/config
-      healthcheck:
-        interval: 5s
-        retries: 10
-        start_period: 90s
-        test:
-          - CMD
-          - curl
-          - -s
-          - -o
-          - /dev/null
-          - http://127.0.0.1:3000/
-        timeout: 20s
-      security_opt:
-        - seccomp=unconfined
-      shm_size: 1gb
-  volumes:
-    obsidian-config: null
+    data: /config
+    security_opt:
+    - seccomp=unconfined
+    shm_size: 1gb
+    env:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-Etc/UTC}
+      CUSTOM_USER: ${PIER_USER_OBSIDIAN}
+      PASSWORD: ${PIER_PASSWORD_OBSIDIAN}

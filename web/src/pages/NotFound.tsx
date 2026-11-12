@@ -1,19 +1,18 @@
 import { A } from "@solidjs/router";
 import { EmptyState } from "../components/Feedback";
+import { t } from "../i18n";
 
 export function NotFoundPage() {
   return (
     <div class="page">
       <EmptyState
         icon="alert"
-        title="Página não encontrada"
+        title={t("Página não encontrada")}
         action={
-          <A href="/" class="btn btn-primary">
-            Voltar ao painel
+          <A href="/" class="btn btn-primary">{t("Voltar ao painel")}
           </A>
         }
-      >
-        O endereço não existe ou o recurso foi removido.
+      >{t("O endereço não existe ou o recurso foi removido.")}
       </EmptyState>
     </div>
   );

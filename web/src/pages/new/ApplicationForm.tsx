@@ -1,20 +1,22 @@
 import { useNavigate } from "@solidjs/router";
-import { createSignal, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import { Button } from "../../components/Button";
 import { Alert } from "../../components/Feedback";
-import { NumberInput, Select, TextInput } from "../../components/Form";
 import { api } from "../../lib/api";
 import { BUILD_PACK_LABEL } from "../../lib/format";
 import { createAction, createQuery } from "../../lib/query";
 import type { Application, ApplicationConfig, BuildPack, Deployment, PrivateKey } from "../../lib/types";
 import type { Placement } from "../NewResource";
+import { t } from "../../i18n";
+import { NumberInput, Select, TextInput } from "../../components/Form";
+import { createDomainDnsCheck } from "../application/DomainDnsStatus";
 
 const GIT_PACKS: BuildPack[] = ["dockerfile", "nixpacks", "static"];
 
 const PACK_HINT: Record<string, string> = {
-  dockerfile: "Usa o Dockerfile do repositório.",
-  nixpacks: "Detecta a linguagem e gera a imagem sozinho. Exige o Nixpacks instalado no servidor.",
-  static: "Serve os arquivos do repositório com nginx (porta 80).",
+  dockerfile: t("Usa o Dockerfile do repositório."),
+  nixpacks: t("Detecta a linguagem e gera a imagem sozinho. Exige o Nixpacks instalado no servidor."),
+  static: t("Serve os arquivos do repositório com nginx (porta 80)."),
 };
 
 /**
@@ -31,7 +33,16 @@ export function ApplicationForm(props: { placement: Placement; source: "git" | "
   const [port, setPort] = createSignal(3000);
   const [domain, setDomain] = createSignal("");
   const [serverId, setServerId] = createSignal(props.placement.servers[0]?.id ?? "");
+  const dns = createDomainDnsCheck(serverId);
   const [keyId, setKeyId] = createSignal("");
+
+  const suggestPorts = createAction(async () => {
+    const sourceImage = image(); const sourceServer = serverId();
+    const ports = await api.post<number[]>("/applications/image-ports", { server_id: sourceServer, image: sourceImage });
+    return { ports, image: sourceImage, server: sourceServer };
+  }, { onSuccess: (result) => { if (result.image === image() && result.server === serverId()) { setSuggestedPorts(result.ports); setPortsChecked(true); } } });
+  const [suggestedPorts, setSuggestedPorts] = createSignal<number[]>([]);
+  const [portsChecked, setPortsChecked] = createSignal(false);
 
   const keys = createQuery(
     () => props.source === "git",
@@ -53,7 +64,7 @@ export function ApplicationForm(props: { placement: Placement; source: "git" | "
       return api.post<Deployment>(`/applications/${application.id}/deploy`);
     },
     {
-      success: "Aplicação criada. Deploy iniciado.",
+      success: t("Aplicação criada. Deploy iniciado."),
       onSuccess: (deployment) => navigate(`/deployments/${deployment.id}`),
     },
   );
@@ -67,29 +78,29 @@ export function ApplicationForm(props: { placement: Placement; source: "git" | "
         void create.run();
       }}
     >
-      <TextInput label="Nome" required placeholder="api" value={name()} onValue={setName} error={errors().name} />
+      <TextInput label={t("Nome")} required placeholder="api" value={name()} onValue={setName} error={errors().name} />
 
       <Show
         when={props.source === "git"}
         fallback={
           <TextInput
-            label="Imagem"
+            label={t("Imagem")}
             required
             mono
-            placeholder="ghcr.io/empresa/app:1.4.2"
-            hint="Qualquer registry público. Fixe a tag para deploys reproduzíveis."
+            placeholder={t("ghcr.io/empresa/app:1.4.2")}
+            hint={t("Qualquer registry público. Fixe a tag para deploys reproduzíveis.")}
             value={image()}
-            onValue={setImage}
+            onValue={(value) => { setImage(value); setSuggestedPorts([]); setPortsChecked(false); }}
             error={errors()["source.image"]}
           />
         }
       >
         <TextInput
-          label="Repositório"
+          label={t("Repositório")}
           required
           mono
-          placeholder="https://github.com/empresa/app"
-          hint="URL https:// para repositórios públicos ou git@host:org/repo.git para privados."
+          placeholder={t("https://github.com/empresa/app")}
+          hint={t("URL https:// para repositórios públicos ou git@host:org/repo.git para privados.")}
           value={repository()}
           onValue={setRepository}
           error={errors()["source.repository"]}
@@ -97,7 +108,7 @@ export function ApplicationForm(props: { placement: Placement; source: "git" | "
         <div class="grid-2">
           <TextInput label="Branch" required mono value={branch()} onValue={setBranch} error={errors()["source.branch"]} />
           <Select
-            label="Como construir"
+            label={t("Como construir")}
             hint={PACK_HINT[pack()]}
             value={pack()}
             onValue={(value) => setPack(value as BuildPack)}
@@ -106,9 +117,9 @@ export function ApplicationForm(props: { placement: Placement; source: "git" | "
         </div>
         <Show when={usesSsh()}>
           <Select
-            label="Chave de deploy"
-            hint="Cadastre a chave pública como deploy key no repositório. Gerencie chaves em Segurança."
-            placeholder="Selecione uma chave"
+            label={t("Chave de deploy")}
+            hint={t("Cadastre a chave pública como deploy key no repositório. Gerencie chaves em Segurança.")}
+            placeholder={t("Selecione uma chave")}
             value={keyId()}
             onValue={setKeyId}
             options={(keys.data() ?? []).map((key) => ({ value: key.id, label: key.name }))}
@@ -117,11 +128,19 @@ export function ApplicationForm(props: { placement: Placement; source: "git" | "
         </Show>
       </Show>
 
+      <Show when={props.source === "image"}>
+        <div class="row wrap">
+          <Button small pending={suggestPorts.pending()} disabled={!image().trim() || !serverId()} onClick={() => void suggestPorts.run()}>{t("Sugerir porta da imagem")}</Button>
+          <For each={suggestedPorts()}>{(value) => <Button small onClick={() => setPort(value)}>{t("Usar a porta {port}", { port: value })}</Button>}</For>
+        </div>
+
+        <Show when={suggestedPorts().length === 0 && portsChecked()}><span class="small muted">{t("A imagem não declara portas. Informe a porta em que a aplicação escuta.")}</span></Show>
+      </Show>
       <div class="grid-2">
         <Show when={pack() !== "static"}>
           <NumberInput
-            label="Porta da aplicação"
-            hint="Porta em que o processo escuta dentro do container."
+            label={t("Porta da aplicação")}
+            hint={t("Porta em que o processo escuta dentro do container.")}
             min={1}
             max={65535}
             value={port()}
@@ -130,31 +149,32 @@ export function ApplicationForm(props: { placement: Placement; source: "git" | "
           />
         </Show>
         <TextInput
-          label="Domínio"
+          label={t("Domínio")}
           mono
-          placeholder="https://app.exemplo.com"
-          hint="Opcional. Com https://, o certificado é emitido automaticamente."
+          placeholder={t("https://app.exemplo.com")}
+          hint={t("Opcional. Com https://, o certificado é emitido automaticamente.")}
           value={domain()}
           onValue={setDomain}
+          onBlur={() => void dns.check([domain()])}
           error={errors()["network.domains"]}
         />
       </div>
+      <dns.View />
 
       <Select
-        label="Servidor"
+        label={t("Servidor")}
         value={serverId()}
-        onValue={setServerId}
+        onValue={(value) => { setServerId(value); setSuggestedPorts([]); setPortsChecked(false); void dns.check([domain()]); }}
         options={props.placement.servers.map((server) => ({ value: server.id, label: server.name }))}
         error={errors().server_id}
       />
 
       <Show when={domain().trim() === ""}>
-        <Alert tone="info">Sem domínio, a aplicação só fica acessível para outros recursos na rede interna do servidor.</Alert>
+        <Alert tone="info">{t("Sem domínio, a aplicação só fica acessível para outros recursos na rede interna do servidor.")}</Alert>
       </Show>
 
       <div class="form-actions">
-        <Button type="submit" variant="primary" icon="rocket" pending={create.pending()}>
-          Criar e implantar
+        <Button type="submit" variant="primary" icon="rocket" pending={create.pending()}>{t("Criar e implantar")}
         </Button>
       </div>
     </form>

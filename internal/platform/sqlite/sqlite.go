@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/fs"
 	"sort"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite" // registers the pure-Go "sqlite" driver
@@ -20,9 +21,13 @@ var migrationFiles embed.FS
 // ErrNotFound is returned by stores when a row does not exist.
 var ErrNotFound = errors.New("not found")
 
+// uriPath escapes the characters that end the path of a "file:" URI, so a
+// data directory containing "?" or "#" still opens the intended file.
+var uriPath = strings.NewReplacer("%", "%25", "?", "%3F", "#", "%23")
+
 // Open connects to the SQLite file and brings the schema up to date.
 func Open(ctx context.Context, path string) (*sql.DB, error) {
-	dsn := "file:" + path + "?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)" +
+	dsn := "file:" + uriPath.Replace(path) + "?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)" +
 		"&_pragma=busy_timeout(10000)&_pragma=synchronous(NORMAL)&_txlock=immediate"
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {

@@ -33,7 +33,18 @@ type Service struct {
 	env        *envvar.Store
 	connector  Connector
 	operations *oplog.Registry
+	guard      DeployGuard
+	domains    DomainChecker
 }
+
+// DeployGuard decides whether an environment accepts deployments now (a
+// frozen environment refuses them).
+type DeployGuard interface {
+	CheckDeploy(ctx context.Context, environmentID string) error
+}
+
+// SetDeployGuard installs the guard consulted before every deployment.
+func (s *Service) SetDeployGuard(guard DeployGuard) { s.guard = guard }
 
 // NewService creates the service.
 func NewService(db *sql.DB, env *envvar.Store, connector Connector, operations *oplog.Registry) *Service {
@@ -253,7 +264,7 @@ func validate(stack *Stack, raw string, resolved bool, fields apperr.Fields) err
 		if stack.FromDirectory() {
 			field = "compose_file"
 		}
-		fields.Add(field, "%s", appErr.Message)
+		fields.Set(field, appErr.Text())
 		return fields.Err()
 	}
 	services := doc.serviceNames()
@@ -355,6 +366,13 @@ type VariableStatus struct {
 	Set bool `json:"set"`
 	// Source tells where the value comes from; empty when there is none.
 	Source string `json:"source"`
+}
+
+// WithoutSecrets drops the default the compose file gives the variable: a
+// fallback such as ${DB_PASSWORD:-s3cret} is a credential.
+func (v VariableStatus) WithoutSecrets() VariableStatus {
+	v.Default = ""
+	return v
 }
 
 // Variables lists what the compose file expects, so missing values are seen

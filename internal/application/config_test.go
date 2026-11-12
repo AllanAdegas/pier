@@ -279,11 +279,11 @@ func TestStaticDockerfile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("staticDockerfile: %v", err)
 	}
-	if !strings.Contains(spa, `COPY ["./dist/","/usr/share/nginx/html/"]`) || !strings.Contains(spa, "try_files $uri $uri/ /index.html;") {
+	if !strings.Contains(spa, `COPY --exclude=.git --exclude=**/.git ["./dist/","/usr/share/nginx/html/"]`) || !strings.Contains(spa, "try_files $uri $uri/ /index.html;") {
 		t.Errorf("unexpected SPA Dockerfile:\n%s", spa)
 	}
 	plain, _ := staticDockerfile(Build{PublishDirectory: "/"})
-	if !strings.Contains(plain, `COPY ["./","/usr/share/nginx/html/"]`) || !strings.Contains(plain, "try_files $uri $uri/ =404;") {
+	if !strings.Contains(plain, `COPY --exclude=.git --exclude=**/.git ["./","/usr/share/nginx/html/"]`) || !strings.Contains(plain, "try_files $uri $uri/ =404;") {
 		t.Errorf("unexpected static Dockerfile:\n%s", plain)
 	}
 }

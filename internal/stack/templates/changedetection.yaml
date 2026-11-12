@@ -1,60 +1,34 @@
 name: changedetection.io
 description: Monitora mudanças em sites e notifica.
+description_en: Monitors websites for changes and notifies you.
 category: Monitoramento
 website: https://github.com/dgtlmoon/changedetection.io/
-tags:
-  - web
-  - alert
-  - monitor
-routes:
-  - service: changedetection
+services:
+  browser-sockpuppet-chrome:
+    image: dgtlmoon/sockpuppetbrowser:0.0.3
+    hostname: browser-sockpuppet-chrome
+    cap_add:
+    - SYS_ADMIN
+    env:
+      SCREEN_WIDTH: ${SCREEN_WIDTH:-1920}
+      SCREEN_HEIGHT: ${SCREEN_HEIGHT:-1024}
+      SCREEN_DEPTH: ${SCREEN_DEPTH:-16}
+      MAX_CONCURRENT_CHROME_PROCESSES: ${MAX_CONCURRENT_CHROME_PROCESSES:-10}
+  changedetection:
+    image: ghcr.io/dgtlmoon/changedetection.io:0.70.3
     port: 5000
-compose: |
-  services:
-    browser-sockpuppet-chrome:
-      image: dgtlmoon/sockpuppetbrowser:latest
-      hostname: browser-sockpuppet-chrome
-      environment:
-        - SCREEN_WIDTH=${SCREEN_WIDTH:-1920}
-        - SCREEN_HEIGHT=${SCREEN_HEIGHT:-1024}
-        - SCREEN_DEPTH=${SCREEN_DEPTH:-16}
-        - MAX_CONCURRENT_CHROME_PROCESSES=${MAX_CONCURRENT_CHROME_PROCESSES:-10}
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - echo
-          - ok
-        timeout: 20s
-      cap_add:
-        - SYS_ADMIN
-    changedetection:
-      image: ghcr.io/dgtlmoon/changedetection.io
-      environment:
-        - BASE_URL=${PIER_URL_CHANGEDETECTION}
-        - PUID=${PUID:-1000}
-        - PGID=${PGID:-1000}
-        - PLAYWRIGHT_DRIVER_URL=${PLAYWRIGHT_DRIVER_URL:-ws://browser-sockpuppet-chrome:3000}
-        - HIDE_REFERER=${HIDE_REFERER:-true}
-        - FETCH_WORKERS=${FETCH_WORKERS:-10}
-        - MINIMUM_SECONDS_RECHECK_TIME=${MINIMUM_SECONDS_RECHECK_TIME:-3}
-        - DISABLE_VERSION_CHECK=${DISABLE_VERSION_CHECK:-true}
-        - SCREENSHOT_MAX_HEIGHT=${SCREENSHOT_MAX_HEIGHT:-16000}
-        - TZ=${TZ:-UTC}
-        - LOGGER_LEVEL=${LOGGER_LEVEL:-DEBUG}
-      volumes:
-        - changedetection-data:/datastore
-      depends_on:
-        browser-sockpuppet-chrome:
-          condition: service_started
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - echo
-          - ok
-        timeout: 20s
-  volumes:
-    changedetection-data: null
+    data: /datastore
+    env:
+      BASE_URL: ${PIER_URL_CHANGEDETECTION}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      PLAYWRIGHT_DRIVER_URL: ${PLAYWRIGHT_DRIVER_URL:-ws://browser-sockpuppet-chrome:3000}
+      HIDE_REFERER: ${HIDE_REFERER:-true}
+      FETCH_WORKERS: ${FETCH_WORKERS:-10}
+      MINIMUM_SECONDS_RECHECK_TIME: ${MINIMUM_SECONDS_RECHECK_TIME:-3}
+      DISABLE_VERSION_CHECK: ${DISABLE_VERSION_CHECK:-true}
+      SCREENSHOT_MAX_HEIGHT: ${SCREENSHOT_MAX_HEIGHT:-16000}
+      TZ: ${TZ:-UTC}
+      LOGGER_LEVEL: ${LOGGER_LEVEL:-DEBUG}
+    needs:
+    - browser-sockpuppet-chrome

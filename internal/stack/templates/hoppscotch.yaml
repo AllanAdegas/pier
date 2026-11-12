@@ -1,69 +1,41 @@
 name: Hoppscotch
 description: Plataforma open source de desenvolvimento de APIs.
+description_en: Open source API development platform.
 category: Desenvolvimento
 website: https://docs.hoppscotch.io
-tags:
-  - api
-  - development
-  - platform
-routes:
-  - service: backend
+services:
+  backend:
+    image: hoppscotch/hoppscotch:2026.2.1
     port: 80
-compose: |
-  services:
-    backend:
-      image: hoppscotch/hoppscotch:2026.2.1
-      environment:
-        - VITE_ALLOWED_AUTH_PROVIDERS=${VITE_ALLOWED_AUTH_PROVIDERS:-GOOGLE,GITHUB,MICROSOFT,EMAIL}
-        - DATABASE_URL=postgresql://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@hoppscotch-db:5432/${POSTGRES_DB}
-        - DATA_ENCRYPTION_KEY=${PIER_PASSWORD_DATAENCRYPTIONKEY}
-        - WHITELISTED_ORIGINS=${PIER_URL_BACKEND}/backend,${PIER_URL_BACKEND},${PIER_URL_BACKEND}/admin
-        - MAILER_USE_CUSTOM_CONFIGS=${MAILER_USE_CUSTOM_CONFIGS:-true}
-        - VITE_BASE_URL=${PIER_URL_BACKEND}
-        - VITE_SHORTCODE_BASE_URL=${PIER_URL_BACKEND}
-        - VITE_ADMIN_URL=${PIER_URL_BACKEND}/admin
-        - VITE_BACKEND_GQL_URL=${PIER_URL_BACKEND}/backend/graphql
-        - VITE_BACKEND_WS_URL=wss://${PIER_HOST_BACKEND}/backend/graphql
-        - VITE_BACKEND_API_URL=${PIER_URL_BACKEND}/backend/v1
-        - VITE_APP_TOS_LINK=https://docs.hoppscotch.io/support/terms
-        - VITE_APP_PRIVACY_POLICY_LINK=https://docs.hoppscotch.io/support/privacy
-        - ENABLE_SUBPATH_BASED_ACCESS=true
-      depends_on:
-        db-migration:
-          condition: service_completed_successfully
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - wget -qO- http://127.0.0.1:80/
-        timeout: 20s
-    db-migration:
-      image: hoppscotch/hoppscotch:2026.2.1
-      command: pnpx prisma migrate deploy
-      restart: on-failure
-      environment:
-        - POSTGRES_USER=${PIER_USER_POSTGRES}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
-        - POSTGRES_DB=${POSTGRES_DB:-hoppscotch}
-        - DATABASE_URL=postgres://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@hoppscotch-db:5432/${POSTGRES_DB:-hoppscotch}
-      depends_on:
-        hoppscotch-db:
-          condition: service_healthy
-    hoppscotch-db:
-      image: postgres:15
-      environment:
-        - POSTGRES_USER=${PIER_USER_POSTGRES}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
-        - POSTGRES_DB=${POSTGRES_DB:-hoppscotch}
-      volumes:
-        - postgres_data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - pg_isready -h localhost -U $${POSTGRES_USER} -d $${POSTGRES_DB}
-        timeout: 10s
-  volumes:
-    postgres_data: null
+    env:
+      VITE_ALLOWED_AUTH_PROVIDERS: ${VITE_ALLOWED_AUTH_PROVIDERS:-GOOGLE,GITHUB,MICROSOFT,EMAIL}
+      DATABASE_URL: postgresql://{{hoppscotch-db.user}}:{{hoppscotch-db.password}}@hoppscotch-db:5432/{{hoppscotch-db.database}}
+      DATA_ENCRYPTION_KEY: ${PIER_PASSWORD_DATAENCRYPTIONKEY}
+      WHITELISTED_ORIGINS: ${PIER_URL_BACKEND}/backend,${PIER_URL_BACKEND},${PIER_URL_BACKEND}/admin
+      MAILER_USE_CUSTOM_CONFIGS: ${MAILER_USE_CUSTOM_CONFIGS:-true}
+      VITE_BASE_URL: ${PIER_URL_BACKEND}
+      VITE_SHORTCODE_BASE_URL: ${PIER_URL_BACKEND}
+      VITE_ADMIN_URL: ${PIER_URL_BACKEND}/admin
+      VITE_BACKEND_GQL_URL: ${PIER_URL_BACKEND}/backend/graphql
+      VITE_BACKEND_WS_URL: wss://${PIER_HOST_BACKEND}/backend/graphql
+      VITE_BACKEND_API_URL: ${PIER_URL_BACKEND}/backend/v1
+      VITE_APP_TOS_LINK: https://docs.hoppscotch.io/support/terms
+      VITE_APP_PRIVACY_POLICY_LINK: https://docs.hoppscotch.io/support/privacy
+      ENABLE_SUBPATH_BASED_ACCESS: 'true'
+    depends_on:
+      db-migration:
+        condition: service_completed_successfully
+  db-migration:
+    image: hoppscotch/hoppscotch:2026.2.1
+    command: pnpx prisma migrate deploy
+    restart: on-failure
+    env:
+      POSTGRES_USER: '{{hoppscotch-db.user}}'
+      POSTGRES_PASSWORD: '{{hoppscotch-db.password}}'
+      POSTGRES_DB: '{{hoppscotch-db.database}}'
+      DATABASE_URL: postgres://{{hoppscotch-db.user}}:{{hoppscotch-db.password}}@hoppscotch-db:5432/{{hoppscotch-db.database}}
+with:
+  hoppscotch-db:
+    kind: postgres
+    version: '15'
+    database: hoppscotch

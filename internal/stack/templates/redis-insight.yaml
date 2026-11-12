@@ -1,38 +1,17 @@
 name: Redis Insight
 description: Cliente gráfico e de linha de comando para Redis.
+description_en: Graphical and command-line client for Redis.
 category: Dados
 website: https://redis.io/docs/latest/operate/redisinsight/
-tags:
-  - redis
-  - gui
-  - database
-  - monitoring
-  - analytics
-routes:
-  - service: redisinsight
+services:
+  redisinsight:
+    image: redis/redisinsight:2.70
     port: 5540
-compose: |
-  services:
-    redisinsight:
-      image: redis/redisinsight:2.70
-      environment:
-        - RI_APP_HOST=0.0.0.0
-        - RI_APP_PORT=5540
-        - RI_ENCRYPTION_KEY=${PIER_PASSWORD_RI_ENCRYPTION_KEY}
-        - RI_LOG_LEVEL=${RI_LOG_LEVEL:-info}
-        - RI_FILES_LOGGER=${RI_FILES_LOGGER:-true}
-        - RI_STDOUT_LOGGER=${RI_STDOUT_LOGGER:-true}
-      volumes:
-        - redis_insight_data:/data
-      healthcheck:
-        interval: 10s
-        retries: 3
-        start_period: 10s
-        test:
-          - CMD
-          - wget
-          - --spider
-          - http://0.0.0.0:5540/api/health
-        timeout: 10s
-  volumes:
-    redis_insight_data: null
+    data: /data
+    env:
+      RI_APP_HOST: 0.0.0.0
+      RI_APP_PORT: '5540'
+      RI_ENCRYPTION_KEY: ${PIER_PASSWORD_RI_ENCRYPTION_KEY}
+      RI_LOG_LEVEL: ${RI_LOG_LEVEL:-info}
+      RI_FILES_LOGGER: ${RI_FILES_LOGGER:-true}
+      RI_STDOUT_LOGGER: ${RI_STDOUT_LOGGER:-true}

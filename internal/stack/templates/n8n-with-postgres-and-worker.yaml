@@ -1,156 +1,95 @@
+auth: first-visitor
 name: n8n com PostgreSQL e worker
 description: Automação de fluxos extensível, em modo fila com workers.
+description_en: Extensible workflow automation, in queue mode with workers.
 category: Automação
 website: https://n8n.io
-tags:
-  - n8n
-  - workflow
-  - automation
-  - code
-  - queue
-  - worker
-  - scalable
-routes:
-  - service: n8n
+services:
+  n8n:
+    image: n8nio/n8n:2.10.4
     port: 5678
-compose: |
-  services:
-    n8n:
-      image: n8nio/n8n:2.10.4
-      environment:
-        - N8N_EDITOR_BASE_URL=${PIER_URL_N8N}
-        - WEBHOOK_URL=${PIER_URL_N8N}
-        - N8N_HOST=${PIER_URL_N8N}
-        - N8N_PROTOCOL=${N8N_PROTOCOL:-https}
-        - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-UTC}
-        - TZ=${TZ:-UTC}
-        - DB_TYPE=postgresdb
-        - DB_POSTGRESDB_DATABASE=${POSTGRES_DB:-n8n}
-        - DB_POSTGRESDB_HOST=postgresql
-        - DB_POSTGRESDB_PORT=5432
-        - DB_POSTGRESDB_USER=$PIER_USER_POSTGRES
-        - DB_POSTGRESDB_SCHEMA=public
-        - DB_POSTGRESDB_PASSWORD=$PIER_PASSWORD_POSTGRES
-        - EXECUTIONS_MODE=queue
-        - QUEUE_BULL_REDIS_HOST=redis
-        - QUEUE_HEALTH_CHECK_ACTIVE=true
-        - N8N_ENCRYPTION_KEY=${PIER_PASSWORD_ENCRYPTION}
-        - N8N_RUNNERS_ENABLED=true
-        - N8N_RUNNERS_MODE=external
-        - N8N_RUNNERS_BROKER_LISTEN_ADDRESS=${N8N_RUNNERS_BROKER_LISTEN_ADDRESS:-0.0.0.0}
-        - N8N_RUNNERS_BROKER_PORT=${N8N_RUNNERS_BROKER_PORT:-5679}
-        - N8N_RUNNERS_AUTH_TOKEN=$PIER_PASSWORD_N8N
-        - N8N_NATIVE_PYTHON_RUNNER=${N8N_NATIVE_PYTHON_RUNNER:-true}
-        - N8N_RUNNERS_MAX_CONCURRENCY=${N8N_RUNNERS_MAX_CONCURRENCY:-5}
-        - OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS=true
-        - N8N_BLOCK_ENV_ACCESS_IN_NODE=${N8N_BLOCK_ENV_ACCESS_IN_NODE:-true}
-        - N8N_GIT_NODE_DISABLE_BARE_REPOS=${N8N_GIT_NODE_DISABLE_BARE_REPOS:-true}
-        - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=${N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS:-true}
-        - N8N_PROXY_HOPS=${N8N_PROXY_HOPS:-1}
-        - N8N_SKIP_AUTH_ON_OAUTH_CALLBACK=${N8N_SKIP_AUTH_ON_OAUTH_CALLBACK:-false}
-      volumes:
-        - n8n-data:/home/node/.n8n
-      depends_on:
-        postgresql:
-          condition: service_healthy
-        redis:
-          condition: service_healthy
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - wget -qO- http://127.0.0.1:5678/healthz
-        timeout: 20s
-    n8n-worker:
-      image: n8nio/n8n:2.10.4
-      command: worker
-      environment:
-        - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-UTC}
-        - TZ=${TZ:-UTC}
-        - DB_TYPE=postgresdb
-        - DB_POSTGRESDB_DATABASE=${POSTGRES_DB:-n8n}
-        - DB_POSTGRESDB_HOST=postgresql
-        - DB_POSTGRESDB_PORT=5432
-        - DB_POSTGRESDB_USER=$PIER_USER_POSTGRES
-        - DB_POSTGRESDB_SCHEMA=public
-        - DB_POSTGRESDB_PASSWORD=$PIER_PASSWORD_POSTGRES
-        - EXECUTIONS_MODE=queue
-        - QUEUE_BULL_REDIS_HOST=redis
-        - QUEUE_HEALTH_CHECK_ACTIVE=true
-        - N8N_ENCRYPTION_KEY=${PIER_PASSWORD_ENCRYPTION}
-        - N8N_RUNNERS_ENABLED=true
-        - N8N_RUNNERS_MODE=external
-        - N8N_RUNNERS_BROKER_LISTEN_ADDRESS=${N8N_RUNNERS_BROKER_LISTEN_ADDRESS:-0.0.0.0}
-        - N8N_RUNNERS_BROKER_PORT=${N8N_RUNNERS_BROKER_PORT:-5679}
-        - N8N_RUNNERS_AUTH_TOKEN=$PIER_PASSWORD_N8N
-        - N8N_NATIVE_PYTHON_RUNNER=${N8N_NATIVE_PYTHON_RUNNER:-true}
-        - N8N_RUNNERS_MAX_CONCURRENCY=${N8N_RUNNERS_MAX_CONCURRENCY:-5}
-        - N8N_BLOCK_ENV_ACCESS_IN_NODE=${N8N_BLOCK_ENV_ACCESS_IN_NODE:-true}
-        - N8N_GIT_NODE_DISABLE_BARE_REPOS=${N8N_GIT_NODE_DISABLE_BARE_REPOS:-true}
-        - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=${N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS:-true}
-        - N8N_PROXY_HOPS=${N8N_PROXY_HOPS:-1}
-        - N8N_SKIP_AUTH_ON_OAUTH_CALLBACK=${N8N_SKIP_AUTH_ON_OAUTH_CALLBACK:-false}
-      volumes:
-        - n8n-data:/home/node/.n8n
-      depends_on:
-        n8n:
-          condition: service_healthy
-        postgresql:
-          condition: service_healthy
-        redis:
-          condition: service_healthy
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - wget -qO- http://127.0.0.1:5678/healthz
-        timeout: 20s
-    postgresql:
-      image: postgres:16-alpine
-      environment:
-        - POSTGRES_USER=$PIER_USER_POSTGRES
-        - POSTGRES_PASSWORD=$PIER_PASSWORD_POSTGRES
-        - POSTGRES_DB=${POSTGRES_DB:-n8n}
-      volumes:
-        - postgresql-data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
-        timeout: 20s
-    redis:
-      image: redis:6-alpine
-      volumes:
-        - redis-data:/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - redis-cli
-          - ping
-        timeout: 5s
-    task-runners:
-      image: n8nio/runners:2.10.4
-      environment:
-        - N8N_RUNNERS_TASK_BROKER_URI=${N8N_RUNNERS_TASK_BROKER_URI:-http://n8n-worker:5679}
-        - N8N_RUNNERS_AUTH_TOKEN=$PIER_PASSWORD_N8N
-        - N8N_RUNNERS_AUTO_SHUTDOWN_TIMEOUT=${N8N_RUNNERS_AUTO_SHUTDOWN_TIMEOUT:-15}
-        - N8N_RUNNERS_MAX_CONCURRENCY=${N8N_RUNNERS_MAX_CONCURRENCY:-5}
-      depends_on:
-        - n8n
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - wget -qO- http://127.0.0.1:5680/healthz
-        timeout: 20s
-  volumes:
-    n8n-data: null
-    postgresql-data: null
-    redis-data: null
+    data: /home/node/.n8n
+    env:
+      N8N_EDITOR_BASE_URL: ${PIER_URL_N8N}
+      WEBHOOK_URL: ${PIER_URL_N8N}
+      N8N_HOST: ${PIER_URL_N8N}
+      N8N_PROTOCOL: ${N8N_PROTOCOL:-https}
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE:-UTC}
+      TZ: ${TZ:-UTC}
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_DATABASE: '{{postgresql.database}}'
+      DB_POSTGRESDB_HOST: postgresql
+      DB_POSTGRESDB_PORT: '5432'
+      DB_POSTGRESDB_USER: '{{postgresql.user}}'
+      DB_POSTGRESDB_SCHEMA: public
+      DB_POSTGRESDB_PASSWORD: '{{postgresql.password}}'
+      EXECUTIONS_MODE: queue
+      QUEUE_BULL_REDIS_HOST: redis
+      QUEUE_HEALTH_CHECK_ACTIVE: 'true'
+      N8N_ENCRYPTION_KEY: ${PIER_PASSWORD_ENCRYPTION}
+      N8N_RUNNERS_ENABLED: 'true'
+      N8N_RUNNERS_MODE: external
+      N8N_RUNNERS_BROKER_LISTEN_ADDRESS: ${N8N_RUNNERS_BROKER_LISTEN_ADDRESS:-0.0.0.0}
+      N8N_RUNNERS_BROKER_PORT: ${N8N_RUNNERS_BROKER_PORT:-5679}
+      N8N_RUNNERS_AUTH_TOKEN: $PIER_PASSWORD_N8N
+      N8N_NATIVE_PYTHON_RUNNER: ${N8N_NATIVE_PYTHON_RUNNER:-true}
+      N8N_RUNNERS_MAX_CONCURRENCY: ${N8N_RUNNERS_MAX_CONCURRENCY:-5}
+      OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS: 'true'
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: ${N8N_BLOCK_ENV_ACCESS_IN_NODE:-true}
+      N8N_GIT_NODE_DISABLE_BARE_REPOS: ${N8N_GIT_NODE_DISABLE_BARE_REPOS:-true}
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: ${N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS:-true}
+      N8N_PROXY_HOPS: ${N8N_PROXY_HOPS:-1}
+      N8N_SKIP_AUTH_ON_OAUTH_CALLBACK: ${N8N_SKIP_AUTH_ON_OAUTH_CALLBACK:-false}
+    health: wget:/healthz
+  n8n-worker:
+    image: n8nio/n8n:2.10.4
+    data: /home/node/.n8n
+    command: worker
+    env:
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE:-UTC}
+      TZ: ${TZ:-UTC}
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_DATABASE: '{{postgresql.database}}'
+      DB_POSTGRESDB_HOST: postgresql
+      DB_POSTGRESDB_PORT: '5432'
+      DB_POSTGRESDB_USER: '{{postgresql.user}}'
+      DB_POSTGRESDB_SCHEMA: public
+      DB_POSTGRESDB_PASSWORD: '{{postgresql.password}}'
+      EXECUTIONS_MODE: queue
+      QUEUE_BULL_REDIS_HOST: redis
+      QUEUE_HEALTH_CHECK_ACTIVE: 'true'
+      N8N_ENCRYPTION_KEY: ${PIER_PASSWORD_ENCRYPTION}
+      N8N_RUNNERS_ENABLED: 'true'
+      N8N_RUNNERS_MODE: external
+      N8N_RUNNERS_BROKER_LISTEN_ADDRESS: ${N8N_RUNNERS_BROKER_LISTEN_ADDRESS:-0.0.0.0}
+      N8N_RUNNERS_BROKER_PORT: ${N8N_RUNNERS_BROKER_PORT:-5679}
+      N8N_RUNNERS_AUTH_TOKEN: $PIER_PASSWORD_N8N
+      N8N_NATIVE_PYTHON_RUNNER: ${N8N_NATIVE_PYTHON_RUNNER:-true}
+      N8N_RUNNERS_MAX_CONCURRENCY: ${N8N_RUNNERS_MAX_CONCURRENCY:-5}
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: ${N8N_BLOCK_ENV_ACCESS_IN_NODE:-true}
+      N8N_GIT_NODE_DISABLE_BARE_REPOS: ${N8N_GIT_NODE_DISABLE_BARE_REPOS:-true}
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: ${N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS:-true}
+      N8N_PROXY_HOPS: ${N8N_PROXY_HOPS:-1}
+      N8N_SKIP_AUTH_ON_OAUTH_CALLBACK: ${N8N_SKIP_AUTH_ON_OAUTH_CALLBACK:-false}
+    depends_on:
+      n8n:
+        condition: service_healthy
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  task-runners:
+    image: n8nio/runners:2.10.4
+    env:
+      N8N_RUNNERS_TASK_BROKER_URI: ${N8N_RUNNERS_TASK_BROKER_URI:-http://n8n-worker:5679}
+      N8N_RUNNERS_AUTH_TOKEN: $PIER_PASSWORD_N8N
+      N8N_RUNNERS_AUTO_SHUTDOWN_TIMEOUT: ${N8N_RUNNERS_AUTO_SHUTDOWN_TIMEOUT:-15}
+      N8N_RUNNERS_MAX_CONCURRENCY: ${N8N_RUNNERS_MAX_CONCURRENCY:-5}
+    needs:
+    - n8n
+with:
+  postgresql:
+    kind: postgres
+    version: '16'
+    database: n8n
+  redis: {}

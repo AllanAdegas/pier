@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"pier/internal/platform/secretbox"
@@ -130,15 +131,19 @@ func scanApplication(row rowScanner) (Application, error) {
 }
 
 const deploymentColumns = `d.id, d.application_id, a.name, d.status, d.trigger, d.commit_sha, d.commit_message,
-	d.image, d.rollback_image, d.error, d.created_at, d.started_at, d.finished_at`
+	d.image, d.rollback_image, d.source, d.ref, d.promoted_from, d.error, d.hints, d.retired_logs, d.suggested_port, d.created_at, d.started_at, d.finished_at`
+
+// List responses omit potentially large retired tails; the detail endpoint loads them.
+var deploymentSummaryColumns = strings.Replace(deploymentColumns, "d.retired_logs", "'[]'", 1)
 
 const deploymentFrom = ` FROM deployments d JOIN applications a ON a.id = d.application_id `
 
 func (s *Store) insertDeployment(ctx context.Context, deployment Deployment) error {
 	_, err := s.db.ExecContext(ctx, `INSERT INTO deployments
-		(id, application_id, status, trigger, rollback_image, commit_sha, commit_message, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		(id, application_id, status, trigger, rollback_image, source, ref, promoted_from, commit_sha, commit_message, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		deployment.ID, deployment.ApplicationID, deployment.Status, deployment.Trigger, deployment.RollbackImage,
+		deployment.Source, deployment.Ref, deployment.PromotedFrom,
 		deployment.CommitSHA, deployment.CommitMessage, sqlite.FormatTime(deployment.CreatedAt))
 	return err
 }
@@ -152,7 +157,7 @@ func (s *Store) GetDeployment(ctx context.Context, id string) (Deployment, error
 
 // ListDeployments returns the newest deployments, optionally of one application.
 func (s *Store) ListDeployments(ctx context.Context, applicationID string, limit int) ([]Deployment, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT `+deploymentColumns+deploymentFrom+`
+	rows, err := s.db.QueryContext(ctx, `SELECT `+deploymentSummaryColumns+deploymentFrom+`
 		WHERE (? = '' OR d.application_id = ?) ORDER BY d.created_at DESC LIMIT ?`,
 		applicationID, applicationID, limit)
 	if err != nil {
@@ -170,10 +175,23 @@ func (s *Store) deploymentsByStatus(ctx context.Context, status DeploymentStatus
 	return collectDeployments(rows)
 }
 
-func (s *Store) queuedDeployment(ctx context.Context, applicationID string) (Deployment, error) {
+// queuedDeployment finds a waiting build of the same ref that a new request
+// can join. Uploads, promotions and rollbacks carry their own input and are
+// never shared.
+func (s *Store) queuedDeployment(ctx context.Context, applicationID, ref string) (Deployment, error) {
 	row := s.db.QueryRowContext(ctx, `SELECT `+deploymentColumns+deploymentFrom+`
-		WHERE d.application_id = ? AND d.status = ? AND d.rollback_image = '' LIMIT 1`,
-		applicationID, DeploymentQueued)
+		WHERE d.application_id = ? AND d.status = ? AND d.rollback_image = '' AND d.ref = ?
+		AND d.trigger NOT IN (?, ?) LIMIT 1`,
+		applicationID, DeploymentQueued, ref, TriggerArchive, TriggerPromotion)
+	deployment, err := scanDeployment(row)
+	return deployment, sqlite.NotFoundIfNoRows(err)
+}
+
+// deploymentOfImage is the latest successful deployment that released image.
+func (s *Store) deploymentOfImage(ctx context.Context, applicationID, image string) (Deployment, error) {
+	row := s.db.QueryRowContext(ctx, `SELECT `+deploymentColumns+deploymentFrom+`
+		WHERE d.application_id = ? AND d.status = ? AND d.image = ? ORDER BY d.created_at DESC LIMIT 1`,
+		applicationID, DeploymentFinished, image)
 	deployment, err := scanDeployment(row)
 	return deployment, sqlite.NotFoundIfNoRows(err)
 }
@@ -197,8 +215,7 @@ func (s *Store) setDeploymentCommit(ctx context.Context, id, sha, message string
 }
 
 func (s *Store) setDeploymentImage(ctx context.Context, id, image string) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE deployments SET image = ? WHERE id = ?`, image, id)
-	return err
+	return sqlite.RequireAffected(s.db.ExecContext(ctx, `UPDATE deployments SET image = ? WHERE id = ?`, image, id))
 }
 
 // finishDeployment sets a terminal status unless one was already recorded.
@@ -247,12 +264,18 @@ func collectDeployments(rows *sql.Rows) ([]Deployment, error) {
 
 func scanDeployment(row rowScanner) (Deployment, error) {
 	var deployment Deployment
-	var createdAt string
+	var createdAt, hints, retiredLogs string
 	var startedAt, finishedAt sql.NullString
 	err := row.Scan(&deployment.ID, &deployment.ApplicationID, &deployment.ApplicationName, &deployment.Status,
 		&deployment.Trigger, &deployment.CommitSHA, &deployment.CommitMessage, &deployment.Image,
-		&deployment.RollbackImage, &deployment.Error, &createdAt, &startedAt, &finishedAt)
+		&deployment.RollbackImage, &deployment.Source, &deployment.Ref, &deployment.PromotedFrom, &deployment.Error, &hints, &retiredLogs, &deployment.SuggestedPort, &createdAt, &startedAt, &finishedAt)
 	if err != nil {
+		return Deployment{}, err
+	}
+	if err := json.Unmarshal([]byte(hints), &deployment.Hints); err != nil {
+		return Deployment{}, err
+	}
+	if err := json.Unmarshal([]byte(retiredLogs), &deployment.RetiredLogs); err != nil {
 		return Deployment{}, err
 	}
 	deployment.CreatedAt = sqlite.ParseTime(createdAt)

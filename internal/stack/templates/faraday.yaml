@@ -1,71 +1,31 @@
 name: Faraday
 description: Gestão de vulnerabilidades open source, via web.
+description_en: Open source vulnerability management, on the web.
 category: Segurança
 website: https://faradaysec.com/
-tags:
-  - vulnerability
-  - management
-  - tool
-routes:
-  - service: faraday
+services:
+  faraday:
+    image: faradaysec/faraday:5.25.4
     port: 5985
-compose: |
-  services:
-    faraday:
-      image: faradaysec/faraday:latest
-      entrypoint: /entrypoint.sh
-      environment:
-        - AUTHENTIK_POSTGRESQL__PASSWORD=${PIER_PASSWORD_POSTGRESQL}
-        - PGSQL_USER=${PIER_USER_POSTGRESQL}
-        - PGSQL_PASSWD=${PIER_PASSWORD_POSTGRESQL}
-        - PGSQL_DBNAME=${POSTGRES_DB}
-        - PGSQL_HOST=postgresql
-        - REDIS_SERVER=redis
-      volumes:
-        - faraday:/home/faraday/.faraday:rw
-      depends_on:
-        postgresql:
-          condition: service_healthy
-        redis:
-          condition: service_healthy
-      healthcheck:
-        interval: 30s
-        retries: 3
-        test:
-          - CMD
-          - nc
-          - -z
-          - localhost
-          - "5985"
-        timeout: 10s
-    postgresql:
-      image: postgres:latest
-      environment:
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRESQL}
-        - POSTGRES_USER=${PIER_USER_POSTGRESQL}
-        - POSTGRES_DB=${POSTGRES_DB:-faraday}
-      volumes:
-        - faraday-db:/var/lib/postgresql/data
-      healthcheck:
-        interval: 15s
-        retries: 15
-        test:
-          - CMD-SHELL
-          - pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}
-        timeout: 10s
-    redis:
-      image: redis:alpine
-      command: --save 60 1 --loglevel warning
-      volumes:
-        - redis:/data
-      healthcheck:
-        interval: 15s
-        retries: 15
-        test:
-          - CMD-SHELL
-          - redis-cli ping | grep PONG
-        timeout: 10s
-  volumes:
-    faraday: null
-    faraday-db: null
-    redis: null
+    entrypoint: /entrypoint.sh
+    volumes:
+    - faraday:/home/faraday/.faraday:rw
+    env:
+      AUTHENTIK_POSTGRESQL__PASSWORD: '{{postgresql.password}}'
+      PGSQL_USER: '{{postgresql.user}}'
+      PGSQL_PASSWD: '{{postgresql.password}}'
+      PGSQL_DBNAME: '{{postgresql.database}}'
+      PGSQL_HOST: postgresql
+      REDIS_SERVER: redis
+with:
+  postgresql:
+    kind: postgres
+    version: '18'
+    database: faraday
+  redis:
+    args:
+    - --save
+    - '60'
+    - '1'
+    - --loglevel
+    - warning

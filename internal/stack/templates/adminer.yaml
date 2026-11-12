@@ -1,12 +1,10 @@
 name: Adminer
 description: Cliente web leve para PostgreSQL, MySQL, MariaDB e outros bancos.
+description_en: Lightweight web client for PostgreSQL, MySQL, MariaDB and other databases.
 category: Dados
 website: https://www.adminer.org
 verified: true
-routes:
-  - service: adminer
+services:
+  adminer:
+    image: adminer:6.3.0
     port: 8080
-compose: |
-  services:
-    adminer:
-      image: adminer:latest

@@ -1,3 +1,4 @@
+import { language, t } from "../i18n";
 // Thin client for the Pier HTTP API. Every call goes through `request`, the
 // single place that knows about headers, error decoding and session expiry.
 
@@ -33,12 +34,14 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
       headers: {
         // Required by the backend on cookie-authenticated mutations (CSRF defense).
         "X-Pier-Client": "web",
+        // The backend answers its messages in the interface's language.
+        "Accept-Language": language,
         ...(body === undefined ? {} : { "Content-Type": "application/json" }),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
-    throw new ApiError(0, "network_error", "Não foi possível contatar o Pier. Verifique sua conexão.");
+    throw new ApiError(0, "network_error", t("Não foi possível contatar o Pier. Verifique sua conexão."));
   }
   if (response.status === 204) {
     return undefined as T;
@@ -52,7 +55,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     throw new ApiError(
       response.status,
       detail?.code ?? "unknown",
-      detail?.message ?? `Erro inesperado (HTTP ${response.status}).`,
+      detail?.message ?? t("Erro inesperado (HTTP {status}).", { status: response.status }),
       detail?.fields ?? {},
     );
   }
@@ -72,7 +75,7 @@ export function errorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
   }
-  return "Algo deu errado.";
+  return t("Algo deu errado.");
 }
 
 /** Field errors of a validation failure, or an empty object. */

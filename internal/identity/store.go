@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"pier/internal/platform/apperr"
 	"pier/internal/platform/sqlite"
 )
 
@@ -86,7 +87,21 @@ func (s *Store) updatePassword(ctx context.Context, id, passwordHash string) err
 }
 
 func (s *Store) deleteUser(ctx context.Context, id string) error {
-	return sqlite.RequireAffected(s.db.ExecContext(ctx, `DELETE FROM users WHERE id = ?`, id))
+	result, err := s.db.ExecContext(ctx, `DELETE FROM users WHERE id = ? AND (SELECT COUNT(*) FROM users) > 1`, id)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		if _, err := s.userByID(ctx, id); err != nil {
+			return notFoundAs(err, "Usuário")
+		}
+		return apperr.Conflict("A instância precisa de pelo menos um usuário.")
+	}
+	return nil
 }
 
 func (s *Store) insertSession(ctx context.Context, tokenHash, userID string, expiresAt time.Time) error {

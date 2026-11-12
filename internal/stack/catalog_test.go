@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"pier/internal/platform/i18n"
 )
 
 // catalogSize is how many services the catalog has; it only goes down when
@@ -90,8 +92,8 @@ func TestTemplatesExposeTheVariablesThePersonMustProvide(t *testing.T) {
 // can warn before anything runs: the Docker socket is root on the server.
 func TestTemplatesDeclareThePowersTheyAskFor(t *testing.T) {
 	expect := map[string][]string{
-		"beszel-agent": {RiskDockerSocket, RiskHostNetwork},
-		"glances":      {RiskDockerSocket, RiskPrivileged, RiskHostPID},
+		"beszel-agent": {RiskDockerSocket, RiskHostNetwork, "host-path"},
+		"glances":      {RiskDockerSocket, RiskPrivileged, RiskHostPID, "host-path", "no-auth"},
 		"whoami":       {},
 	}
 	for slug, want := range expect {
@@ -114,4 +116,23 @@ func TestTemplatesDeclareThePowersTheyAskFor(t *testing.T) {
 		t.Errorf("risk counts look wrong: %v", counts)
 	}
 	t.Logf("templates asking for powers over the server: %v", counts)
+}
+
+func TestEveryTemplateReadsInEnglishToo(t *testing.T) {
+	templates, err := Templates()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, template := range templates {
+		english := template.Localized(i18n.English)
+		if strings.TrimSpace(template.DescriptionEN) == "" {
+			t.Errorf("%s: no description_en", template.Slug)
+		}
+		if english.Category == "" {
+			t.Errorf("%s: category %q has no English name", template.Slug, template.Category)
+		}
+		if portuguese := template.Localized(i18n.Portuguese); portuguese.Description != template.Description {
+			t.Errorf("%s: the Portuguese description changed", template.Slug)
+		}
+	}
 }

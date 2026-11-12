@@ -31,6 +31,8 @@ type Project struct {
 
 // Environment is an isolated stage (production, staging…) of a project.
 type Environment struct {
+	Protected bool      `json:"protected"`
+	Frozen    bool      `json:"frozen"`
 	ID        string    `json:"id"`
 	ProjectID string    `json:"project_id"`
 	Name      string    `json:"name"`
@@ -165,7 +167,7 @@ func (s *Service) CreateEnvironment(ctx context.Context, projectID, name string)
 
 // GetEnvironment returns one environment.
 func (s *Service) GetEnvironment(ctx context.Context, id string) (Environment, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT id, project_id, name, created_at FROM environments WHERE id = ?`, id)
+	row := s.db.QueryRowContext(ctx, `SELECT id, project_id, name, protected, frozen, created_at FROM environments WHERE id = ?`, id)
 	environment, err := scanEnvironment(row)
 	return environment, notFound(err, "Ambiente")
 }
@@ -206,7 +208,7 @@ func (s *Service) requireEmpty(ctx context.Context, environmentID string) error 
 
 func (s *Service) environments(ctx context.Context, projectID string) ([]Environment, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, project_id, name, created_at FROM environments WHERE project_id = ? ORDER BY created_at`, projectID)
+		`SELECT id, project_id, name, protected, frozen, created_at FROM environments WHERE project_id = ? ORDER BY created_at`, projectID)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +241,7 @@ func scanProject(row rowScanner) (Project, error) {
 func scanEnvironment(row rowScanner) (Environment, error) {
 	var environment Environment
 	var createdAt string
-	if err := row.Scan(&environment.ID, &environment.ProjectID, &environment.Name, &createdAt); err != nil {
+	if err := row.Scan(&environment.ID, &environment.ProjectID, &environment.Name, &environment.Protected, &environment.Frozen, &createdAt); err != nil {
 		return Environment{}, err
 	}
 	environment.CreatedAt = sqlite.ParseTime(createdAt)

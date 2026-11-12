@@ -6,12 +6,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"regexp"
+	"runtime/debug"
 	"strings"
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"pier/internal/platform/i18n"
 )
 
 // maxToolOutput bounds what a tool hands back to the model: logs and lists
@@ -35,7 +39,14 @@ type invoker struct {
 	api http.Handler
 }
 
-func (i invoker) call(ctx context.Context, authorization string, request apiRequest) (*sdk.CallToolResult, error) {
+func (i invoker) call(ctx context.Context, authorization string, request apiRequest) (result *sdk.CallToolResult, callErr error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			slog.Error("panic in MCP tool invocation", "path", request.Path, "stack", string(debug.Stack()))
+			result = errorResult(i18n.FromContext(ctx).Text("Erro interno ao executar a ferramenta. Consulte os logs do Pier."))
+			callErr = nil
+		}
+	}()
 	httpRequest, err := i.newRequest(ctx, authorization, request)
 	if err != nil {
 		return nil, err
@@ -74,6 +85,8 @@ func (i invoker) newRequest(ctx context.Context, authorization string, request a
 	}
 	httpRequest.Header.Set("Authorization", authorization)
 	httpRequest.Header.Set("Content-Type", "application/json")
+	// Agents read English, like the tool descriptions.
+	httpRequest.Header.Set("Accept-Language", string(i18n.English))
 	httpRequest.RemoteAddr = "127.0.0.1:0"
 	return httpRequest, nil
 }
@@ -88,7 +101,7 @@ func apiErrorMessage(status int, body []byte) string {
 		} `json:"error"`
 	}
 	if json.Unmarshal(body, &parsed) != nil || parsed.Error.Message == "" {
-		return fmt.Sprintf("A API do Pier respondeu HTTP %d.", status)
+		return fmt.Sprintf("Pier's API answered HTTP %d.", status)
 	}
 	message := parsed.Error.Message
 	for field, problem := range parsed.Error.Fields {
@@ -135,7 +148,7 @@ var identifierPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
 
 func requireIdentifier(field, value string) error {
 	if !identifierPattern.MatchString(value) {
-		return fmt.Errorf("%s inválido: use o identificador mostrado pelas ferramentas de listagem", field)
+		return fmt.Errorf("invalid %s: use the identifier shown by the listing tools", field)
 	}
 	return nil
 }

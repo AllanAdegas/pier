@@ -1,13 +1,14 @@
 import { createSignal, For, Show } from "solid-js";
 import { Button, IconButton } from "../../components/Button";
 import { EmptyState, QueryView, StatusBadge } from "../../components/Feedback";
-import { Checkbox, TextInput } from "../../components/Form";
 import { Modal } from "../../components/Modal";
 import { CopyField, Section } from "../../components/Page";
 import { api } from "../../lib/api";
 import { formatRelative } from "../../lib/format";
 import { createAction, createQuery } from "../../lib/query";
 import type { Application, ScheduledTask, TaskExecution, WebhookInfo } from "../../lib/types";
+import { t } from "../../i18n";
+import { Checkbox, TextInput } from "../../components/Form";
 
 /** Automatic deploys (webhooks) and commands that run on a schedule. */
 export function AutomationTab(props: { application: Application; onSaved: (application: Application) => void }) {
@@ -31,28 +32,27 @@ function WebhooksSection(props: { application: Application; onSaved: (applicatio
         description: props.application.description,
         config: { ...props.application.config, auto_deploy: enabled },
       }),
-    { success: "Preferência salva.", onSuccess: props.onSaved },
+    { success: t("Preferência salva."), onSuccess: props.onSaved },
   );
   const rotate = createAction(() => api.post<WebhookInfo>(`/applications/${props.application.id}/webhook/rotate`), {
-    success: "Novo segredo gerado. Atualize-o no provedor Git.",
+    success: t("Novo segredo gerado. Atualize-o no provedor Git."),
     onSuccess: (info) => webhook.set(info),
   });
   const isGit = () => props.application.config.build.pack !== "image";
 
   return (
     <Section
-      title="Deploy automático"
-      description="Implante a cada push, ou dispare um deploy a partir do seu CI."
+      title={t("Deploy automático")}
+      description={t("Implante a cada push, ou dispare um deploy a partir do seu CI.")}
       actions={
-        <Button small icon="refresh" pending={rotate.pending()} onClick={() => void rotate.run()}>
-          Gerar novo segredo
+        <Button small icon="refresh" pending={rotate.pending()} onClick={() => void rotate.run()}>{t("Gerar novo segredo")}
         </Button>
       }
     >
       <Show when={isGit()}>
         <Checkbox
-          label={`Implantar a cada push na branch “${props.application.config.source.branch}”`}
-          hint="Cadastre uma das URLs abaixo como webhook de push no seu repositório, usando o segredo."
+          label={t("Implantar a cada push na branch “{branch}”", { branch: props.application.config.source.branch })}
+          hint={t("Cadastre uma das URLs abaixo como webhook de push no seu repositório, usando o segredo.")}
           checked={props.application.config.auto_deploy}
           disabled={toggleAutoDeploy.pending()}
           onChange={(checked) => void toggleAutoDeploy.run(checked)}
@@ -61,17 +61,17 @@ function WebhooksSection(props: { application: Application; onSaved: (applicatio
       <QueryView query={webhook}>
         {(info) => (
           <div class="stack">
-            <CopyField label="Segredo" value={info().secret} secret />
+            <CopyField label={t("Segredo")} value={info().secret} secret />
             <Show when={isGit()}>
-              <CopyField label="GitHub (evento push, content type application/json)" value={info().github_url} />
-              <CopyField label="GitLab (Push events, Secret token)" value={info().gitlab_url} />
-              <CopyField label="Gitea / Forgejo" value={info().gitea_url} />
+              <CopyField label={t("GitHub (evento push, content type application/json)")} value={info().github_url} />
+              <CopyField label={t("GitLab (Push events, Secret token)")} value={info().gitlab_url} />
+              <CopyField label={t("Gitea / Forgejo")} value={info().gitea_url} />
             </Show>
             <CopyField
-              label="Gatilho genérico (CI)"
+              label={t("Gatilho genérico (CI)")}
               value={`curl -X POST -H "X-Pier-Token: ${info().secret}" ${info().deploy_url}`}
               secret
-              hint="Dispara um deploy imediatamente, independente da branch."
+              hint={t("Dispara um deploy imediatamente, independente da branch.")}
             />
           </div>
         )}
@@ -89,20 +89,19 @@ function TasksSection(props: { applicationId: string }) {
   const [history, setHistory] = createSignal<ScheduledTask | null>(null);
 
   const run = createAction((id: string) => api.post<TaskExecution>(`/tasks/${id}/run`), {
-    success: (execution) => (execution.status === "succeeded" ? "Tarefa executada com sucesso." : "A tarefa terminou com erro."),
+    success: (execution) => (execution.status === "succeeded" ? t("Tarefa executada com sucesso.") : t("A tarefa terminou com erro.")),
   });
   const remove = createAction((id: string) => api.delete(`/tasks/${id}`), {
-    success: "Tarefa removida.",
+    success: t("Tarefa removida."),
     onSuccess: () => void tasks.refetch(),
   });
 
   return (
     <Section
-      title="Tarefas agendadas"
-      description="Comandos executados periodicamente dentro do container da aplicação."
+      title={t("Tarefas agendadas")}
+      description={t("Comandos executados periodicamente dentro do container da aplicação.")}
       actions={
-        <Button small icon="plus" onClick={() => setEditing("new")}>
-          Nova tarefa
+        <Button small icon="plus" onClick={() => setEditing("new")}>{t("Nova tarefa")}
         </Button>
       }
     >
@@ -111,8 +110,7 @@ function TasksSection(props: { applicationId: string }) {
           <Show
             when={list().length > 0}
             fallback={
-              <EmptyState icon="clock" title="Nenhuma tarefa">
-                Use para rotinas como limpeza de cache, envio de relatórios ou filas.
+              <EmptyState icon="clock" title={t("Nenhuma tarefa")}>{t("Use para rotinas como limpeza de cache, envio de relatórios ou filas.")}
               </EmptyState>
             }
           >
@@ -127,18 +125,15 @@ function TasksSection(props: { applicationId: string }) {
                       </span>
                     </div>
                     <Show when={!task.enabled}>
-                      <span class="tag">pausada</span>
+                      <span class="tag">{t("pausada")}</span>
                     </Show>
-                    <Button small icon="play" pending={run.pending()} onClick={() => void run.run(task.id)}>
-                      Executar
+                    <Button small icon="play" pending={run.pending()} onClick={() => void run.run(task.id)}>{t("Executar")}
                     </Button>
-                    <Button small onClick={() => setHistory(task)}>
-                      Histórico
+                    <Button small onClick={() => setHistory(task)}>{t("Histórico")}
                     </Button>
-                    <Button small onClick={() => setEditing(task)}>
-                      Editar
+                    <Button small onClick={() => setEditing(task)}>{t("Editar")}
                     </Button>
-                    <IconButton icon="trash" label={`Remover ${task.name}`} onClick={() => void remove.run(task.id)} />
+                    <IconButton icon="trash" label={t("Remover {name}", { name: task.name })} onClick={() => void remove.run(task.id)} />
                   </div>
                 )}
               </For>
@@ -176,11 +171,11 @@ function TaskForm(props: { applicationId: string; task?: ScheduledTask; onClose:
         ? api.patch(`/tasks/${props.task.id}`, body)
         : api.post(`/applications/${props.applicationId}/tasks`, body);
     },
-    { success: "Tarefa salva.", onSuccess: props.onSaved },
+    { success: t("Tarefa salva."), onSuccess: props.onSaved },
   );
 
   return (
-    <Modal title={props.task ? "Editar tarefa" : "Nova tarefa agendada"} onClose={props.onClose}>
+    <Modal title={props.task ? t("Editar tarefa") : t("Nova tarefa agendada")} onClose={props.onClose}>
       <form
         class="stack"
         onSubmit={(event) => {
@@ -188,9 +183,9 @@ function TaskForm(props: { applicationId: string; task?: ScheduledTask; onClose:
           void save.run();
         }}
       >
-        <TextInput label="Nome" required value={name()} onValue={setName} error={save.errors().name} />
+        <TextInput label={t("Nome")} required value={name()} onValue={setName} error={save.errors().name} />
         <TextInput
-          label="Comando"
+          label={t("Comando")}
           required
           mono
           placeholder="php artisan schedule:run"
@@ -199,19 +194,18 @@ function TaskForm(props: { applicationId: string; task?: ScheduledTask; onClose:
           error={save.errors().command}
         />
         <TextInput
-          label="Agenda (cron)"
+          label={t("Agenda (cron)")}
           required
           mono
-          hint="Cinco campos: minuto hora dia mês dia-da-semana. Ex.: */15 * * * * roda a cada 15 minutos."
+          hint={t("Cinco campos: minuto hora dia mês dia-da-semana. Ex.: */15 * * * * roda a cada 15 minutos.")}
           value={cron()}
           onValue={setCron}
           error={save.errors().cron}
         />
-        <Checkbox label="Ativa" checked={enabled()} onChange={setEnabled} />
+        <Checkbox label={t("Ativa")} checked={enabled()} onChange={setEnabled} />
         <div class="form-actions">
-          <Button onClick={props.onClose}>Cancelar</Button>
-          <Button type="submit" variant="primary" pending={save.pending()}>
-            Salvar tarefa
+          <Button onClick={props.onClose}>{t("Cancelar")}</Button>
+          <Button type="submit" variant="primary" pending={save.pending()}>{t("Salvar tarefa")}
           </Button>
         </div>
       </form>
@@ -225,10 +219,10 @@ function TaskHistory(props: { task: ScheduledTask; onClose: () => void }) {
     (id) => api.get<TaskExecution[]>(`/tasks/${id}/executions`),
   );
   return (
-    <Modal title={`Histórico — ${props.task.name}`} onClose={props.onClose} wide>
+    <Modal title={t("Histórico — {name}", { name: props.task.name })} onClose={props.onClose} wide>
       <QueryView query={executions}>
         {(list) => (
-          <Show when={list().length > 0} fallback={<p class="muted">A tarefa ainda não foi executada.</p>}>
+          <Show when={list().length > 0} fallback={<p class="muted">{t("A tarefa ainda não foi executada.")}</p>}>
             <div class="stack">
               <For each={list()}>
                 {(execution) => (
@@ -237,10 +231,10 @@ function TaskHistory(props: { task: ScheduledTask; onClose: () => void }) {
                       <StatusBadge
                         status={
                           execution.status === "succeeded"
-                            ? { label: "Sucesso", tone: "success" }
+                            ? { label: t("Sucesso"), tone: "success" }
                             : execution.status === "failed"
-                              ? { label: "Falhou", tone: "danger" }
-                              : { label: "Em andamento", tone: "info", pulse: true }
+                              ? { label: t("Falhou"), tone: "danger" }
+                              : { label: t("Em andamento"), tone: "info", pulse: true }
                         }
                       />
                       <span class="small muted">{formatRelative(execution.started_at)}</span>

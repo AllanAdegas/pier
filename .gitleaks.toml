@@ -1,0 +1,19 @@
+# gitleaks configuration: the default rules, minus findings that are not
+# credentials. Exceptions match content, never whole directories, so a real
+# secret anywhere (templates included) is still reported. A canary token in a
+# template was checked against this file.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Fake values in Go test fixtures"
+paths = ['''_test\.go$''']
+
+[[allowlists]]
+description = "Credentials made only of compose variable references, e.g. user:\"$${PASSWORD}\""
+regexes = ['''^"?([A-Za-z0-9_.-]+:)?"?\$?\$\{[A-Za-z0-9_]+\}"?(:"?\$?\$\{[A-Za-z0-9_]+\}"?)?"?$''']
+
+[[allowlists]]
+description = "Image references: tags and digests are not secrets"
+regexTarget = "line"
+regexes = ['''^\s*(-\s*)?image:\s*[^\s]+\s*$''']

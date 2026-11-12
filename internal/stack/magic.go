@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"pier/internal/compose"
 	"pier/internal/platform/idgen"
 )
@@ -22,11 +24,12 @@ import (
 // Generated once per stack and never regenerated (changing the password of an
 // initialized database would lock the stack out of it):
 //
-//	PIER_PASSWORD[_32|_64|_128]_<NAME>  letters and digits, 32 by default
+//	PIER_PASSWORD[_16|_32|_64|_128]_<NAME>  letters and digits, 32 by default
+//	PIER_BCRYPT_<NAME>                  bcrypt of PIER_PASSWORD_<NAME> (also stored)
 //	PIER_USER_<NAME>                    a lowercase user name
 //	PIER_SECRET_<NAME>                  64 hexadecimal characters
-//	PIER_HEX[_32|_64|_128]_<NAME>       hexadecimal, 32 characters by default
-//	PIER_BASE64[_32|_64|_128]_<NAME>    base64 of that many random bytes, 32 by default
+//	PIER_HEX[_16|_32|_64|_128]_<NAME>       hexadecimal, 32 characters by default
+//	PIER_BASE64[_16|_32|_64|_128]_<NAME>    base64 of that many random bytes, 32 by default
 //	PIER_SUPABASEANON_<NAME>            Supabase JWTs (roles anon and service_role),
 //	PIER_SUPABASESERVICE_<NAME>         signed with PIER_PASSWORD_JWT
 //
@@ -53,7 +56,7 @@ const signingKeyVariable = "PIER_PASSWORD_JWT"
 
 // generatedKinds lists the kinds, longest first so that a kind is never
 // mistaken for a shorter one it starts with.
-var generatedKinds = []string{"SUPABASESERVICE", "SUPABASEANON", "PASSWORD", "SECRET", "BASE64", "USER", "HEX"}
+var generatedKinds = []string{"SUPABASESERVICE", "SUPABASEANON", "BCRYPT", "PASSWORD", "SECRET", "BASE64", "USER", "HEX"}
 
 // sizedKinds accept a length between the kind and the name.
 var sizedKinds = map[string]bool{"PASSWORD": true, "BASE64": true, "HEX": true}
@@ -88,7 +91,7 @@ func classify(name string) (generated, bool) {
 }
 
 // declaredLength reads the optional size that precedes the name, as in
-// PIER_PASSWORD_64_APIKEY. Only 32, 64 and 128 are sizes, so a name that
+// PIER_PASSWORD_64_APIKEY. Only 16, 32, 64 and 128 are sizes, so a name that
 // merely starts with digits is not mistaken for one.
 func declaredLength(tail string) int {
 	first, rest, hasName := strings.Cut(tail, "_")
@@ -96,7 +99,7 @@ func declaredLength(tail string) int {
 		return 0
 	}
 	switch first {
-	case "32", "64", "128":
+	case "16", "32", "64", "128":
 		length, _ := strconv.Atoi(first)
 		return length
 	}
@@ -129,7 +132,9 @@ func (g generated) value(signingKey string, now time.Time) string {
 
 // derived kinds are computed from another generated value, so they are
 // created after it.
-func (g generated) derived() bool { return g.kind == "SUPABASEANON" || g.kind == "SUPABASESERVICE" }
+func (g generated) derived() bool {
+	return g.kind == "BCRYPT" || g.kind == "SUPABASEANON" || g.kind == "SUPABASESERVICE"
+}
 
 // generatedDefaults returns a fresh value for every generated variable the
 // compose file references and that has no value yet.
@@ -144,6 +149,15 @@ func generatedDefaults(rawCompose string, existing map[string]string) map[string
 			wanted[name] = kind
 		}
 	}
+	// A bcrypt value has a matching recoverable password in the encrypted store.
+	for name, kind := range wanted {
+		if kind.kind == "BCRYPT" {
+			passwordName := strings.Replace(name, "_BCRYPT_", "_PASSWORD_", 1)
+			if _, exists := existing[passwordName]; !exists {
+				wanted[passwordName] = generated{kind: "PASSWORD"}
+			}
+		}
+	}
 	now := time.Now()
 	for name, kind := range wanted {
 		if !kind.derived() {
@@ -155,7 +169,20 @@ func generatedDefaults(rawCompose string, existing map[string]string) map[string
 		signingKey = defaults[signingKeyVariable]
 	}
 	for name, kind := range wanted {
-		if kind.derived() && signingKey != "" {
+		if kind.kind == "BCRYPT" {
+			passwordName := strings.Replace(name, "_BCRYPT_", "_PASSWORD_", 1)
+			password := existing[passwordName]
+			if password == "" {
+				password = defaults[passwordName]
+			}
+			if password == "" {
+				continue
+			}
+			hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+			if err == nil {
+				defaults[name] = string(hash)
+			}
+		} else if kind.derived() && signingKey != "" {
 			defaults[name] = kind.value(signingKey, now)
 		}
 	}

@@ -1,37 +1,14 @@
 name: Overseerr
 description: Gestão de pedidos e descoberta de mídia para o ecossistema Plex.
+description_en: Request management and media discovery for the Plex ecosystem.
 category: Mídia
 website: https://docs.overseerr.dev/getting-started/installation#docker
-tags:
-  - media
-  - request
-  - plex
-  - sonarr
-  - radarr
-routes:
-  - service: overseerr
+services:
+  overseerr:
+    image: sctx/overseerr:1.35.0
     port: 5055
-compose: |
-  services:
-    overseerr:
-      image: sctx/overseerr:latest
-      environment:
-        - PUID=1000
-        - PGID=1000
-        - TZ=${TZ:-America/Toronto}
-      volumes:
-        - overseerr-config:/app/config
-      healthcheck:
-        interval: 2s
-        retries: 15
-        test:
-          - CMD
-          - wget
-          - --tries
-          - "1"
-          - --no-verbose
-          - --spider
-          - http://localhost:5055/api/v1/status
-        timeout: 10s
-  volumes:
-    overseerr-config: null
+    data: /app/config
+    env:
+      PUID: '1000'
+      PGID: '1000'
+      TZ: ${TZ:-America/Toronto}

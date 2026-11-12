@@ -5,9 +5,12 @@ import "./styles/base.css";
 import "./styles/components.css";
 import "./styles/layout.css";
 import { App } from "./App";
+import { language } from "./i18n";
+
+document.documentElement.lang = language;
 
 const root = document.getElementById("root");
 if (!root) {
-  throw new Error("Elemento #root ausente em index.html");
+  throw new Error("Missing #root element in index.html");
 }
 render(() => <App />, root);

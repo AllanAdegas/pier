@@ -1,63 +1,32 @@
+auth: first-visitor
 name: Beszel
 description: Hub leve de monitoramento de servidores, com histórico, estatísticas de Docker e alertas.
+description_en: Lightweight server monitoring hub, with history, Docker stats and alerts.
 category: Monitoramento
 website: https://github.com/henrygd/beszel?tab=readme-ov-file#getting-started
-tags:
-  - beszel
-  - monitoring
-  - server
-  - stats
-  - alerts
-routes:
-  - service: beszel
+services:
+  beszel:
+    image: henrygd/beszel:0.18.7
     port: 8090
-compose: |
-  services:
-    beszel:
-      image: henrygd/beszel:0.18.7
-      environment:
-        - CONTAINER_DETAILS=${CONTAINER_DETAILS:-true}
-        - SHARE_ALL_SYSTEMS=${SHARE_ALL_SYSTEMS:-false}
-      volumes:
-        - beszel_data:/beszel_data
-        - beszel_socket:/beszel_socket
-      healthcheck:
-        interval: 30s
-        retries: 10
-        start_period: 5s
-        test:
-          - CMD
-          - /beszel
-          - health
-          - --url
-          - http://localhost:8090
-        timeout: 20s
-    beszel-agent:
-      image: henrygd/beszel-agent:0.18.7
-      environment:
-        - LISTEN=/beszel_socket/beszel.sock
-        - HUB_URL=$PIER_URL_BESZEL
-        - TOKEN=${TOKEN}
-        - KEY=${KEY}
-        - DISABLE_SSH=${DISABLE_SSH:-false}
-        - LOG_LEVEL=${LOG_LEVEL:-warn}
-        - SKIP_GPU=${SKIP_GPU:-false}
-        - SYSTEM_NAME=${SYSTEM_NAME}
-      volumes:
-        - beszel_agent_data:/var/lib/beszel-agent
-        - beszel_socket:/beszel_socket
-        - /var/run/docker.sock:/var/run/docker.sock:ro
-      network_mode: host
-      healthcheck:
-        interval: 60s
-        retries: 10
-        start_period: 5s
-        test:
-          - CMD
-          - /agent
-          - health
-        timeout: 20s
-  volumes:
-    beszel_agent_data: null
-    beszel_data: null
-    beszel_socket: null
+    volumes:
+    - beszel_data:/beszel_data
+    - beszel_socket:/beszel_socket
+    env:
+      CONTAINER_DETAILS: ${CONTAINER_DETAILS:-true}
+      SHARE_ALL_SYSTEMS: ${SHARE_ALL_SYSTEMS:-false}
+  beszel-agent:
+    image: henrygd/beszel-agent:0.18.7
+    network_mode: host
+    volumes:
+    - beszel_agent_data:/var/lib/beszel-agent
+    - beszel_socket:/beszel_socket
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    env:
+      LISTEN: /beszel_socket/beszel.sock
+      HUB_URL: $PIER_URL_BESZEL
+      TOKEN: ${TOKEN}
+      KEY: ${KEY}
+      DISABLE_SSH: ${DISABLE_SSH:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-warn}
+      SKIP_GPU: ${SKIP_GPU:-false}
+      SYSTEM_NAME: ${SYSTEM_NAME}

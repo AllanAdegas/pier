@@ -1,0 +1,12 @@
+ALTER TABLE environments ADD COLUMN protected INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE environments ADD COLUMN frozen INTEGER NOT NULL DEFAULT 0;
+CREATE TABLE audit_log (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ occurred_at TEXT NOT NULL,
+ user_id TEXT NOT NULL DEFAULT '', user_name TEXT NOT NULL DEFAULT '',
+ token_id TEXT NOT NULL DEFAULT '', token_name TEXT NOT NULL DEFAULT '',
+ ip TEXT NOT NULL, method TEXT NOT NULL, route TEXT NOT NULL,
+ resource_id TEXT NOT NULL DEFAULT '', status INTEGER NOT NULL,
+ summary TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX audit_log_time ON audit_log(occurred_at DESC);

@@ -1,42 +1,21 @@
 name: marimo
 description: 'Notebook reativo para Python: reproduzível, amigo do Git e com SQL embutido.'
+description_en: 'Reactive Python notebook: reproducible, Git-friendly and with built-in SQL.'
 category: Desenvolvimento
 website: https://marimo.io/
-tags:
-  - notebook
-  - python
-  - data
-  - analysis
-routes:
-  - service: marimo
+services:
+  marimo:
+    image: ghcr.io/marimo-team/marimo:0.25.2-sql
     port: 8080
-compose: |
-  services:
-    marimo:
-      image: ghcr.io/marimo-team/marimo:latest-sql
-      command:
-        - marimo
-        - edit
-        - --token-password
-        - ${PIER_PASSWORD_MARIMO}
-        - --port
-        - "8080"
-        - --host
-        - 0.0.0.0
-      environment:
-        - TOKEN_PASSWORD=$PIER_PASSWORD_MARIMO
-      volumes:
-        - marimo:/app
-      healthcheck:
-        interval: 5s
-        retries: 3
-        test:
-          - CMD
-          - uvx
-          - --with
-          - httpx[cli]
-          - httpx
-          - http://localhost:8080/health
-        timeout: 5s
-  volumes:
-    marimo: null
+    data: /app
+    command:
+    - marimo
+    - edit
+    - --token-password
+    - ${PIER_PASSWORD_MARIMO}
+    - --port
+    - '8080'
+    - --host
+    - 0.0.0.0
+    env:
+      TOKEN_PASSWORD: $PIER_PASSWORD_MARIMO

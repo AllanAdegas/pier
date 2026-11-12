@@ -1,36 +1,12 @@
 name: Nexus Repository
-description: 'Gerenciador universal de repositórios (x86_64, oficial). Credenciais iniciais: admin/admin123.'
+description: Gerenciador universal de repositórios (x86_64, oficial). A senha inicial do admin fica em /nexus-data/admin.password (docker exec <container> cat /nexus-data/admin.password).
+description_en: Universal repository manager (x86_64, official). The initial admin password is in /nexus-data/admin.password (docker exec <container> cat /nexus-data/admin.password).
 category: Desenvolvimento
 website: https://help.sonatype.com/en/sonatype-nexus-repository.html
-tags:
-  - repository
-  - manager
-  - open source
-  - docker
-  - registry
-  - container
-routes:
-  - service: nexus
+services:
+  nexus:
+    image: sonatype/nexus3:3.98.1
     port: 8081
-compose: |
-  services:
-    nexus:
-      image: sonatype/nexus3
-      environment:
-        - NEXUS_SECURITY_RANDOMPASSWORD=${NEXUS_SECURITY_RANDOMPASSWORD:-false}
-        - INSTALL4J_ADD_VM_PARAMS=-Xms2703m -Xmx2703m -XX:MaxDirectMemorySize=2703m -Djava.util.prefs.userRoot=/nexus-data/javaprefs
-      volumes:
-        - nexus_data:/nexus-data
-      healthcheck:
-        interval: 10s
-        retries: 3
-        start_period: 60s
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://localhost:8081/service/rest/v1/status
-        timeout: 10s
-      platform: linux/amd64
-  volumes:
-    nexus_data: null
+    data: /nexus-data
+    env:
+      INSTALL4J_ADD_VM_PARAMS: -Xms2703m -Xmx2703m -XX:MaxDirectMemorySize=2703m -Djava.util.prefs.userRoot=/nexus-data/javaprefs

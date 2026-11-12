@@ -1,26 +1,9 @@
 name: BentoPDF
 description: Processa PDFs inteiramente no navegador, sem uploads.
+description_en: Processes PDFs entirely in the browser, with no uploads.
 category: Produtividade
 website: https://bentopdf.com/docs
-tags:
-  - pdf
-  - manipulation
-  - web
-  - tool
-routes:
-  - service: bento-pdf
+services:
+  bento-pdf:
+    image: ghcr.io/alam00000/bentopdf:v1.16.1
     port: 8080
-compose: |
-  services:
-    bento-pdf:
-      image: ghcr.io/alam00000/bentopdf:v1.16.1
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - wget
-          - -q
-          - --spider
-          - http://127.0.0.1:8080
-        timeout: 20s

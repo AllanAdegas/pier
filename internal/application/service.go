@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"path"
 	"strings"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"pier/internal/envvar"
 	"pier/internal/platform/apperr"
 	"pier/internal/platform/executor"
+	"pier/internal/platform/i18n"
 	"pier/internal/platform/idgen"
 	"pier/internal/platform/shell"
 	"pier/internal/platform/sqlite"
@@ -42,6 +44,23 @@ type Service struct {
 	env        *envvar.Store
 	connector  Connector
 	dispatcher *Dispatcher
+	guard      DeployGuard
+}
+
+// DeployGuard decides whether an environment accepts deployments now (a
+// frozen environment refuses them).
+type DeployGuard interface {
+	CheckDeploy(ctx context.Context, environmentID string) error
+}
+
+// SetDeployGuard installs the guard consulted before every deployment.
+func (s *Service) SetDeployGuard(guard DeployGuard) { s.guard = guard }
+
+func (s *Service) checkDeploy(ctx context.Context, app Application) error {
+	if s.guard == nil {
+		return nil
+	}
+	return s.guard.CheckDeploy(ctx, app.EnvironmentID)
 }
 
 // NewService creates the service.
@@ -116,9 +135,11 @@ func (s *Service) Delete(ctx context.Context, id string, deleteVolumes, force bo
 	if err != nil {
 		return err
 	}
-	if err := s.cancelActiveDeployments(ctx, id); err != nil {
+	resume, err := s.dispatcher.quiesce(ctx, id)
+	if err != nil {
 		return err
 	}
+	defer resume()
 	if err := s.removeFromServer(ctx, app, deleteVolumes); err != nil && !force {
 		return apperr.Unavailable("Não foi possível limpar o servidor (%s). Use a remoção forçada para "+
 			"apagar apenas o registro.", err)
@@ -127,24 +148,6 @@ func (s *Service) Delete(ctx context.Context, id string, deleteVolumes, force bo
 		return err
 	}
 	return s.store.delete(ctx, id)
-}
-
-func (s *Service) cancelActiveDeployments(ctx context.Context, applicationID string) error {
-	for _, status := range []DeploymentStatus{DeploymentQueued, DeploymentInProgress} {
-		deployments, err := s.store.deploymentsByStatus(ctx, status)
-		if err != nil {
-			return err
-		}
-		for _, deployment := range deployments {
-			if deployment.ApplicationID != applicationID {
-				continue
-			}
-			if err := s.dispatcher.Cancel(ctx, deployment.ID); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }
 
 func (s *Service) removeFromServer(ctx context.Context, app Application, deleteVolumes bool) error {
@@ -184,19 +187,53 @@ func removeImages(ctx context.Context, ex executor.Executor, applicationID strin
 // Deploy queues a new deployment. A deployment already waiting in the queue
 // is reused, so bursts of pushes do not pile up builds.
 func (s *Service) Deploy(ctx context.Context, applicationID string, trigger Trigger) (Deployment, error) {
-	if _, err := s.Get(ctx, applicationID); err != nil {
+	return s.DeployRef(ctx, applicationID, trigger, "")
+}
+
+// DeployRef queues a deployment of a Git tag instead of the configured
+// branch; an empty ref deploys the configured source (its fixed tag, if any).
+func (s *Service) DeployRef(ctx context.Context, applicationID string, trigger Trigger, ref string) (Deployment, error) {
+	app, err := s.Get(ctx, applicationID)
+	if err != nil {
 		return Deployment{}, err
 	}
-	if queued, err := s.store.queuedDeployment(ctx, applicationID); err == nil {
+	if err := s.checkDeploy(ctx, app); err != nil {
+		return Deployment{}, err
+	}
+	ref = strings.TrimSpace(ref)
+	if ref != "" && !validRef(ref) {
+		return Deployment{}, apperr.Invalid("Nome de tag inválido.")
+	}
+	if ref != "" && app.Config.Build.Pack == PackImage {
+		return Deployment{}, apperr.Conflict("Aplicações de imagem Docker não são implantadas por tag Git.")
+	}
+	if queued, err := s.store.queuedDeployment(ctx, applicationID, ref); err == nil {
+		s.dispatcher.mu.Lock()
+		deleting := s.dispatcher.deleting[applicationID]
+		s.dispatcher.mu.Unlock()
+		if deleting {
+			return Deployment{}, apperr.Conflict("A aplicação está sendo removida. Aguarde a conclusão.")
+		}
 		return queued, nil
 	} else if !errors.Is(err, sqlite.ErrNotFound) {
 		return Deployment{}, err
 	}
-	return s.enqueue(ctx, Deployment{ApplicationID: applicationID, Trigger: trigger})
+	deployment := Deployment{ApplicationID: applicationID, Trigger: trigger, Ref: ref}
+	if ref != "" {
+		deployment.Source = i18n.Instance().Sprintf("Tag %s", ref)
+	}
+	return s.enqueue(ctx, deployment)
 }
 
 // Rollback queues a deployment that re-releases the image of a previous one.
 func (s *Service) Rollback(ctx context.Context, applicationID, deploymentID string) (Deployment, error) {
+	app, err := s.Get(ctx, applicationID)
+	if err != nil {
+		return Deployment{}, err
+	}
+	if err := s.checkDeploy(ctx, app); err != nil {
+		return Deployment{}, err
+	}
 	target, err := s.store.GetDeployment(ctx, deploymentID)
 	if err != nil {
 		return Deployment{}, notFound(err, "Deploy")
@@ -209,12 +246,21 @@ func (s *Service) Rollback(ctx context.Context, applicationID, deploymentID stri
 	}
 	return s.enqueue(ctx, Deployment{
 		ApplicationID: applicationID, Trigger: TriggerRollback, RollbackImage: target.Image,
-		CommitSHA: target.CommitSHA, CommitMessage: target.CommitMessage,
+		CommitSHA: target.CommitSHA, CommitMessage: target.CommitMessage, PromotedFrom: target.PromotedFrom,
 	})
 }
 
+func newDeploymentID() string { return idgen.New() }
+
 func (s *Service) enqueue(ctx context.Context, deployment Deployment) (Deployment, error) {
-	deployment.ID = idgen.New()
+	s.dispatcher.mu.Lock()
+	defer s.dispatcher.mu.Unlock()
+	if s.dispatcher.deleting[deployment.ApplicationID] {
+		return Deployment{}, apperr.Conflict("A aplicação está sendo removida. Aguarde a conclusão.")
+	}
+	if deployment.ID == "" {
+		deployment.ID = newDeploymentID()
+	}
 	deployment.Status = DeploymentQueued
 	deployment.CreatedAt = time.Now()
 	if err := s.store.insertDeployment(ctx, deployment); err != nil {
@@ -255,10 +301,14 @@ func (s *Service) DeploymentLogs(ctx context.Context, deploymentID string, after
 	return s.store.Logs(ctx, deploymentID, afterID)
 }
 
-// Containers lists the containers of the application on its server.
-func (s *Service) Containers(ctx context.Context, id string) ([]docker.Container, error) {
-	_, containers, err := s.reach(ctx, id)
-	return containers, err
+// Containers lists the containers of the application on its server, with
+// the process each one runs.
+func (s *Service) Containers(ctx context.Context, id string) ([]ApplicationContainer, error) {
+	ex, containers, err := s.reach(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return withProcesses(containers, containerProcesses(ctx, ex, id)), nil
 }
 
 // Stop stops the running containers without removing them.
@@ -330,7 +380,7 @@ func (s *Service) HandleDeployHook(ctx context.Context, id, presentedSecret stri
 	if err != nil {
 		return WebhookResult{}, err
 	}
-	return WebhookResult{Deployed: true, DeploymentID: deployment.ID, Reason: "Deploy enfileirado."}, nil
+	return WebhookResult{Deployed: true, DeploymentID: deployment.ID, Reason: i18n.FromContext(ctx).Text("Deploy enfileirado.")}, nil
 }
 
 // HandleGitPush processes a push webhook from a Git provider: it deploys only
@@ -342,24 +392,53 @@ func (s *Service) HandleGitPush(ctx context.Context, id string, provider GitProv
 		return WebhookResult{}, apperr.Unauthorized("Assinatura do webhook inválida.")
 	}
 	if !isPushEvent(provider, header) {
-		return WebhookResult{Reason: "Evento ignorado: apenas push dispara deploy."}, nil
+		return WebhookResult{Reason: i18n.FromContext(ctx).Text("Evento ignorado: apenas push dispara deploy.")}, nil
 	}
 	app, err := s.Get(ctx, id)
 	if err != nil {
 		return WebhookResult{}, err
 	}
 	if !app.Config.AutoDeploy {
-		return WebhookResult{Reason: "Deploy automático desativado para esta aplicação."}, nil
+		return WebhookResult{Reason: i18n.FromContext(ctx).Text("Deploy automático desativado para esta aplicação.")}, nil
+	}
+	if app.Config.Source.TagPattern != "" {
+		return s.handleTagPush(ctx, app, body)
 	}
 	branch, ok := pushedBranch(body)
 	if !ok || branch != app.Config.Source.Branch {
-		return WebhookResult{Reason: "Push em outra branch: nada a fazer."}, nil
+		return WebhookResult{Reason: i18n.FromContext(ctx).Text("Push em outra branch: nada a fazer.")}, nil
+	}
+	if !watchPathsChanged(app.Config.Source.WatchPaths, body) {
+		return WebhookResult{Reason: i18n.FromContext(ctx).Text("Push fora dos caminhos monitorados: nada a fazer.")}, nil
 	}
 	deployment, err := s.Deploy(ctx, id, TriggerWebhook)
 	if err != nil {
 		return WebhookResult{}, err
 	}
-	return WebhookResult{Deployed: true, DeploymentID: deployment.ID, Reason: "Deploy enfileirado."}, nil
+	return WebhookResult{Deployed: true, DeploymentID: deployment.ID, Reason: i18n.FromContext(ctx).Text("Deploy enfileirado.")}, nil
+}
+
+// handleTagPush deploys a pushed tag matching the source's pattern. With a
+// pattern set, branch pushes never deploy: the environment follows releases.
+func (s *Service) handleTagPush(ctx context.Context, app Application, body []byte) (WebhookResult, error) {
+	language := i18n.FromContext(ctx)
+	pattern := app.Config.Source.TagPattern
+	event, ok := parsePush(body)
+	tag, isTag := strings.CutPrefix(event.Ref, "refs/tags/")
+	switch {
+	case !ok || !isTag:
+		return WebhookResult{Reason: language.Sprintf("Esta aplicação só implanta tags (%s): push em branch ignorado.", pattern)}, nil
+	case event.removesRef():
+		return WebhookResult{Reason: language.Text("Tag removida: nada a fazer.")}, nil
+	}
+	if matched, _ := path.Match(pattern, tag); !matched || !validRef(tag) {
+		return WebhookResult{Reason: language.Sprintf("Tag fora do padrão %s: nada a fazer.", pattern)}, nil
+	}
+	deployment, err := s.DeployRef(ctx, app.ID, TriggerWebhook, tag)
+	if err != nil {
+		return WebhookResult{}, err
+	}
+	return WebhookResult{Deployed: true, DeploymentID: deployment.ID, Reason: language.Sprintf("Deploy da tag %s enfileirado.", tag)}, nil
 }
 
 func mergeFieldErrors(fields apperr.Fields, err error) error {
@@ -370,9 +449,7 @@ func mergeFieldErrors(fields apperr.Fields, err error) error {
 	if !ok {
 		return err
 	}
-	for field, message := range appErr.Fields {
-		fields.Add(field, "%s", message)
-	}
+	fields.Merge(appErr)
 	return fields.Err()
 }
 

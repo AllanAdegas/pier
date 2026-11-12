@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"pier/internal/platform/apperr"
+	"pier/internal/platform/i18n"
 )
 
 const maxBodyBytes = 2 << 20
@@ -59,23 +60,38 @@ var statusByKind = map[apperr.Kind]int{
 // writeError renders expected errors with their message and hides the
 // details of unexpected ones, which are only logged.
 func (a *API) writeError(w http.ResponseWriter, r *http.Request, err error) {
+	language := i18n.FromContext(r.Context())
 	if appErr, isExpected := apperr.As(err); isExpected {
 		writeJSON(w, statusByKind[appErr.Kind], errorBody{Error: errorDetail{
-			Code: string(appErr.Kind), Message: appErr.Message, Fields: appErr.Fields,
+			Code: string(appErr.Kind), Message: appErr.Localize(language), Fields: appErr.LocalizedFields(language),
 		}})
 		return
 	}
 	var tooLarge *http.MaxBytesError
 	if errors.As(err, &tooLarge) {
 		writeJSON(w, http.StatusRequestEntityTooLarge, errorBody{Error: errorDetail{
-			Code: "payload_too_large", Message: "O corpo da requisição excede 2 MB.",
+			Code: "payload_too_large", Message: language.Text("O corpo da requisição excede 2 MB."),
 		}})
 		return
 	}
 	a.Logger.Error("unhandled error", "method", r.Method, "path", r.URL.Path, "error", err)
+	writeInternalError(w, r)
+}
+
+// writeInternalError answers a failure whose details only go to the log.
+func writeInternalError(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusInternalServerError, errorBody{Error: errorDetail{
-		Code: "internal_error", Message: "Erro interno. Consulte os logs do Pier.",
+		Code: "internal_error", Message: i18n.FromContext(r.Context()).Text("Erro interno. Consulte os logs do Pier."),
 	}})
+}
+
+// withLanguage answers each request in the language it asks for, or in the
+// instance's.
+func withLanguage(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		language := i18n.FromAcceptLanguage(r.Header.Get("Accept-Language"), i18n.Instance())
+		next.ServeHTTP(w, r.WithContext(i18n.WithLanguage(r.Context(), language)))
+	})
 }
 
 // decode reads a JSON body into T, limiting its size.

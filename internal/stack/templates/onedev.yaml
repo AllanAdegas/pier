@@ -1,60 +1,27 @@
 name: OneDev
 description: Servidor Git com CI/CD, kanban e pacotes.
+description_en: Git server with CI/CD, kanban and packages.
 category: Git
 website: https://docs.onedev.io/
-tags:
-  - git
-  - scm
-  - ci
-  - cd
-  - kanban
-  - packages
-  - devops
-  - collaboration
-routes:
-  - service: onedev
+services:
+  onedev:
+    image: 1dev/server:17.1.2
     port: 6610
-compose: |
-  services:
-    onedev:
-      image: 1dev/server:latest
-      environment:
-        - hibernate_dialect=io.onedev.server.persistence.PostgreSQLDialect
-        - hibernate_connection_driver_class=org.postgresql.Driver
-        - hibernate_connection_url=jdbc:postgresql://postgres:5432/${POSTGRESQL_DATABASE:-onedev}
-        - hibernate_connection_username=${PIER_USER_DATABASE}
-        - hibernate_connection_password=${PIER_PASSWORD_64_DATABASE}
-        - initial_user=${PIER_USER_ONEDEV}
-        - initial_password=${PIER_PASSWORD_ONEDEV}
-        - initial_email=${ONEDEV_EMAIL:-mail@example.com}
-        - initial_server_url=${PIER_URL_ONEDEV}
-        - initial_ssh_root_url=${SSH_ROOT_URL:-ssh://changeme:22}
-      volumes:
-        - onedev-docker-sock:/var/run/docker.sock
-        - onedev-data:/opt/onedev
-      depends_on:
-        postgres:
-          condition: service_healthy
-      healthcheck:
-        test:
-          - CMD
-          - "true"
-    postgres:
-      image: postgres:16-alpine
-      environment:
-        - POSTGRES_USER=${PIER_USER_DATABASE}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_64_DATABASE}
-        - POSTGRES_DB=${POSTGRESQL_DATABASE:-onedev}
-      volumes:
-        - onedev-postgresql-data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - pg_isready
-        timeout: 20s
-  volumes:
-    onedev-data: null
-    onedev-docker-sock: null
-    onedev-postgresql-data: null
+    volumes:
+    - onedev-docker-sock:/var/run/docker.sock
+    - onedev-data:/opt/onedev
+    env:
+      hibernate_dialect: io.onedev.server.persistence.PostgreSQLDialect
+      hibernate_connection_driver_class: org.postgresql.Driver
+      hibernate_connection_url: jdbc:postgresql://postgres:5432/{{postgres.database}}
+      hibernate_connection_username: '{{postgres.user}}'
+      hibernate_connection_password: '{{postgres.password}}'
+      initial_user: ${PIER_USER_ONEDEV}
+      initial_password: ${PIER_PASSWORD_ONEDEV}
+      initial_email: ${ONEDEV_EMAIL:-mail@example.com}
+      initial_server_url: ${PIER_URL_ONEDEV}
+      initial_ssh_root_url: ${SSH_ROOT_URL:-ssh://${PIER_HOST_ONEDEV}:22}
+with:
+  postgres:
+    version: '16'
+    database: onedev

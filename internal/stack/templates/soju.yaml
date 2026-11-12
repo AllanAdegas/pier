@@ -1,43 +1,29 @@
 name: soju
 description: Bouncer de IRC com interface web moderna.
+description_en: IRC bouncer with a modern web interface.
 category: Mensageria
 website: https://soju.im/
-tags:
-  - irc
-  - bouncer
-  - chat
-  - messaging
-  - relay
-routes:
-  - service: gamja
+services:
+  gamja:
+    image: codeberg.org/emersion/gamja@sha256:9650c193b9148c6f68a920d7e066a8507a30e3cb1b8bee5dfd0496b5bee75759
     port: 80
-compose: |
-  services:
-    gamja:
-      image: codeberg.org/emersion/gamja:latest
-      depends_on:
-        - soju
-    soju:
-      image: codeberg.org/emersion/soju:latest
-      volumes:
-        - soju-db:/db
-        - soju-uploads:/uploads
-        - soju-run:/run/soju
-        - content: |
-            db sqlite3 /db/main.db
-            message-store db
-            file-upload fs /uploads/
-            listen irc+insecure://0.0.0.0:6667
-            listen ws+insecure://0.0.0.0:80
-            listen unix+admin:///run/soju/admin
-          source: ./soju/config
-          target: /soju-config
-          type: bind
-      networks:
-        default:
-          aliases:
-            - gamja-backend
-  volumes:
-    soju-db: null
-    soju-run: null
-    soju-uploads: null
+    needs:
+    - soju
+  soju:
+    image: codeberg.org/emersion/soju:v0.11.1
+    volumes:
+    - soju-db:/db
+    - soju-uploads:/uploads
+    - soju-run:/run/soju
+    - content: |
+        db sqlite3 /db/main.db
+        message-store db
+        file-upload fs /uploads/
+        listen irc+insecure://0.0.0.0:6667
+        listen ws+insecure://0.0.0.0:80
+        listen unix+admin:///run/soju/admin
+      source: ./soju/config
+      target: /soju-config
+      type: bind
+    aliases:
+    - gamja-backend

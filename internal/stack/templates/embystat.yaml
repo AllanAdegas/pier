@@ -1,34 +1,14 @@
 name: EmbyStat
 description: Estatísticas do seu servidor Emby ou Jellyfin.
+description_en: Statistics for your Emby or Jellyfin server.
 category: Analytics
 website: https://github.com/mregni/EmbyStat
-tags:
-  - analytics
-  - insights
-  - statistics
-  - web
-  - traffic
-routes:
-  - service: embystat
+services:
+  embystat:
+    image: lscr.io/linuxserver/embystat:0.2.0
     port: 6555
-compose: |
-  services:
-    embystat:
-      image: lscr.io/linuxserver/embystat:latest
-      environment:
-        - PUID=1000
-        - PGID=1000
-        - TZ=Europe/Madrid
-      volumes:
-        - embystat-config:/config
-      healthcheck:
-        interval: 2s
-        retries: 15
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:6555
-        timeout: 10s
-  volumes:
-    embystat-config: null
+    data: /config
+    env:
+      PUID: '1000'
+      PGID: '1000'
+      TZ: Europe/Madrid

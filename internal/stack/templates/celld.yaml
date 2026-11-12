@@ -1,34 +1,21 @@
 name: Celld
 description: Durable Objects distribuídos e auto-hospedados, sobre Deno.
+description_en: Distributed, self-hosted Durable Objects on Deno.
 category: Backend
 website: https://celld.dev/docs
-tags:
-  - deno
-  - durable-objects
-  - workers
-  - sqlite
-  - distributed
-  - backend
-  - serverless
-routes:
-  - service: celld
+services:
+  celld:
+    image: ghcr.io/denoland/celld:${CELLD_VERSION:-v0.6.3}
     port: 8080
-compose: |
-  services:
-    celld:
-      image: ghcr.io/denoland/celld:${CELLD_VERSION:-latest}
-      environment:
-        - CELLD_BUCKET=${CELLD_BUCKET:?}
-        - S3_ENDPOINT=${S3_ENDPOINT:-}
-        - AWS_REGION=${AWS_REGION:-us-east-1}
-        - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:?}
-        - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:?}
-        - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
-        - CELLD_ADDR=0.0.0.0:8080
-        - CELLD_ADVERTISE=celld:8080
-        - CELLD_WATCH=/var/lib/celld/state
-        - RUST_LOG=${RUST_LOG:-info}
-      volumes:
-        - celld-data:/var/lib/celld
-  volumes:
-    celld-data: null
+    data: /var/lib/celld
+    env:
+      CELLD_BUCKET: ${CELLD_BUCKET:?}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:?}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:?}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      CELLD_ADDR: 0.0.0.0:8080
+      CELLD_ADVERTISE: celld:8080
+      CELLD_WATCH: /var/lib/celld/state
+      RUST_LOG: ${RUST_LOG:-info}

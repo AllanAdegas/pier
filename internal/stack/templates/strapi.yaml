@@ -1,91 +1,62 @@
 name: Strapi
 description: CMS headless open source para construir APIs.
+description_en: Open source headless CMS to build APIs.
 category: Backend
 website: https://docs.strapi.io/
-tags:
-  - cms
-  - headless
-  - mysql
-  - api
-routes:
-  - service: strapi
+services:
+  postgresql:
+    image: elestio/postgres:18
+    data: /var/lib/postgresql/data
+    env:
+      POSTGRES_DB: ${POSTGRESQL_DATABASE:-strapi}
+      POSTGRES_USER: $PIER_USER_POSTGRESQL
+      POSTGRES_PASSWORD: $PIER_PASSWORD_POSTGRESQL
+      PGDATA: /var/lib/postgresql/data
+    health: 'cmd: pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}'
+  strapi:
+    image: elestio/strapi-production:v5.33.4
     port: 1337
-compose: |
-  services:
-    postgresql:
-      image: elestio/postgres:latest
-      environment:
-        - POSTGRES_DB=${POSTGRESQL_DATABASE:-strapi}
-        - POSTGRES_USER=$PIER_USER_POSTGRESQL
-        - POSTGRES_PASSWORD=$PIER_PASSWORD_POSTGRESQL
-        - PGDATA=/var/lib/postgresql/data
-      volumes:
-        - strapi-postgresql-data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
-        timeout: 20s
-    strapi:
-      image: elestio/strapi-production:v5.33.4
-      command:
-        - -c
-        - |
-          cat > /opt/app/src/admin/vite.config.js << 'EOFVITE'
-          const { mergeConfig } = require('vite');
-          module.exports = (config) => {
-            return mergeConfig(config, {
-              resolve: {
-                alias: {
-                  '@': '/src',
-                },
-              },
-              server: {
-                allowedHosts: ['$PIER_HOST_STRAPI']
-              }
-            });
-          };
-          EOFVITE
-          exec npm run develop
-      entrypoint: /bin/sh
-      environment:
-        - DATABASE_CLIENT=postgres
-        - DATABASE_HOST=postgresql
-        - DATABASE_PORT=5432
-        - DATABASE_NAME=${POSTGRESQL_DATABASE:-strapi}
-        - DATABASE_USERNAME=$PIER_USER_POSTGRESQL
-        - DATABASE_PASSWORD=$PIER_PASSWORD_POSTGRESQL
-        - JWT_SECRET=$PIER_PASSWORD_64_SECRET
-        - ADMIN_JWT_SECRET=$PIER_PASSWORD_64_SECRET
-        - APP_KEYS=$PIER_PASSWORD_64_KEY
-        - STRAPI_TELEMETRY_DISABLED=${STRAPI_TELEMETRY_DISABLED:-true}
-        - STRAPI_LICENSE=${STRAPI_LICENSE}
-        - NODE_ENV=${NODE_ENV:-development}
-        - BROWSER=${BROWSER:-true}
-        - STRAPI_PLUGIN_I18N_INIT_LOCALE_CODE=${STRAPI_PLUGIN_I18N_INIT_LOCALE_CODE:-en}
-        - STRAPI_ENFORCE_SOURCEMAPS=${STRAPI_ENFORCE_SOURCEMAPS:-false}
-        - FAST_REFRESH=${FAST_REFRESH:-true}
-      volumes:
-        - strapi-config:/opt/app/config
-        - strapi-src:/opt/app/src
-        - strapi-uploads:/opt/app/public/uploads
-      depends_on:
-        postgresql:
-          condition: service_healthy
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - wget
-          - -q
-          - --spider
-          - http://127.0.0.1:1337/
-        timeout: 20s
-  volumes:
-    strapi-config: null
-    strapi-postgresql-data: null
-    strapi-src: null
-    strapi-uploads: null
+    command:
+    - -c
+    - |
+      cat > /opt/app/src/admin/vite.config.js << 'EOFVITE'
+      const { mergeConfig } = require('vite');
+      module.exports = (config) => {
+        return mergeConfig(config, {
+          resolve: {
+            alias: {
+              '@': '/src',
+            },
+          },
+          server: {
+            allowedHosts: ['$PIER_HOST_STRAPI']
+          }
+        });
+      };
+      EOFVITE
+      exec npm run develop
+    entrypoint: /bin/sh
+    volumes:
+    - strapi-config:/opt/app/config
+    - strapi-src:/opt/app/src
+    - strapi-uploads:/opt/app/public/uploads
+    env:
+      DATABASE_CLIENT: postgres
+      DATABASE_HOST: postgresql
+      DATABASE_PORT: '5432'
+      DATABASE_NAME: ${POSTGRESQL_DATABASE:-strapi}
+      DATABASE_USERNAME: $PIER_USER_POSTGRESQL
+      DATABASE_PASSWORD: $PIER_PASSWORD_POSTGRESQL
+      JWT_SECRET: $PIER_PASSWORD_64_SECRET
+      ADMIN_JWT_SECRET: $PIER_PASSWORD_64_SECRET
+      APP_KEYS: $PIER_PASSWORD_64_KEY
+      STRAPI_TELEMETRY_DISABLED: ${STRAPI_TELEMETRY_DISABLED:-true}
+      STRAPI_LICENSE: ${STRAPI_LICENSE}
+      NODE_ENV: ${NODE_ENV:-development}
+      BROWSER: ${BROWSER:-true}
+      STRAPI_PLUGIN_I18N_INIT_LOCALE_CODE: ${STRAPI_PLUGIN_I18N_INIT_LOCALE_CODE:-en}
+      STRAPI_ENFORCE_SOURCEMAPS: ${STRAPI_ENFORCE_SOURCEMAPS:-false}
+      FAST_REFRESH: ${FAST_REFRESH:-true}
+    depends_on:
+      postgresql:
+        condition: service_healthy

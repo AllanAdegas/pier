@@ -2,6 +2,7 @@ package application
 
 import (
 	"fmt"
+	"net/url"
 	"path"
 	"regexp"
 	"strings"
@@ -17,7 +18,8 @@ var (
 	// Only transports that cannot execute local commands (no ext::, file://).
 	repositoryPattern = regexp.MustCompile(`^(https?://[^\s'"\x60]+|ssh://[^\s'"\x60]+|[A-Za-z0-9._-]+@[A-Za-z0-9.-]+:[A-Za-z0-9._~/-]+)$`)
 	branchPattern     = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$`)
-	commitPattern     = regexp.MustCompile(`^[0-9a-fA-F]{7,64}$`)
+	tagPatternSyntax  = regexp.MustCompile(`^[A-Za-z0-9*?._/\[\]-]{1,100}$`)
+	commitPattern     = regexp.MustCompile(`^([0-9a-fA-F]{40}|[0-9a-fA-F]{64})$`)
 	portMapPattern    = regexp.MustCompile(`^((\d{1,3}\.){3}\d{1,3}:)?\d{1,5}:\d{1,5}(/(tcp|udp))?$`)
 	cpusPattern       = regexp.MustCompile(`^\d+(\.\d{1,3})?$`)
 	memoryPattern     = regexp.MustCompile(`^\d+[bkmgBKMG]$`)
@@ -31,6 +33,10 @@ func (c *Config) normalize() {
 	c.Source.Branch = orDefault(strings.TrimSpace(c.Source.Branch), defaults.Source.Branch)
 	c.Source.Commit = strings.TrimSpace(c.Source.Commit)
 	c.Source.Image = strings.TrimSpace(c.Source.Image)
+	c.Source.WatchPaths = compact(c.Source.WatchPaths)
+	c.Source.Tag = strings.TrimSpace(c.Source.Tag)
+	c.Source.TagPattern = strings.TrimSpace(c.Source.TagPattern)
+	c.Release.Command = strings.TrimSpace(c.Release.Command)
 	c.Build.BaseDirectory = cleanRelative(c.Build.BaseDirectory)
 	c.Build.DockerfilePath = strings.TrimPrefix(cleanRelative(orDefault(c.Build.DockerfilePath, "Dockerfile")), "/")
 	c.Build.PublishDirectory = cleanRelative(c.Build.PublishDirectory)
@@ -54,6 +60,7 @@ func (c *Config) normalize() {
 	if c.Storages == nil {
 		c.Storages = []Storage{}
 	}
+	c.normalizeProcesses()
 }
 
 // Validate normalizes the config and reports every invalid field. Values end
@@ -67,6 +74,7 @@ func (c *Config) Validate() error {
 	c.validateHealth(fields)
 	c.validateLimits(fields)
 	c.validateStorages(fields)
+	c.validateProcesses(fields)
 	return fields.Err()
 }
 
@@ -80,11 +88,28 @@ func (c *Config) validateSource(fields apperr.Fields) {
 	if !repositoryPattern.MatchString(c.Source.Repository) {
 		fields.Add("source.repository", "Use uma URL https:// ou git@host:org/repo.git.")
 	}
+	if strings.Contains(c.Source.Repository, "://") {
+		parsed, err := url.Parse(c.Source.Repository)
+		if err != nil || parsed.Host == "" || parsed.Fragment != "" || parsed.RawQuery != "" {
+			fields.Add("source.repository", "URL de repositório inválida. Use uma URL válida ou uma chave de deploy para autenticar.")
+		}
+	}
+	for _, pattern := range c.Source.WatchPaths {
+		if !validWatchPattern(pattern) {
+			fields.Add("source.watch_paths", "Caminho de monitoramento inválido: use globs relativos ao repositório, ex.: apps/api/**.")
+		}
+	}
 	if !branchPattern.MatchString(c.Source.Branch) || strings.Contains(c.Source.Branch, "..") {
 		fields.Add("source.branch", "Nome de branch inválido.")
 	}
+	if c.Source.Tag != "" && !validRef(c.Source.Tag) {
+		fields.Add("source.tag", "Nome de tag inválido.")
+	}
+	if c.Source.TagPattern != "" && !validTagPattern(c.Source.TagPattern) {
+		fields.Add("source.tag_pattern", "Padrão de tag inválido: use letras, números, '.', '-', '/' e curingas, ex.: v*.")
+	}
 	if c.Source.Commit != "" && !commitPattern.MatchString(c.Source.Commit) {
-		fields.Add("source.commit", "Informe o SHA do commit (7 a 64 caracteres hexadecimais).")
+		fields.Add("source.commit", "Informe o SHA completo do commit (40 ou 64 caracteres hexadecimais).")
 	}
 	usesSSH := !strings.HasPrefix(c.Source.Repository, "http")
 	if usesSSH && c.Source.PrivateKeyID == "" {
@@ -176,6 +201,17 @@ func (c *Config) validateStorages(fields apperr.Fields) {
 		}
 		targets[storage.Target] = true
 	}
+}
+
+// validRef accepts Git branch and tag names that are safe as data.
+func validRef(ref string) bool {
+	return branchPattern.MatchString(ref) && !strings.Contains(ref, "..") && !strings.Contains(ref, "//") &&
+		!strings.HasSuffix(ref, "/") && !strings.HasSuffix(ref, ".lock")
+}
+
+func validTagPattern(pattern string) bool {
+	_, err := path.Match(pattern, "")
+	return err == nil && tagPatternSyntax.MatchString(pattern) && !strings.Contains(pattern, "..")
 }
 
 // safeRelativePath accepts paths that stay inside the repository.

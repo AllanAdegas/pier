@@ -1,36 +1,18 @@
 name: Navidrome
 description: Servidor de música compatível com clientes Subsonic.
+description_en: Music server compatible with Subsonic clients.
 category: Mídia
 website: https://www.navidrome.org/docs/
-tags:
-  - media
-  - server
-  - music
-  - subsonic
-routes:
-  - service: navidrome
+services:
+  navidrome:
+    image: deluan/navidrome:0.64.2
     port: 4533
-compose: |
-  services:
-    navidrome:
-      image: deluan/navidrome:latest
-      restart: unless-stopped
-      environment:
-        - ND_BASEURL=${PIER_URL_NAVIDROME}
-        - ND_SCANSCHEDULE=${ND_SCANSCHEDULE:-1h}
-        - ND_LOGLEVEL=${ND_LOGLEVEL:-info}
-        - ND_SESSIONTIMEOUT=${ND_SESSIONTIMEOUT:-24h}
-        - ND_ENABLEINSIGHTSCOLLECTOR=${ND_ENABLEINSIGHTSCOLLECTOR:-false}
-      volumes:
-        - ./data:/data
-        - ./music:/music:ro
-      healthcheck:
-        interval: 10s
-        retries: 5
-        test:
-          - CMD
-          - wget
-          - --spider
-          - --quiet
-          - http://127.0.0.1:4533/ping
-        timeout: 5s
+    volumes:
+    - ./data:/data
+    - ./music:/music:ro
+    env:
+      ND_BASEURL: ${PIER_URL_NAVIDROME}
+      ND_SCANSCHEDULE: ${ND_SCANSCHEDULE:-1h}
+      ND_LOGLEVEL: ${ND_LOGLEVEL:-info}
+      ND_SESSIONTIMEOUT: ${ND_SESSIONTIMEOUT:-24h}
+      ND_ENABLEINSIGHTSCOLLECTOR: ${ND_ENABLEINSIGHTSCOLLECTOR:-false}

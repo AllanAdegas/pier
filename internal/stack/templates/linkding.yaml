@@ -1,27 +1,13 @@
 name: linkding
 description: Gerenciador de favoritos minimalista, rápido e fácil de instalar.
+description_en: Minimal bookmark manager, fast and easy to set up.
 category: RSS
 website: https://linkding.link/
-tags:
-  - rss
-  - feed
-routes:
-  - service: linkding
+services:
+  linkding:
+    image: sissbruecker/linkding:1.47.0
     port: 9090
-compose: |
-  services:
-    linkding:
-      image: sissbruecker/linkding:latest
-      environment:
-        - LD_SUPERUSER_NAME=${PIER_USER_LINKDING}
-        - LD_SUPERUSER_PASSWORD=${PIER_PASSWORD_LINKDING}
-      volumes:
-        - linkding_data:/etc/linkding/data
-      healthcheck:
-        interval: 5s
-        test:
-          - CMD-SHELL
-          - bash -c ':> /dev/tcp/127.0.0.1/9090' || exit 1
-        timeout: 5s
-  volumes:
-    linkding_data: null
+    data: /etc/linkding/data
+    env:
+      LD_SUPERUSER_NAME: ${PIER_USER_LINKDING}
+      LD_SUPERUSER_PASSWORD: ${PIER_PASSWORD_LINKDING}

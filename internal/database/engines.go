@@ -3,6 +3,8 @@ package database
 import (
 	"fmt"
 	"net/url"
+
+	"pier/internal/platform/i18n"
 )
 
 // Engine identifies a database product.
@@ -186,12 +188,12 @@ func specFor(engine Engine) (engineSpec, bool) {
 	return engineSpec{}, false
 }
 
-// Engines lists the catalog for the UI.
-func Engines() []EngineInfo {
+// Engines lists the catalog for the UI, described in a language.
+func Engines(language i18n.Language) []EngineInfo {
 	infos := make([]EngineInfo, len(catalog))
 	for i, spec := range catalog {
 		infos[i] = EngineInfo{
-			Engine: spec.Engine, Label: spec.Label, Description: spec.Description, DefaultImage: spec.DefaultImage,
+			Engine: spec.Engine, Label: spec.Label, Description: language.Text(spec.Description), DefaultImage: spec.DefaultImage,
 			Port: spec.Port, UsesAccount: spec.UsesAccount, SupportsBackup: spec.Dump != nil,
 		}
 	}

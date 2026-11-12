@@ -1,58 +1,34 @@
 name: Cap (gravação de tela)
 description: 'Alternativa open source ao Loom: grave e compartilhe em segundos.'
+description_en: 'Open source alternative to Loom: record and share in seconds.'
 category: Mídia
 website: https://cap.so
-tags:
-  - cap
-  - loom
-  - code
-routes:
-  - service: cap-web
+services:
+  cap-web:
+    image: ghcr.io/capsoftware/cap-web@sha256:e2dbc1e802011c46190c8de19ced866ae43b9dfb23946d49203b368a8cd81719
     port: 3000
-compose: |
-  services:
-    cap-db:
-      image: mysql:8.0
-      command:
-        - --max_connections=1000
-        - --default-authentication-plugin=mysql_native_password
-      environment:
-        - MYSQL_USER=${PIER_USER_MYSQL}
-        - MYSQL_PASSWORD=${PIER_PASSWORD_MYSQL}
-        - MYSQL_DATABASE=${MYSQL_DATABASE:-planetscale}
-        - MYSQL_ROOT_PASSWORD=${PIER_PASSWORD_MYSQLROOT}
-        - MYSQL_ALLOW_EMPTY_PASSWORD=${MYSQL_ALLOW_EMPTY_PASSWORD:-yes}
-      volumes:
-        - cap_db:/var/lib/mysql
-      healthcheck:
-        interval: 10s
-        retries: 5
-        test:
-          - CMD
-          - mysqladmin
-          - ping
-          - -h
-          - 127.0.0.1
-        timeout: 10s
-    cap-web:
-      image: ghcr.io/capsoftware/cap-web:latest
-      environment:
-        - DATABASE_URL=mysql://$PIER_USER_MYSQL:$PIER_PASSWORD_MYSQL@cap-db:3306/${MYSQL_DATABASE:-planetscale}
-        - WEB_URL=${PIER_URL_CAP_WEB}
-        - NEXTAUTH_URL=${PIER_URL_CAP_WEB}
-        - DATABASE_ENCRYPTION_KEY=${PIER_PASSWORD_64_DATABASEENCRYPTIONKEY}
-        - NEXTAUTH_SECRET=${PIER_PASSWORD_64_NEXTAUTHSECRET}
-        - CAP_AWS_ACCESS_KEY=${CAP_AWS_ACCESS_KEY:?}
-        - CAP_AWS_SECRET_KEY=${CAP_AWS_SECRET_KEY:?}
-        - CAP_AWS_BUCKET=${CAP_AWS_BUCKET:?}
-        - CAP_AWS_REGION=${CAP_AWS_REGION:?}
-        - S3_PUBLIC_ENDPOINT=${S3_PUBLIC_ENDPOINT:?}
-        - S3_INTERNAL_ENDPOINT=${S3_INTERNAL_ENDPOINT:?}
-        - NEXT_RUNTIME=nodejs
-        - S3_PATH_STYLE=${S3_PATH_STYLE:-true}
-        - CAP_AWS_ENDPOINT=${CAP_AWS_ENDPOINT:?}
-      depends_on:
-        cap-db:
-          condition: service_healthy
-  volumes:
-    cap_db: null
+    env:
+      DATABASE_URL: mysql://{{cap-db.user}}:{{cap-db.password}}@cap-db:3306/{{cap-db.database}}
+      WEB_URL: ${PIER_URL_CAP_WEB}
+      NEXTAUTH_URL: ${PIER_URL_CAP_WEB}
+      DATABASE_ENCRYPTION_KEY: ${PIER_PASSWORD_64_DATABASEENCRYPTIONKEY}
+      NEXTAUTH_SECRET: ${PIER_PASSWORD_64_NEXTAUTHSECRET}
+      CAP_AWS_ACCESS_KEY: ${CAP_AWS_ACCESS_KEY:?}
+      CAP_AWS_SECRET_KEY: ${CAP_AWS_SECRET_KEY:?}
+      CAP_AWS_BUCKET: ${CAP_AWS_BUCKET:?}
+      CAP_AWS_REGION: ${CAP_AWS_REGION:?}
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:?}
+      S3_INTERNAL_ENDPOINT: ${S3_INTERNAL_ENDPOINT:?}
+      NEXT_RUNTIME: nodejs
+      S3_PATH_STYLE: ${S3_PATH_STYLE:-true}
+      CAP_AWS_ENDPOINT: ${CAP_AWS_ENDPOINT:?}
+with:
+  cap-db:
+    kind: mysql
+    version: '8.0'
+    args:
+    - --max_connections=1000
+    - --default-authentication-plugin=mysql_native_password
+    env:
+      MYSQL_ALLOW_EMPTY_PASSWORD: ${MYSQL_ALLOW_EMPTY_PASSWORD:-no}
+    database: planetscale

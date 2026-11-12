@@ -21,6 +21,7 @@ func (a *API) registerServerRoutes(mux *http.ServeMux) {
 	a.route(mux, "PATCH /api/v1/servers/{id}", canWrite, a.updateServer)
 	a.route(mux, "DELETE /api/v1/servers/{id}", canWrite, a.deleteServer)
 	a.route(mux, "POST /api/v1/servers/{id}/validate", canWrite, a.validateServer)
+	a.route(mux, "POST /api/v1/servers/{id}/check-domain", canRead, a.checkServerDomain)
 	a.route(mux, "POST /api/v1/servers/{id}/reset-host-key", canWrite, a.resetHostKey)
 	a.route(mux, "GET /api/v1/servers/{id}/metrics", canRead, a.serverMetrics)
 	a.route(mux, "GET /api/v1/servers/{id}/files", canWrite, a.browseServer)
@@ -164,6 +165,9 @@ func (a *API) syncEdge(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (a *API) proxyLogs(w http.ResponseWriter, r *http.Request) error {
+	if err := requireSensitive(r); err != nil {
+		return err
+	}
 	logs, err := a.Proxy.Logs(r.Context(), r.PathValue("id"))
 	if err != nil {
 		return err
@@ -172,8 +176,13 @@ func (a *API) proxyLogs(w http.ResponseWriter, r *http.Request) error {
 }
 
 // streamContainerLogs follows the logs of a managed container as SSE. It
-// serves applications, databases, stacks and the proxy alike.
+// serves applications, databases, stacks and the proxy alike. Like the logs
+// of plain Docker containers and pods, the output is sensitive: services
+// print tokens and connection strings.
 func (a *API) streamContainerLogs(w http.ResponseWriter, r *http.Request) error {
+	if err := requireSensitive(r); err != nil {
+		return err
+	}
 	ex, _, err := a.Connector.Executor(r.Context(), r.PathValue("id"))
 	if err != nil {
 		return err
@@ -254,4 +263,18 @@ func (a *API) browseServer(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	return ok(w, listing)
+}
+
+func (a *API) checkServerDomain(w http.ResponseWriter, r *http.Request) error {
+	input, err := decode[struct {
+		Domain string `json:"domain"`
+	}](w, r)
+	if err != nil {
+		return err
+	}
+	result, err := a.Servers.CheckDomain(r.Context(), r.PathValue("id"), input.Domain)
+	if err != nil {
+		return err
+	}
+	return ok(w, result)
 }

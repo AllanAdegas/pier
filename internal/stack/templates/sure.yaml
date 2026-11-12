@@ -1,110 +1,46 @@
 name: Sure
 description: Plataforma completa de finanças pessoais.
+description_en: Complete personal finance platform.
 category: Finanças
 website: https://github.com/we-promise/sure
-tags:
-  - budgeting
-  - budget
-  - money
-  - expenses
-  - income
-routes:
-  - service: web
+services:
+  web:
+    image: ghcr.io/we-promise/sure:0.6.7
     port: 3000
-compose: |
-  services:
-    postgresql:
-      image: postgres:16-alpine
-      environment:
-        - POSTGRES_USER=${PIER_USER_POSTGRESQL}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRESQL}
-        - POSTGRES_DB=${POSTGRESQL_DATABASE:-sure}
-      volumes:
-        - sure-postgresql-data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
-        timeout: 20s
-    valkey:
-      image: valkey/valkey:8-alpine
-      command: valkey-server --appendonly yes
-      volumes:
-        - sure-valkey:/data
-      healthcheck:
-        interval: 5s
-        retries: 5
-        start_period: 3s
-        test:
-          - CMD-SHELL
-          - valkey-cli ping | grep PONG
-        timeout: 5s
-    web:
-      image: ghcr.io/we-promise/sure:0.6.7
-      environment:
-        - APP_DOMAIN=$PIER_HOST_WEB
-        - SECRET_KEY_BASE=$PIER_PASSWORD_BASE
-        - POSTGRES_USER=${PIER_USER_POSTGRESQL}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRESQL}
-        - POSTGRES_DB=${POSTGRESQL_DATABASE:-sure}
-        - REDIS_URL=redis://valkey:6379
-        - DB_HOST=postgresql
-        - DB_PORT=5432
-        - SELF_HOSTED=true
-        - RAILS_FORCE_SSL=false
-        - RAILS_ASSUME_SSL=false
-        - ONBOARDING_STATE=${ONBOARDING_STATE:-open}
-      volumes:
-        - sure-app-storage:/rails/storage
-      depends_on:
-        postgresql:
-          condition: service_healthy
-        valkey:
-          condition: service_healthy
-      healthcheck:
-        interval: 15s
-        retries: 5
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:3000
-        timeout: 20s
-    worker:
-      image: ghcr.io/we-promise/sure:0.6.7
-      command: bundle exec sidekiq
-      environment:
-        - APP_DOMAIN=$PIER_HOST_WEB
-        - SECRET_KEY_BASE=$PIER_PASSWORD_BASE
-        - POSTGRES_USER=${PIER_USER_POSTGRESQL}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRESQL}
-        - POSTGRES_DB=${POSTGRESQL_DATABASE:-sure}
-        - REDIS_URL=redis://valkey:6379
-        - DB_HOST=postgresql
-        - DB_PORT=5432
-        - SELF_HOSTED=true
-        - RAILS_FORCE_SSL=false
-        - RAILS_ASSUME_SSL=false
-        - ONBOARDING_STATE=${ONBOARDING_STATE:-open}
-      volumes:
-        - sure-app-storage:/rails/storage
-      depends_on:
-        postgresql:
-          condition: service_healthy
-        valkey:
-          condition: service_healthy
-      healthcheck:
-        interval: 15s
-        retries: 5
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:3000
-        timeout: 20s
-  volumes:
-    sure-app-storage: null
-    sure-postgresql-data: null
-    sure-valkey: null
+    data: /rails/storage
+    env:
+      APP_DOMAIN: $PIER_HOST_WEB
+      SECRET_KEY_BASE: $PIER_PASSWORD_BASE
+      POSTGRES_USER: '{{postgresql.user}}'
+      POSTGRES_PASSWORD: '{{postgresql.password}}'
+      POSTGRES_DB: '{{postgresql.database}}'
+      REDIS_URL: redis://valkey:6379
+      DB_HOST: postgresql
+      DB_PORT: '5432'
+      SELF_HOSTED: 'true'
+      RAILS_FORCE_SSL: 'false'
+      RAILS_ASSUME_SSL: 'false'
+      ONBOARDING_STATE: ${ONBOARDING_STATE:-open}
+  worker:
+    image: ghcr.io/we-promise/sure:0.6.7
+    data: /rails/storage
+    command: bundle exec sidekiq
+    env:
+      APP_DOMAIN: $PIER_HOST_WEB
+      SECRET_KEY_BASE: $PIER_PASSWORD_BASE
+      POSTGRES_USER: '{{postgresql.user}}'
+      POSTGRES_PASSWORD: '{{postgresql.password}}'
+      POSTGRES_DB: '{{postgresql.database}}'
+      REDIS_URL: redis://valkey:6379
+      DB_HOST: postgresql
+      DB_PORT: '5432'
+      SELF_HOSTED: 'true'
+      RAILS_FORCE_SSL: 'false'
+      RAILS_ASSUME_SSL: 'false'
+      ONBOARDING_STATE: ${ONBOARDING_STATE:-open}
+with:
+  postgresql:
+    kind: postgres
+    version: '16'
+    database: sure
+  valkey: {}

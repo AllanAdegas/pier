@@ -1,26 +1,12 @@
 name: Organizr
 description: Organizador de serviços de homelab.
+description_en: Homelab service organizer.
 category: Produtividade
 website: https://docs.organizr.app/
-tags:
-  - tool
-routes:
-  - service: organizr
+services:
+  organizr:
+    image: organizr/organizr@sha256:703de7b15e3ca0046c9bcfee03c72539f74acc5e26929f2911aa1af2be8ebb01
     port: 80
-compose: |
-  services:
-    organizr:
-      image: organizr/organizr:latest
-      environment:
-        - branch=${branch:-v2-master}
-      volumes:
-        - organizr-data:/config
-      healthcheck:
-        interval: 10s
-        retries: 3
-        test:
-          - CMD-SHELL
-          - curl -sf http://localhost:80 || exit 1
-        timeout: 1s
-  volumes:
-    organizr-data: null
+    data: /config
+    env:
+      branch: ${branch:-v2-master}

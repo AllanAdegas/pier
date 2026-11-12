@@ -3,6 +3,9 @@
 # Go binary embeds; the result is a single self-contained executable.
 
 BINARY := bin/pier
+# Same release flags as the Dockerfile: static binary (no cgo; SQLite is pure
+# Go), reproducible paths, no symbol tables.
+GOBUILD := CGO_ENABLED=0 go build -trimpath -ldflags="-s -w"
 WEBUI  := internal/webui/dist
 
 .PHONY: all web build test vet run dev-api dev-web docker-build docker-up docker-down clean
@@ -11,13 +14,13 @@ all: build
 
 ## web: compile the SolidJS interface and stage it for embedding
 web:
-	cd web && deno install && deno task build
+	cd web && deno install --frozen && deno task build
 	find $(WEBUI) -mindepth 1 ! -name .gitkeep -delete
 	cp -R web/dist/. $(WEBUI)/
 
 ## build: compile the interface and the single binary
 build: web
-	go build -o $(BINARY) ./cmd/pier
+	$(GOBUILD) -o $(BINARY) ./cmd/pier
 
 ## test: run Go tests and type-check the interface
 test:

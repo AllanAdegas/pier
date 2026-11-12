@@ -4,6 +4,7 @@ import { Alert } from "../../components/Feedback";
 import { CopyField, Section } from "../../components/Page";
 import type { ApiToken } from "../../lib/types";
 import { TokenForm } from "./TokenForm";
+import { t } from "../../i18n";
 
 const TOKEN_PLACEHOLDER = "<token>";
 
@@ -24,37 +25,34 @@ export function McpSection(props: { onTokenCreated: () => void }) {
 
   return (
     <Section
-      title="IA e agentes (MCP)"
-      description="Conecte Claude, Cursor ou outro agente pelo Model Context Protocol. O agente age com as permissões do token e não consegue remover nada."
+      title={t("IA e agentes (MCP)")}
+      description={t("Conecte Claude, Cursor ou outro agente pelo Model Context Protocol. O agente age com as permissões do token e não consegue remover nada.")}
       actions={
-        <Button small icon="plus" onClick={() => setAdding(true)}>
-          Criar token para IA
+        <Button small icon="plus" onClick={() => setAdding(true)}>{t("Criar token para IA")}
         </Button>
       }
     >
       <div class="stack">
-        <CopyField label="Endereço MCP" value={endpoint()} hint="Aceita só token de API no cabeçalho Authorization, nunca a sessão do painel." />
+        <CopyField label={t("Endereço MCP")} value={endpoint()} hint={t("Aceita só token de API no cabeçalho Authorization, nunca a sessão do painel.")} />
         <Show
           when={token()}
-          fallback={<p class="small muted">Crie um token para a IA: os trechos abaixo passam a trazê-lo preenchido.</p>}
+          fallback={<p class="small muted">{t("Crie um token para a IA: os trechos abaixo passam a trazê-lo preenchido.")}</p>}
         >
-          <Alert tone="warning">Copie agora: o token aparece só desta vez.</Alert>
+          <Alert tone="warning">{t("Copie agora: o token aparece só desta vez.")}</Alert>
         </Show>
         <CopyField label="Claude Code" value={claudeCode()} secret={token() !== null} />
         <CopyField
-          label="Clientes com MCP por HTTP (Cursor, Claude Desktop com conector, JSON genérico)"
+          label={t("Clientes com MCP por HTTP (Cursor, Claude Desktop com conector, JSON genérico)")}
           value={httpConfig()}
           secret={token() !== null}
         />
         <CopyField
-          label="Clientes só com stdio"
+          label={t("Clientes só com stdio")}
           value={stdioConfig()}
           secret={token() !== null}
-          hint="Usa o próprio binário do Pier como ponte: o comando pier precisa estar no PATH da máquina do agente."
+          hint={t("Usa o próprio binário do Pier como ponte: o comando pier precisa estar no PATH da máquina do agente.")}
         />
-        <Alert tone="info">
-          Logs de deploy e de containers chegam ao agente e podem conter instruções de terceiros. Dê ao token só o que a IA
-          precisa: Leitura para consultar, Deploy para implantar e reiniciar. Escrita raramente é necessária.
+        <Alert tone="info">{t("Logs de deploy e de containers chegam ao agente e podem conter instruções de terceiros. Dê ao token só o que a IA precisa: Leitura para consultar, Deploy para implantar e reiniciar. Escrita raramente é necessária.")}
         </Alert>
       </div>
       <Show when={adding()}>

@@ -7,12 +7,15 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"time"
 
 	"pier/internal/docker"
+	"pier/internal/envvar"
+	"pier/internal/platform/i18n"
 	"pier/internal/platform/shell"
 )
 
-const staticBaseImage = "nginx:alpine"
+const staticBaseImage = "nginx:1.31.8-alpine"
 
 // builder turns the fetched source into an image and returns its reference.
 type builder interface {
@@ -22,41 +25,55 @@ type builder interface {
 func builderFor(pack BuildPack) (builder, error) {
 	switch pack {
 	case PackDockerfile:
-		return dockerfileBuilder{}, nil
+		return guardedBuilder{dockerfileBuilder{}}, nil
 	case PackStatic:
-		return staticBuilder{}, nil
+		return guardedBuilder{staticBuilder{}}, nil
 	case PackNixpacks:
-		return nixpacksBuilder{}, nil
+		return guardedBuilder{nixpacksBuilder{}}, nil
 	case PackImage:
 		return imageBuilder{}, nil
 	}
-	return nil, fmt.Errorf("build pack desconhecido: %q", pack)
+	return nil, i18n.Errorf("build pack desconhecido: %q", pack)
 }
 
 // imageTag names the image built for a deployment.
 func (j *job) imageTag() string { return "pier/" + j.app.ID + ":" + j.deployment.ID }
 
-func (j *job) buildArgs() []string {
-	keys := make([]string, 0, len(j.env))
-	values := map[string]string{}
+// buildTimeVariables are the variables marked to exist during the build,
+// sorted by name. The others are runtime-only: build steps, which run code
+// from the repository and its dependencies, never see them.
+func (j *job) buildTimeVariables() []envvar.Variable {
+	variables := []envvar.Variable{}
 	for _, variable := range j.env {
-		if variable.BuildTime {
-			keys = append(keys, variable.Key)
-			values[variable.Key] = variable.Value
+		if variable.BuildTime || variable.SecretBuild {
+			variables = append(variables, variable)
 		}
 	}
-	sort.Strings(keys)
+	sort.Slice(variables, func(a, b int) bool { return variables[a].Key < variables[b].Key })
+	return variables
+}
+
+func (j *job) buildArgs() []string {
 	args := []string{}
-	for _, key := range keys {
-		args = append(args, "--build-arg", key+"="+values[key])
+	for _, variable := range j.buildTimeVariables() {
+		if variable.SecretBuild {
+			args = append(args, "--secret", "id="+variable.Key+",env="+variable.Key)
+		} else {
+			args = append(args, "--build-arg", variable.Key)
+		}
 	}
 	return args
 }
 
 func (j *job) dockerBuild(ctx context.Context, dockerfile string) (string, error) {
 	image := j.imageTag()
-	args := []string{"docker", "build", "--progress", "plain", "--tag", image, "--file", dockerfile,
+	builderName, err := j.createBuildKit(ctx)
+	if err != nil {
+		return "", err
+	}
+	args := []string{"docker", "buildx", "build", "--builder", builderName, "--load", "--progress", "plain", "--tag", image, "--file", dockerfile,
 		"--label", docker.LabelManaged + "=true", "--label", docker.LabelID + "=" + j.app.ID}
+
 	buildArgs := j.buildArgs()
 	args = append(args, buildArgs...)
 	args = append(args, j.contextDir())
@@ -66,8 +83,13 @@ func (j *job) dockerBuild(ctx context.Context, dockerfile string) (string, error
 		display += fmt.Sprintf(" (+%d build args)", len(buildArgs)/2)
 	}
 	j.log.Command(display)
-	if err := j.ex.Stream(ctx, shell.Join(args...), j.log.Output); err != nil {
-		return "", fmt.Errorf("docker build falhou: %w", err)
+	if err := j.streamBuildEnvironment(ctx, args, j.log.Output); err != nil {
+		return "", i18n.Errorf("docker build falhou: %w", err)
+	}
+	pruneCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 60*time.Second)
+	defer cancel()
+	if _, err := j.ex.Run(pruneCtx, shell.Join("docker", "buildx", "prune", "--builder", builderName, "--keep-storage", fmt.Sprintf("%dGB", buildLimits.Load().CacheGB), "-f")); err != nil {
+		j.log.Info("Não foi possível limpar o cache de build: %s", err)
 	}
 	return image, nil
 }
@@ -105,7 +127,8 @@ func staticDockerfile(build Build) (string, error) {
 	if build.SPA {
 		fallback = "/index.html"
 	}
-	return fmt.Sprintf(`FROM %s
+	return fmt.Sprintf(`# syntax=docker/dockerfile:1.19
+FROM %s
 COPY <<'EOF' /etc/nginx/conf.d/default.conf
 server {
     listen 80;
@@ -118,8 +141,7 @@ server {
     }
 }
 EOF
-COPY %s
-RUN rm -rf /usr/share/nginx/html/.git
+COPY --exclude=.git --exclude=**/.git %s
 `, staticBaseImage, fallback, copyArgs), nil
 }
 
@@ -129,28 +151,11 @@ type nixpacksBuilder struct{}
 
 func (nixpacksBuilder) build(ctx context.Context, j *job) (string, error) {
 	if _, err := j.ex.Run(ctx, "command -v nixpacks"); err != nil {
-		return "", fmt.Errorf("o Nixpacks não está instalado no servidor. Instale com " +
+		return "", i18n.Errorf("o Nixpacks não está instalado no servidor. Instale com " +
 			"`curl -sSL https://nixpacks.com/install.sh | bash` ou use o build pack Dockerfile")
 	}
-	image := j.imageTag()
-	config := j.app.Config.Build
-	args := []string{"nixpacks", "build", j.contextDir(), "--name", image,
-		"--label", docker.LabelManaged + "=true", "--label", docker.LabelID + "=" + j.app.ID}
-	for flag, value := range map[string]string{
-		"--install-cmd": config.InstallCommand, "--build-cmd": config.BuildCommand, "--start-cmd": config.StartCommand,
-	} {
-		if value != "" {
-			args = append(args, flag, value)
-		}
-	}
-	for _, variable := range j.env {
-		args = append(args, "--env", variable.Key+"="+variable.Value)
-	}
-	j.log.Command("nixpacks build --name " + image)
-	if err := j.ex.Stream(ctx, shell.Join(args...), j.log.Output); err != nil {
-		return "", fmt.Errorf("nixpacks build falhou: %w", err)
-	}
-	return image, nil
+	return j.nixpacksBuild(ctx)
+
 }
 
 // imageBuilder pulls a ready-made image instead of building.
@@ -163,7 +168,7 @@ func (imageBuilder) build(ctx context.Context, j *job) (string, error) {
 		// A registry outage or rate limit must not block a deploy whose image
 		// is already on the server.
 		if ctx.Err() != nil || !docker.ImageExists(ctx, j.ex, image) {
-			return "", fmt.Errorf("docker pull falhou: %w", err)
+			return "", i18n.Errorf("docker pull falhou: %w", err)
 		}
 		j.log.Info("Não foi possível atualizar a imagem no registry; usando a cópia local.")
 	}

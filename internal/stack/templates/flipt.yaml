@@ -1,30 +1,10 @@
 name: Flipt
 description: Feature flags e configuração remota ao lado do código, em Git.
+description_en: Feature flags and remote configuration next to your code, in Git.
 category: Backend
 website: https://docs.flipt.io/cloud/overview
-tags:
-  - feature flags
-  - devops
-  - ci
-  - cd
-routes:
-  - service: flipt
+services:
+  flipt:
+    image: docker.flipt.io/flipt/flipt:v2.14.1
     port: 8080
-compose: |
-  services:
-    flipt:
-      image: docker.flipt.io/flipt/flipt:latest
-      volumes:
-        - flipt-data:/var/opt/flipt
-      healthcheck:
-        interval: 2s
-        retries: 15
-        test:
-          - CMD
-          - wget
-          - --spider
-          - --quiet
-          - http://127.0.0.1:8080
-        timeout: 10s
-  volumes:
-    flipt-data: null
+    data: /var/opt/flipt

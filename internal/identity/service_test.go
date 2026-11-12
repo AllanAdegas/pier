@@ -241,3 +241,37 @@ func TestOnlyOneConcurrentSetupWins(t *testing.T) {
 		t.Errorf("%d setups succeeded; only the first may", wins.Load())
 	}
 }
+
+func TestConcurrentCrossDeletionKeepsOneOperator(t *testing.T) {
+	s := newService(t)
+	ctx := context.Background()
+	a, err := s.CreateUser(ctx, "Alice", "alice@example.com", strongPassword)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := s.CreateUser(ctx, "Bob", "bob@example.com", strongPassword)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wg sync.WaitGroup
+	wg.Add(2)
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	go func() { defer wg.Done(); <-start; results <- s.DeleteUser(ctx, a.ID, b.ID) }()
+	go func() { defer wg.Done(); <-start; results <- s.DeleteUser(ctx, b.ID, a.ID) }()
+	close(start)
+	wg.Wait()
+	close(results)
+	successes := 0
+	for err := range results {
+		if err == nil {
+			successes++
+		} else if kindOf(err) != apperr.KindConflict {
+			t.Fatalf("unexpected deletion failure: %v", err)
+		}
+	}
+	users, err := s.ListUsers(ctx)
+	if err != nil || len(users) != 1 || successes != 1 {
+		t.Fatalf("users %d successes %d err %v", len(users), successes, err)
+	}
+}

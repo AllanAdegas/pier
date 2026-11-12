@@ -2,7 +2,6 @@ import { useNavigate, useParams, useSearchParams } from "@solidjs/router";
 import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { Button } from "../components/Button";
 import { Alert, QueryView, StatusBadge } from "../components/Feedback";
-import { TextArea, TextInput } from "../components/Form";
 import { ConfirmDelete } from "../components/Modal";
 import { CopyField, PageHeader, Section, Tabs } from "../components/Page";
 import { api } from "../lib/api";
@@ -10,12 +9,15 @@ import { clusterStatus, formatRelative, kubeStatus } from "../lib/format";
 import { createAction, createQuery, type Query } from "../lib/query";
 import type { Cluster, ClusterOverview, KubeApplied, OperationSnapshot } from "../lib/types";
 import { Explorer } from "./cluster/Explorer";
+import { Trans } from "../i18n/Trans";
+import { t } from "../i18n";
+import { TextArea, TextInput } from "../components/Form";
 
 const TABS = [
-  { id: "overview", label: "Visão geral" },
-  { id: "resources", label: "Recursos" },
-  { id: "apply", label: "Aplicar YAML" },
-  { id: "config", label: "Configuração" },
+  { id: "overview", label: t("Visão geral") },
+  { id: "resources", label: t("Recursos") },
+  { id: "apply", label: t("Aplicar YAML") },
+  { id: "config", label: t("Configuração") },
 ];
 
 export function ClusterPage() {
@@ -31,7 +33,7 @@ export function ClusterPage() {
   );
   const check = createAction(() => api.post<Cluster>(`/clusters/${params.id}/check`), {
     onSuccess: (updated) => cluster.set(updated),
-    success: (updated) => (updated.status === "ready" ? "Cluster respondeu." : "O cluster não respondeu. Veja o detalhe abaixo."),
+    success: (updated) => (updated.status === "ready" ? t("Cluster respondeu.") : t("O cluster não respondeu. Veja o detalhe abaixo.")),
   });
 
   return (
@@ -40,17 +42,16 @@ export function ClusterPage() {
         {(data) => (
           <>
             <PageHeader
-              crumbs={[{ label: "Clusters", href: "/clusters" }, { label: data().name }]}
+              crumbs={[{ label: t("Clusters"), href: "/clusters" }, { label: data().name }]}
               title={
                 <span class="row">
                   {data().name}
                   <StatusBadge status={clusterStatus(data().status)} />
                 </span>
               }
-              description={`${data().source === "k3s" ? "K3s em container" : "Importado"} · ${data().endpoint}${data().version ? ` · ${data().version}` : ""}`}
+              description={`${data().source === "k3s" ? t("K3s em container") : t("Importado")} · ${data().endpoint}${data().version ? ` · ${data().version}` : ""}`}
               actions={
-                <Button icon="check" pending={check.pending()} disabled={data().status === "provisioning"} onClick={() => void check.run()}>
-                  Verificar conexão
+                <Button icon="check" pending={check.pending()} disabled={data().status === "provisioning"} onClick={() => void check.run()}>{t("Verificar conexão")}
                 </Button>
               }
             />
@@ -91,7 +92,7 @@ function Provisioning(props: { clusterId: string }) {
     { pollMs: 2000 },
   );
   return (
-    <Section title="Criando o cluster" description="O K3s está iniciando no servidor. Esta tela se atualiza sozinha.">
+    <Section title={t("Criando o cluster")} description={t("O K3s está iniciando no servidor. Esta tela se atualiza sozinha.")}>
       <pre class="log" style={{ height: "auto", "max-height": "360px", margin: "0" }}>
         {(operation.data()?.lines ?? ["Iniciando…"]).join("\n")}
       </pre>
@@ -108,18 +109,18 @@ function OverviewTab(props: { cluster: Cluster }) {
   return (
     <Show
       when={props.cluster.status === "ready"}
-      fallback={<Alert tone="warning">O cluster não está acessível. Verifique a conexão ou o kubeconfig em Configuração.</Alert>}
+      fallback={<Alert tone="warning">{t("O cluster não está acessível. Verifique a conexão ou o kubeconfig em Configuração.")}</Alert>}
     >
       <QueryView query={overview}>
         {(data) => (
           <div class="stack-lg">
             <div class="grid-cards" style={{ "grid-template-columns": "repeat(auto-fill, minmax(160px, 1fr))" }}>
-              <Stat label="Nós" value={String(data().nodes.length)} />
-              <Stat label="Namespaces" value={String(data().namespaces)} />
-              <Stat label="Deployments" value={String(data().deployments)} />
-              <Stat label="Pods prontos" value={`${data().pods_running}/${data().pods}`} />
+              <Stat label={t("Nós")} value={String(data().nodes.length)} />
+              <Stat label={t("Namespaces")} value={String(data().namespaces)} />
+              <Stat label={t("Deployments")} value={String(data().deployments)} />
+              <Stat label={t("Pods prontos")} value={`${data().pods_running}/${data().pods}`} />
             </div>
-            <Section title="Nós">
+            <Section title={t("Nós")}>
               <div class="list">
                 <For each={data().nodes}>
                   {(node) => (
@@ -134,8 +135,8 @@ function OverviewTab(props: { cluster: Cluster }) {
                 </For>
               </div>
             </Section>
-            <Section title="Avisos recentes" description="Eventos do tipo Warning em todos os namespaces.">
-              <Show when={data().events.length > 0} fallback={<p class="muted">Nenhum aviso recente.</p>}>
+            <Section title={t("Avisos recentes")} description={t("Eventos do tipo Warning em todos os namespaces.")}>
+              <Show when={data().events.length > 0} fallback={<p class="muted">{t("Nenhum aviso recente.")}</p>}>
                 <div class="list">
                   <For each={data().events}>
                     {(event) => (
@@ -171,9 +172,9 @@ function Stat(props: { label: string; value: string }) {
 const MANIFEST_PLACEHOLDER = `apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: exemplo
+  name: example
 data:
-  CHAVE: valor`;
+  KEY: value`;
 
 function ApplyTab(props: { clusterId: string }) {
   const [manifest, setManifest] = createSignal("");
@@ -181,7 +182,7 @@ function ApplyTab(props: { clusterId: string }) {
   const [applied, setApplied] = createSignal<KubeApplied[]>([]);
   const apply = createAction(
     () => api.post<{ applied: KubeApplied[] }>(`/clusters/${props.clusterId}/apply`, { manifest: manifest(), namespace: namespace() }),
-    { success: "Manifesto aplicado.", onSuccess: (result) => setApplied(result.applied) },
+    { success: t("Manifesto aplicado."), onSuccess: (result) => setApplied(result.applied) },
   );
   return (
     <form
@@ -193,25 +194,26 @@ function ApplyTab(props: { clusterId: string }) {
       }}
     >
       <p class="muted small">
-        Cria ou atualiza os objetos do manifesto, como <code>kubectl apply --server-side</code>. Aceita vários documentos
-        separados por <code>---</code> e qualquer tipo que o cluster conheça.
+        <Trans
+          text="Cria ou atualiza os objetos do manifesto, como {command}. Aceita vários documentos separados por {separator} e qualquer tipo que o cluster conheça."
+          values={{ command: <code>kubectl apply --server-side</code>, separator: <code>---</code> }}
+        />
       </p>
-      <TextArea label="Manifesto YAML" mono rows={18} placeholder={MANIFEST_PLACEHOLDER} value={manifest()} onValue={setManifest} />
+      <TextArea label={t("Manifesto YAML")} mono rows={18} placeholder={MANIFEST_PLACEHOLDER} value={manifest()} onValue={setManifest} />
       <TextInput
-        label="Namespace padrão"
+        label={t("Namespace padrão")}
         mono
-        hint="Usado pelos objetos que não informam um namespace."
+        hint={t("Usado pelos objetos que não informam um namespace.")}
         value={namespace()}
         onValue={setNamespace}
       />
       <div class="form-actions">
-        <Button type="submit" variant="primary" pending={apply.pending()} disabled={!manifest().trim()}>
-          Aplicar
+        <Button type="submit" variant="primary" pending={apply.pending()} disabled={!manifest().trim()}>{t("Aplicar")}
         </Button>
       </div>
       <Show when={applied().length > 0}>
         <Alert tone="success">
-          <strong>{applied().length} objeto(s) aplicados:</strong>
+          <strong>{t("{count} objeto(s) aplicados:", { count: applied().length })}</strong>
           <For each={applied()}>
             {(item) => (
               <div class="mono small">
@@ -236,14 +238,14 @@ function ConfigTab(props: { cluster: Cluster; onSaved: (cluster: Cluster) => voi
 
   const save = createAction(
     () => api.patch<Cluster>(`/clusters/${props.cluster.id}`, { name: name(), description: description() }),
-    { success: "Cluster salvo.", onSuccess: props.onSaved },
+    { success: t("Cluster salvo."), onSuccess: props.onSaved },
   );
   const reveal = createAction(() => api.get<{ kubeconfig: string }>(`/clusters/${props.cluster.id}/kubeconfig`), {
     onSuccess: (result) => setKubeconfig(result.kubeconfig),
   });
   const remove = createAction(
     (options: { force: boolean }) => api.delete(`/clusters/${props.cluster.id}?force=${options.force ? 1 : 0}`),
-    { success: "Cluster removido.", onSuccess: () => navigate("/clusters") },
+    { success: t("Cluster removido."), onSuccess: () => navigate("/clusters") },
   );
 
   return (
@@ -255,41 +257,39 @@ function ConfigTab(props: { cluster: Cluster; onSaved: (cluster: Cluster) => voi
           void save.run();
         }}
       >
-        <h2>Geral</h2>
-        <TextInput label="Nome" required value={name()} onValue={setName} error={save.errors().name} />
-        <TextArea label="Descrição" rows={2} value={description()} onValue={setDescription} />
+        <h2>{t("Geral")}</h2>
+        <TextInput label={t("Nome")} required value={name()} onValue={setName} error={save.errors().name} />
+        <TextArea label={t("Descrição")} rows={2} value={description()} onValue={setDescription} />
         <Show when={isK3s}>
           <dl class="kv">
-            <dt>Imagem</dt>
+            <dt>{t("Imagem")}</dt>
             <dd class="mono">{props.cluster.k3s.image}</dd>
-            <dt>Porta da API</dt>
+            <dt>{t("Porta da API")}</dt>
             <dd>{props.cluster.k3s.api_port}</dd>
-            <dt>Porta HTTP (Ingress)</dt>
+            <dt>{t("Porta HTTP (Ingress)")}</dt>
             <dd>{props.cluster.k3s.http_port}</dd>
           </dl>
         </Show>
         <div class="form-actions">
-          <Button type="submit" variant="primary" pending={save.pending()}>
-            Salvar
+          <Button type="submit" variant="primary" pending={save.pending()}>{t("Salvar")}
           </Button>
         </div>
       </form>
 
       <Section
         title="Kubeconfig"
-        description="Para usar kubectl, Helm ou qualquer ferramenta diretamente no cluster. Dá acesso total: guarde como uma senha."
+        description={t("Para usar kubectl, Helm ou qualquer ferramenta diretamente no cluster. Dá acesso total: guarde como uma senha.")}
       >
         <Show
           when={kubeconfig() !== null}
           fallback={
             <div>
-              <Button icon="eye" pending={reveal.pending()} onClick={() => void reveal.run()}>
-                Mostrar kubeconfig
+              <Button icon="eye" pending={reveal.pending()} onClick={() => void reveal.run()}>{t("Mostrar kubeconfig")}
               </Button>
             </div>
           }
         >
-          <CopyField label="Conteúdo" value={kubeconfig() ?? ""} secret />
+          <CopyField label={t("Conteúdo")} value={kubeconfig() ?? ""} secret />
           <pre class="log" style={{ height: "auto", "max-height": "320px", margin: "0" }}>
             {kubeconfig()}
           </pre>
@@ -297,27 +297,27 @@ function ConfigTab(props: { cluster: Cluster; onSaved: (cluster: Cluster) => voi
       </Section>
 
       <Section
-        title="Zona de perigo"
+        title={t("Zona de perigo")}
         description={
           isK3s
-            ? "Destrói o container do K3s e o volume com todos os dados do cluster."
-            : "Remove o cluster do Pier. Nada é alterado no cluster em si."
+            ? t("Destrói o container do K3s e o volume com todos os dados do cluster.")
+            : t("Remove o cluster do Pier. Nada é alterado no cluster em si.")
         }
       >
         <div>
           <Button variant="danger" icon="trash" onClick={() => setDeleting(true)}>
-            {isK3s ? "Destruir cluster" : "Remover do Pier"}
+            {isK3s ? t("Destruir cluster") : t("Remover do Pier")}
           </Button>
         </div>
       </Section>
       <Show when={deleting()}>
         <ConfirmDelete
-          title={isK3s ? "Destruir cluster" : "Remover cluster"}
+          title={isK3s ? t("Destruir cluster") : t("Remover cluster")}
           resourceName={props.cluster.name}
           description={
             isK3s
-              ? "Todos os workloads e dados deste cluster serão apagados. Esta ação não pode ser desfeita."
-              : "O Pier esquece este cluster e apaga o kubeconfig guardado. Os workloads continuam rodando nele."
+              ? t("Todos os workloads e dados deste cluster serão apagados. Esta ação não pode ser desfeita.")
+              : t("O Pier esquece este cluster e apaga o kubeconfig guardado. Os workloads continuam rodando nele.")
           }
           allowForce={isK3s}
           pending={remove.pending()}

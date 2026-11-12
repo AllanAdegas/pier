@@ -1,47 +1,30 @@
 name: Vikunja
 description: Lista de tarefas open source para organizar tudo.
+description_en: Open source to-do list to organize everything.
 category: Produtividade
 website: https://vikunja.io
-tags:
-  - productivity
-  - todo
-routes:
-  - service: vikunja
+services:
+  init:
+    image: busybox:1.38.0
+    command:
+    - sh
+    - -c
+    - touch /db/vikunja.db && chown -R 1000 /db && chown -R 1000 /app/vikunja
+    restart: 'no'
+    volumes:
+    - vikunja-data:/app/vikunja
+    - vikunja-sqlite-data:/db
+  vikunja:
+    image: vikunja/vikunja:2.8.0
     port: 3456
-compose: |
-  services:
-    init:
-      image: busybox
-      command:
-        - sh
-        - -c
-        - touch /db/vikunja.db && chown -R 1000 /db && chown -R 1000 /app/vikunja
-      restart: "no"
-      volumes:
-        - vikunja-data:/app/vikunja
-        - vikunja-sqlite-data:/db
-    vikunja:
-      image: vikunja/vikunja
-      environment:
-        - VIKUNJA_SERVICE_PUBLICURL=$PIER_URL_VIKUNJA
-        - VIKUNJA_SERVICE_SECRET=$PIER_PASSWORD_JWTSECRET
-        - VIKUNJA_SERVICE_ENABLEREGISTRATION=true
-        - VIKUNJA_DATABASE_PATH=/db/vikunja.db
-        - VIKUNJA_DATABASE_TYPE=sqlite
-      volumes:
-        - vikunja-data:/app/vikunja/
-        - vikunja-sqlite-data:/db
-      depends_on:
-        - init
-      healthcheck:
-        interval: 30s
-        retries: 3
-        start_period: 15s
-        test:
-          - CMD
-          - /app/vikunja/vikunja
-          - healthcheck
-        timeout: 5s
-  volumes:
-    vikunja-data: null
-    vikunja-sqlite-data: null
+    volumes:
+    - vikunja-data:/app/vikunja/
+    - vikunja-sqlite-data:/db
+    env:
+      VIKUNJA_SERVICE_PUBLICURL: $PIER_URL_VIKUNJA
+      VIKUNJA_SERVICE_SECRET: $PIER_PASSWORD_JWTSECRET
+      VIKUNJA_SERVICE_ENABLEREGISTRATION: 'true'
+      VIKUNJA_DATABASE_PATH: /db/vikunja.db
+      VIKUNJA_DATABASE_TYPE: sqlite
+    needs:
+    - init

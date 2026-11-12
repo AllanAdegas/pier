@@ -1,40 +1,19 @@
 name: Plex
 description: Organiza vídeo, música e fotos e transmite para qualquer dispositivo.
+description_en: Organizes video, music and photos and streams them to any device.
 category: Mídia
 website: https://docs.linuxserver.io/images/docker-plex/
-tags:
-  - media
-  - server
-  - movies
-  - tv
-  - music
-routes:
-  - service: plex
+services:
+  plex:
+    image: lscr.io/linuxserver/plex:1.43.5
     port: 32400
-compose: |
-  services:
-    plex:
-      image: lscr.io/linuxserver/plex:latest
-      environment:
-        - _APP_URL=$PIER_URL_PLEX
-        - PUID=1000
-        - PGID=1000
-        - TZ=${TZ:-America/Toronto}
-        - PLEX_CLAIM=${PLEX_CLAIM}
-      volumes:
-        - plex-config:/config
-        - plex-tv:/tv
-        - plex-movies:/movies
-      healthcheck:
-        interval: 2s
-        retries: 15
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://localhost:32400/identity
-        timeout: 10s
-  volumes:
-    plex-config: null
-    plex-movies: null
-    plex-tv: null
+    volumes:
+    - plex-config:/config
+    - plex-tv:/tv
+    - plex-movies:/movies
+    env:
+      _APP_URL: $PIER_URL_PLEX
+      PUID: '1000'
+      PGID: '1000'
+      TZ: ${TZ:-America/Toronto}
+      PLEX_CLAIM: ${PLEX_CLAIM}

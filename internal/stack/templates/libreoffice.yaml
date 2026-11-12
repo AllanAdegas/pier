@@ -1,35 +1,17 @@
+auth: generated
 name: LibreOffice
 description: Suíte de escritório livre, no navegador.
+description_en: Free office suite, in the browser.
 category: Produtividade
 website: https://docs.linuxserver.io/images/docker-libreoffice/
-tags:
-  - office
-  - document
-  - spreadsheet
-  - presentation
-  - open-source
-routes:
-  - service: libreoffice
+services:
+  libreoffice:
+    image: lscr.io/linuxserver/libreoffice:25.8.7
     port: 3000
-compose: |
-  services:
-    libreoffice:
-      image: lscr.io/linuxserver/libreoffice:latest
-      environment:
-        - PUID=${PUID:-1000}
-        - PGID=${PGID:-1000}
-        - TZ=${TZ:-Etc/UTC}
-      volumes:
-        - libreoffice-config:/config
-      healthcheck:
-        interval: 30s
-        retries: 3
-        test:
-          - CMD
-          - wget
-          - -q
-          - --spider
-          - http://localhost:3000
-        timeout: 10s
-  volumes:
-    libreoffice-config: null
+    data: /config
+    env:
+      CUSTOM_USER: ${PIER_USER_LIBREOFFICE}
+      PASSWORD: ${PIER_PASSWORD_LIBREOFFICE}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-Etc/UTC}

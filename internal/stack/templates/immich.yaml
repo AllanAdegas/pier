@@ -1,82 +1,46 @@
 name: Immich
 description: Gestão de fotos e vídeos auto-hospedada.
+description_en: Self-hosted photo and video management.
 category: Mídia
 website: https://immich.app/docs/overview/introduction
-tags:
-  - photo
-  - video
-  - management
-  - server
-  - cloud
-  - storage
-  - sharing
-  - metadata
-routes:
-  - service: immich
+services:
+  database:
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.3.0-pgvectors0.2.0
+    data: /var/lib/postgresql/data
+    env:
+      DB_STORAGE_TYPE: ${DB_STORAGE_TYPE:-SSD}
+      POSTGRES_DB: ${DB_DATABASE_NAME:-immich}
+      POSTGRES_INITDB_ARGS: --data-checksums
+      POSTGRES_PASSWORD: ${PIER_PASSWORD_POSTGRES}
+      POSTGRES_USER: ${PIER_USER_POSTGRES}
+    health: 'cmd: pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}'
+  immich:
+    image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-v3.3.6}
     port: 2283
-compose: |
-  services:
-    database:
-      image: ghcr.io/immich-app/postgres:14-vectorchord0.3.0-pgvectors0.2.0
-      environment:
-        DB_STORAGE_TYPE: ${DB_STORAGE_TYPE:-SSD}
-        POSTGRES_DB: ${DB_DATABASE_NAME:-immich}
-        POSTGRES_INITDB_ARGS: --data-checksums
-        POSTGRES_PASSWORD: ${PIER_PASSWORD_POSTGRES}
-        POSTGRES_USER: ${PIER_USER_POSTGRES}
-      volumes:
-        - immich-postgres-data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
-        timeout: 20s
-    immich:
-      image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}
-      environment:
-        - UPLOAD_LOCATION=./library
-        - DB_DATA_LOCATION=./postgres
-        - DB_PASSWORD=$PIER_PASSWORD_POSTGRES
-        - DB_USERNAME=$PIER_USER_POSTGRES
-        - DB_DATABASE_NAME=${DB_DATABASE_NAME:-immich}
-        - TZ=${TZ:-Etc/UTC}
-      volumes:
-        - immich-uploads:/usr/src/app/upload
-        - /etc/localtime:/etc/localtime:ro
-      depends_on:
-        database:
-          condition: service_healthy
-        redis:
-          condition: service_healthy
-      healthcheck:
-        disable: false
-    immich-machine-learning:
-      image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}
-      container_name: immich_machine_learning
-      environment:
-        - UPLOAD_LOCATION=./library
-        - DB_DATA_LOCATION=./postgres
-        - DB_PASSWORD=$PIER_PASSWORD_POSTGRES
-        - DB_USERNAME=$PIER_USER_POSTGRES
-        - DB_DATABASE_NAME=${DB_DATABASE_NAME:-immich}
-        - TZ=${TZ:-Etc/UTC}
-      volumes:
-        - immich-model-cache:/cache
-      healthcheck:
-        disable: false
-    redis:
-      image: redis:7.4-alpine
-      healthcheck:
-        interval: 5s
-        retries: 20
-        test:
-          - CMD
-          - redis-cli
-          - PING
-        timeout: 10s
-  volumes:
-    immich-model-cache: null
-    immich-postgres-data: null
-    immich-uploads: null
+    volumes:
+    - immich-uploads:/usr/src/app/upload
+    - /etc/localtime:/etc/localtime:ro
+    env:
+      UPLOAD_LOCATION: ./library
+      DB_DATA_LOCATION: ./postgres
+      DB_PASSWORD: $PIER_PASSWORD_POSTGRES
+      DB_USERNAME: $PIER_USER_POSTGRES
+      DB_DATABASE_NAME: ${DB_DATABASE_NAME:-immich}
+      TZ: ${TZ:-Etc/UTC}
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-v3.3.6}
+    data: /cache
+    env:
+      UPLOAD_LOCATION: ./library
+      DB_DATA_LOCATION: ./postgres
+      DB_PASSWORD: $PIER_PASSWORD_POSTGRES
+      DB_USERNAME: $PIER_USER_POSTGRES
+      DB_DATABASE_NAME: ${DB_DATABASE_NAME:-immich}
+      TZ: ${TZ:-Etc/UTC}
+with:
+  redis: {}

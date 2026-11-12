@@ -1,47 +1,21 @@
 name: NocoBase
 description: Plataforma no-code/low-code extensível, com IA.
+description_en: Extensible no-code/low-code platform, with AI.
 category: Desenvolvimento
 website: https://docs.nocobase.com/
-tags:
-  - nocode
-  - lowcode
-  - database
-  - builder
-routes:
-  - service: nocobase
+services:
+  nocobase:
+    image: nocobase/nocobase:1.9.33
     port: 13000
-compose: |
-  services:
-    nocobase:
-      image: nocobase/nocobase:1.9.33
-      environment:
-        - APP_KEY=${PIER_PASSWORD_64_APPKEY}
-        - DB_DIALECT=postgres
-        - DB_HOST=postgres
-        - DB_PORT=5432
-        - DB_DATABASE=${POSTGRES_DB:-nocobase-db}
-        - DB_USER=$PIER_USER_POSTGRES
-        - DB_PASSWORD=$PIER_PASSWORD_POSTGRES
-      volumes:
-        - nocobase-storage:/app/nocobase/storage
-      depends_on:
-        postgres:
-          condition: service_healthy
-    postgres:
-      image: postgres:17-alpine
-      environment:
-        - POSTGRES_USER=${PIER_USER_POSTGRES}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
-        - POSTGRES_DB=${POSTGRES_DB:-nocobase-db}
-      volumes:
-        - postgres-data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
-        timeout: 20s
-  volumes:
-    nocobase-storage: null
-    postgres-data: null
+    data: /app/nocobase/storage
+    env:
+      APP_KEY: ${PIER_PASSWORD_64_APPKEY}
+      DB_DIALECT: postgres
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      DB_DATABASE: '{{postgres.database}}'
+      DB_USER: '{{postgres.user}}'
+      DB_PASSWORD: '{{postgres.password}}'
+with:
+  postgres:
+    database: nocobase-db

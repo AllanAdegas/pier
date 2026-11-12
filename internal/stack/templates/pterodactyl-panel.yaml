@@ -1,120 +1,79 @@
 name: Pterodactyl Panel
 description: Painel open source de gestão de servidores de jogos.
+description_en: Open source game server management panel.
 category: Mídia
 website: https://pterodactyl.io/
-tags:
-  - game
-  - game server
-  - management
-  - panel
-  - minecraft
-routes:
-  - service: pterodactyl
+services:
+  pterodactyl:
+    image: ghcr.io/pterodactyl/panel:v1.12.3
     port: 80
-compose: |
-  services:
-    mariadb:
-      image: mariadb:11.8
-      environment:
-        - MYSQL_ROOT_PASSWORD=$PIER_PASSWORD_MYSQLROOT
-        - MYSQL_DATABASE=pterodactyl-db
-        - MYSQL_USER=$PIER_USER_MYSQL
-        - MYSQL_PASSWORD=$PIER_PASSWORD_MYSQL
-      volumes:
-        - pterodactyl-db:/var/lib/mysql
-      healthcheck:
-        interval: 10s
-        retries: 3
-        start_period: 10s
-        test:
-          - CMD-SHELL
-          - healthcheck.sh --connect --innodb_initialized || exit 1
-        timeout: 1s
-    pterodactyl:
-      image: ghcr.io/pterodactyl/panel:v1.12.3
-      command:
-        - /entrypoint.sh
-      environment:
-        - HASHIDS_SALT=$PIER_PASSWORD_HASHIDS
-        - HASHIDS_LENGTH=8
-        - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@example.com}
-        - ADMIN_USERNAME=${PIER_USER_ADMIN}
-        - ADMIN_FIRSTNAME=${ADMIN_FIRSTNAME:-Admin}
-        - ADMIN_LASTNAME=${ADMIN_LASTNAME:-User}
-        - ADMIN_PASSWORD=${PIER_PASSWORD_ADMIN}
-        - PTERODACTYL_HTTPS=${PTERODACTYL_HTTPS:-false}
-        - APP_ENV=production
-        - APP_ENVIRONMENT_ONLY=false
-        - APP_URL=$PIER_URL_PTERODACTYL
-        - APP_TIMEZONE=${TIMEZONE:-UTC}
-        - APP_SERVICE_AUTHOR=${APP_SERVICE_AUTHOR:-author@example.com}
-        - LOG_LEVEL=${LOG_LEVEL:-debug}
-        - CACHE_DRIVER=redis
-        - SESSION_DRIVER=redis
-        - QUEUE_DRIVER=redis
-        - REDIS_HOST=redis
-        - DB_DATABASE=pterodactyl-db
-        - DB_USERNAME=$PIER_USER_MYSQL
-        - DB_HOST=mariadb
-        - DB_PORT=3306
-        - DB_PASSWORD=$PIER_PASSWORD_MYSQL
-        - MAIL_FROM=$MAIL_FROM
-        - MAIL_DRIVER=$MAIL_DRIVER
-        - MAIL_HOST=$MAIL_HOST
-        - MAIL_PORT=$MAIL_PORT
-        - MAIL_USERNAME=$MAIL_USERNAME
-        - MAIL_PASSWORD=$MAIL_PASSWORD
-        - MAIL_ENCRYPTION=$MAIL_ENCRYPTION
-      volumes:
-        - panel-var:/app/var/
-        - panel-nginx:/etc/nginx/http.d/
-        - panel-certs:/etc/letsencrypt/
-        - content: |
-            #!/bin/sh
-            set -e
+    command:
+    - /entrypoint.sh
+    volumes:
+    - panel-var:/app/var/
+    - panel-nginx:/etc/nginx/http.d/
+    - panel-certs:/etc/letsencrypt/
+    - content: |
+        #!/bin/sh
+        set -e
 
-             echo "Setting logs permissions..."
-             chown -R nginx: /app/storage/logs/
+         echo "Setting logs permissions..."
+         chown -R nginx: /app/storage/logs/
 
-             USER_EXISTS=$(php artisan tinker --no-ansi --execute='echo \Pterodactyl\Models\User::where("email", "'"$ADMIN_EMAIL"'")->exists() ? "1" : "0";')
+         USER_EXISTS=$(php artisan tinker --no-ansi --execute='echo \Pterodactyl\Models\User::where("email", "'"$ADMIN_EMAIL"'")->exists() ? "1" : "0";')
 
-             if [ "$USER_EXISTS" = "0" ]; then
-               echo "Admin User does not exist, creating user now."
-               php artisan p:user:make --no-interaction \
-                 --admin=1 \
-                 --email="$ADMIN_EMAIL" \
-                 --username="$ADMIN_USERNAME" \
-                 --name-first="$ADMIN_FIRSTNAME" \
-                 --name-last="$ADMIN_LASTNAME" \
-                 --password="$ADMIN_PASSWORD"
-               echo "Admin user created successfully!"
-             else
-               echo "Admin User already exists, skipping creation."
-             fi
+         if [ "$USER_EXISTS" = "0" ]; then
+           echo "Admin User does not exist, creating user now."
+           php artisan p:user:make --no-interaction \
+             --admin=1 \
+             --email="$ADMIN_EMAIL" \
+             --username="$ADMIN_USERNAME" \
+             --name-first="$ADMIN_FIRSTNAME" \
+             --name-last="$ADMIN_LASTNAME" \
+             --password="$ADMIN_PASSWORD"
+           echo "Admin user created successfully!"
+         else
+           echo "Admin User already exists, skipping creation."
+         fi
 
-             exec supervisord --nodaemon
-          mode: "0755"
-          source: ./etc/entrypoint.sh
-          target: /entrypoint.sh
-          type: bind
-      healthcheck:
-        interval: 10s
-        retries: 3
-        test:
-          - CMD-SHELL
-          - curl -sf http://localhost:80 || exit 1
-        timeout: 1s
-    redis:
-      image: redis:alpine
-      healthcheck:
-        interval: 10s
-        retries: 3
-        test:
-          - CMD-SHELL
-          - redis-cli ping || exit 1
-        timeout: 1s
-  volumes:
-    panel-certs: null
-    panel-nginx: null
-    panel-var: null
-    pterodactyl-db: null
+         exec supervisord --nodaemon
+      mode: '0755'
+      source: ./etc/entrypoint.sh
+      target: /entrypoint.sh
+      type: bind
+    env:
+      HASHIDS_SALT: $PIER_PASSWORD_HASHIDS
+      HASHIDS_LENGTH: '8'
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_USERNAME: ${PIER_USER_ADMIN}
+      ADMIN_FIRSTNAME: ${ADMIN_FIRSTNAME:-Admin}
+      ADMIN_LASTNAME: ${ADMIN_LASTNAME:-User}
+      ADMIN_PASSWORD: ${PIER_PASSWORD_ADMIN}
+      PTERODACTYL_HTTPS: ${PTERODACTYL_HTTPS:-false}
+      APP_ENV: production
+      APP_ENVIRONMENT_ONLY: 'false'
+      APP_URL: $PIER_URL_PTERODACTYL
+      APP_TIMEZONE: ${TIMEZONE:-UTC}
+      APP_SERVICE_AUTHOR: ${APP_SERVICE_AUTHOR:-author@example.com}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      CACHE_DRIVER: redis
+      SESSION_DRIVER: redis
+      QUEUE_DRIVER: redis
+      REDIS_HOST: redis
+      DB_DATABASE: pterodactyl-db
+      DB_USERNAME: '{{mariadb.user}}'
+      DB_HOST: mariadb
+      DB_PORT: '3306'
+      DB_PASSWORD: '{{mariadb.password}}'
+      MAIL_FROM: $MAIL_FROM
+      MAIL_DRIVER: $MAIL_DRIVER
+      MAIL_HOST: $MAIL_HOST
+      MAIL_PORT: $MAIL_PORT
+      MAIL_USERNAME: $MAIL_USERNAME
+      MAIL_PASSWORD: $MAIL_PASSWORD
+      MAIL_ENCRYPTION: $MAIL_ENCRYPTION
+with:
+  mariadb:
+    version: '11.8'
+    database: pterodactyl-db
+  redis: {}

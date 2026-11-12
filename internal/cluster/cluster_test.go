@@ -16,6 +16,7 @@ import (
 	"pier/internal/kube"
 	"pier/internal/platform/apperr"
 	"pier/internal/platform/executor"
+	"pier/internal/platform/i18n"
 	"pier/internal/platform/oplog"
 	"pier/internal/platform/secretbox"
 	"pier/internal/platform/sqlite"
@@ -275,7 +276,7 @@ func TestSummarize(t *testing.T) {
 			t.Fatalf("%s: bad fixture: %v", tc.kind, err)
 		}
 		// Kubernetes sends JSON, where every number is a float64.
-		row := summarize(tc.kind, floats(object).(map[string]any))
+		row := summarize(tc.kind, floats(object).(map[string]any), i18n.Portuguese)
 		if row.Status != tc.status || row.Health != tc.health || row.Info != tc.info {
 			t.Errorf("%s %s\n got status=%q health=%q info=%q\nwant status=%q health=%q info=%q",
 				tc.kind, tc.object, row.Status, row.Health, row.Info, tc.status, tc.health, tc.info)
@@ -304,7 +305,7 @@ func TestSecretSummaryNeverCarriesValues(t *testing.T) {
 	row := summarize("Secret", kube.Object{
 		"metadata": map[string]any{"name": "db"}, "type": "Opaque",
 		"data": map[string]any{"password": "c3VwZXJzZWNyZXQ=", "user": "YWRtaW4="},
-	})
+	}, i18n.Portuguese)
 	if row.Info != "2 chave(s)" || row.Status != "Opaque" {
 		t.Errorf("unexpected summary: %+v", row)
 	}

@@ -1,58 +1,36 @@
 name: Karakeep
 description: Guarde links, notas e imagens, com etiquetas automáticas por IA e busca em texto completo.
+description_en: Save links, notes and images, with AI auto-tagging and full-text search.
 category: Produtividade
 website: https://docs.karakeep.app/
-tags:
-  - media
-  - read-it-later
-  - pocket-alternative
-  - omnivore-alternative
-  - instapaper-alternative
-routes:
-  - service: web
+services:
+  chrome:
+    image: ghcr.io/karakeep-app/karakeep-chrome:157.0.8103.38-r1
+    command:
+    - --no-sandbox
+    - --disable-gpu
+    - --disable-dev-shm-usage
+    - --hide-scrollbars
+    - --disable-blink-features=AutomationControlled
+    - --window-size=1440,900
+  meilisearch:
+    image: getmeili/meilisearch:v1.41.0
+    data: /meili_data
+    env:
+      MEILI_NO_ANALYTICS: ${MEILI_NO_ANALYTICS:-true}
+      NEXTAUTH_SECRET: ${PIER_PASSWORD_KARAKEEPNEXTAUTH}
+      MEILI_MASTER_KEY: ${PIER_PASSWORD_MEILI}
+      NEXTAUTH_URL: ${PIER_URL_WEB}
+  web:
+    image: ghcr.io/karakeep-app/karakeep:0.33.2
     port: 3000
-compose: |
-  services:
-    chrome:
-      image: ghcr.io/karakeep-app/karakeep-chrome:release
-      command:
-        - --no-sandbox
-        - --disable-gpu
-        - --disable-dev-shm-usage
-        - --hide-scrollbars
-        - --disable-blink-features=AutomationControlled
-        - --window-size=1440,900
-    meilisearch:
-      image: getmeili/meilisearch:v1.41.0
-      environment:
-        - MEILI_NO_ANALYTICS=${MEILI_NO_ANALYTICS:-true}
-        - NEXTAUTH_SECRET=${PIER_PASSWORD_KARAKEEPNEXTAUTH}
-        - MEILI_MASTER_KEY=${PIER_PASSWORD_MEILI}
-        - NEXTAUTH_URL=${PIER_URL_WEB}
-      volumes:
-        - karakeep-meilisearch:/meili_data
-      healthcheck:
-        interval: 2s
-        retries: 15
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:7700/health
-        timeout: 10s
-    web:
-      image: ghcr.io/karakeep-app/karakeep:0.33.2
-      environment:
-        - NEXTAUTH_URL=${PIER_URL_WEB}
-        - NEXTAUTH_SECRET=${PIER_PASSWORD_KARAKEEPNEXTAUTH}
-        - MEILI_MASTER_KEY=${PIER_PASSWORD_MEILI}
-        - MEILI_ADDR=http://meilisearch:7700
-        - BROWSER_WEB_URL=http://chrome:9222
-        - OPENAI_API_KEY=${OPENAI_API_KEY}
-        - DISABLE_SIGNUPS=${DISABLE_SIGNUPS:-false}
-        - DATA_DIR=/data
-      volumes:
-        - karakeep-data:/data
-  volumes:
-    karakeep-data: null
-    karakeep-meilisearch: null
+    data: /data
+    env:
+      NEXTAUTH_URL: ${PIER_URL_WEB}
+      NEXTAUTH_SECRET: ${PIER_PASSWORD_KARAKEEPNEXTAUTH}
+      MEILI_MASTER_KEY: ${PIER_PASSWORD_MEILI}
+      MEILI_ADDR: http://meilisearch:7700
+      BROWSER_WEB_URL: http://chrome:9222
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      DISABLE_SIGNUPS: ${DISABLE_SIGNUPS:-false}
+      DATA_DIR: /data

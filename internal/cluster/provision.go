@@ -2,7 +2,6 @@ package cluster
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -13,6 +12,7 @@ import (
 	"pier/internal/kube"
 	"pier/internal/platform/apperr"
 	"pier/internal/platform/executor"
+	"pier/internal/platform/i18n"
 	"pier/internal/platform/idgen"
 	"pier/internal/platform/oplog"
 	"pier/internal/platform/shell"
@@ -61,7 +61,7 @@ func (s *Service) CreateK3s(ctx context.Context, input K3sInput) (Cluster, error
 	if err := s.insert(ctx, cluster, ""); err != nil {
 		return Cluster{}, err
 	}
-	operation, _ := s.operations.Begin(cluster.ID, "Criando cluster K3s")
+	operation, _ := s.operations.Begin(cluster.ID, i18n.Instance().Text("Criando cluster K3s"))
 	provisionCtx, cancel := context.WithTimeout(context.Background(), provisionTimeout)
 	s.mu.Lock()
 	s.cancels[cluster.ID] = cancel
@@ -75,11 +75,11 @@ func (s *Service) CreateK3s(ctx context.Context, input K3sInput) (Cluster, error
 		}()
 		err := s.provision(provisionCtx, cluster, target, ex, operation)
 		if err != nil {
-			operation.Append("ERRO: " + err.Error())
+			operation.Say("ERRO: %s", err)
 			// Recorded with a fresh context: the provisioning one may be cancelled.
 			_ = s.setStatus(context.Background(), cluster.ID, StatusUnreachable, err.Error(), "", 0)
 		} else {
-			operation.Append("Cluster pronto.")
+			operation.Say("Cluster pronto.")
 		}
 		operation.Finish(err)
 	}()
@@ -112,12 +112,12 @@ func (s *Service) provision(ctx context.Context, cluster Cluster, target server.
 	if err := project.Up(ctx, ex, operation.Append); err != nil {
 		return err
 	}
-	operation.Append("Aguardando o K3s gerar o kubeconfig…")
+	operation.Say("Aguardando o K3s gerar o kubeconfig…")
 	raw, err := waitFor(ctx, kubeconfigWait, func() (string, error) {
 		return ex.Run(ctx, shell.Join("docker", "exec", cluster.ContainerName(), "cat", kubeconfigPath))
 	})
 	if err != nil {
-		return fmt.Errorf("o K3s não gerou o kubeconfig: %w", err)
+		return i18n.Errorf("o K3s não gerou o kubeconfig: %w", err)
 	}
 	kubeconfig, err := kube.RewriteServer([]byte(raw), cluster.Endpoint)
 	if err != nil {
@@ -126,7 +126,7 @@ func (s *Service) provision(ctx context.Context, cluster Cluster, target server.
 	if err := s.setKubeconfig(ctx, cluster.ID, string(kubeconfig)); err != nil {
 		return err
 	}
-	operation.Append("Aguardando o nó ficar pronto em " + cluster.Endpoint + "…")
+	operation.Say("Aguardando o nó ficar pronto em %s…", cluster.Endpoint)
 	// The status stays "provisioning" until the node registers: failed probes
 	// are expected while the API server starts.
 	var version string
@@ -141,12 +141,12 @@ func (s *Service) provision(ctx context.Context, cluster Cluster, target server.
 			return "", err
 		}
 		if nodes == 0 {
-			return "", errors.New("nenhum nó registrado ainda")
+			return "", i18n.Errorf("nenhum nó registrado ainda")
 		}
 		return "", nil
 	})
 	if err != nil {
-		return fmt.Errorf("o cluster não ficou pronto: %w", err)
+		return i18n.Errorf("o cluster não ficou pronto: %w", err)
 	}
 	return s.setStatus(ctx, cluster.ID, StatusReady, "", version, nodes)
 }

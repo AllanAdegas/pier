@@ -1,18 +1,11 @@
 name: Memos
 description: Notas leves e open source.
+description_en: Lightweight, open source notes.
 category: Produtividade
 website: https://github.com/usememos/memos
-tags:
-  - note-taking
-  - microblog
-  - social-network
-  - markdown
-routes:
-  - service: memos
+services:
+  memos:
+    image: neosmemo/memos:26.11.0
     port: 5230
-compose: |
-  services:
-    memos:
-      image: neosmemo/memos:stable
-      volumes:
-        - ./memos/:/var/opt/memos
+    volumes:
+    - ./memos/:/var/opt/memos

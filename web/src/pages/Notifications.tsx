@@ -1,12 +1,13 @@
 import { createSignal, For, Show } from "solid-js";
 import { Button, IconButton } from "../components/Button";
 import { EmptyState, QueryView } from "../components/Feedback";
-import { Checkbox, Select, TextInput } from "../components/Form";
 import { Modal } from "../components/Modal";
 import { PageHeader } from "../components/Page";
 import { api } from "../lib/api";
 import { createAction, createQuery } from "../lib/query";
 import type { ChannelKind, NotificationChannel } from "../lib/types";
+import { t } from "../i18n";
+import { Checkbox, Select, TextInput } from "../components/Form";
 
 interface ConfigField {
   key: string;
@@ -17,39 +18,51 @@ interface ConfigField {
 
 // What each kind of channel needs; mirrors Sender.RequiredConfig on the backend.
 const KINDS: Record<ChannelKind, { label: string; fields: ConfigField[] }> = {
-  discord: { label: "Discord", fields: [{ key: "webhook_url", label: "URL do webhook", secret: true }] },
-  slack: { label: "Slack", fields: [{ key: "webhook_url", label: "URL do incoming webhook", secret: true }] },
+  discord: { label: "Discord", fields: [{ key: "webhook_url", label: t("URL do webhook"), secret: true }] },
+  slack: { label: "Slack", fields: [{ key: "webhook_url", label: t("URL do incoming webhook"), secret: true }] },
   telegram: {
     label: "Telegram",
     fields: [
-      { key: "bot_token", label: "Token do bot", secret: true },
-      { key: "chat_id", label: "Chat ID", hint: "ID do chat ou grupo que recebe as mensagens." },
+      { key: "bot_token", label: t("Token do bot"), secret: true },
+      { key: "chat_id", label: t("Chat ID"), hint: t("ID do chat ou grupo que recebe as mensagens.") },
     ],
   },
   webhook: {
-    label: "Webhook genérico",
-    fields: [{ key: "url", label: "URL", hint: "Recebe um POST com o evento em JSON." }],
+    label: t("Webhook genérico"),
+    fields: [{ key: "url", label: "URL", hint: t("Recebe um POST com o evento em JSON.") }],
   },
   email: {
-    label: "E-mail (SMTP)",
+    label: t("E-mail (SMTP)"),
     fields: [
-      { key: "host", label: "Servidor SMTP" },
-      { key: "port", label: "Porta", hint: "Geralmente 587." },
-      { key: "username", label: "Usuário", hint: "Opcional." },
-      { key: "password", label: "Senha", secret: true, hint: "Opcional." },
-      { key: "from", label: "Remetente" },
-      { key: "to", label: "Destinatários", hint: "Separe vários por vírgula." },
+      { key: "host", label: t("Servidor SMTP") },
+      { key: "port", label: t("Porta"), hint: t("Geralmente 587.") },
+      { key: "username", label: t("Usuário"), hint: t("Opcional.") },
+      { key: "password", label: t("Senha"), secret: true, hint: t("Opcional.") },
+      { key: "from", label: t("Remetente") },
+      { key: "to", label: t("Destinatários"), hint: t("Separe vários por vírgula.") },
     ],
   },
 };
 
 const EVENT_LABEL: Record<string, string> = {
-  "deployment.succeeded": "Deploy concluído",
-  "deployment.failed": "Deploy falhou",
-  "backup.succeeded": "Backup concluído",
-  "backup.failed": "Backup falhou",
-  "task.failed": "Tarefa agendada falhou",
-  "server.unreachable": "Servidor inacessível",
+  "container.restarting": t("Contêiner reiniciando em loop"),
+  "container.oom_killed": t("Contêiner sem memória"),
+  "container.unhealthy": t("Contêiner com saúde falhando"),
+  "server.disk_high": t("Disco do servidor quase cheio"),
+  "server.resource_high": t("Uso elevado de CPU ou memória"),
+  "certificate.expiring": t("Certificado inválido ou próximo do vencimento"),
+  "backup.missed": t("Backup não executado no horário"),
+  "task.missed": t("Tarefa não executada no horário"),
+  "backup.restore_test_failed": t("Teste de restauração falhou"),
+  "uptime.down": t("URL fora do ar"),
+  "alert.resolved": t("Alerta resolvido"),
+
+  "deployment.succeeded": t("Deploy concluído"),
+  "deployment.failed": t("Deploy falhou"),
+  "backup.succeeded": t("Backup concluído"),
+  "backup.failed": t("Backup falhou"),
+  "task.failed": t("Tarefa agendada falhou"),
+  "server.unreachable": t("Servidor inacessível"),
 };
 
 export function NotificationsPage() {
@@ -59,21 +72,20 @@ export function NotificationsPage() {
   );
   const [editing, setEditing] = createSignal<NotificationChannel | "new" | null>(null);
   const test = createAction((id: string) => api.post(`/notifications/${id}/test`), {
-    success: "Mensagem de teste enviada.",
+    success: t("Mensagem de teste enviada."),
   });
   const remove = createAction((id: string) => api.delete(`/notifications/${id}`), {
-    success: "Canal removido.",
+    success: t("Canal removido."),
     onSuccess: () => void channels.refetch(),
   });
 
   return (
     <div class="page">
       <PageHeader
-        title="Notificações"
-        description="Saiba quando um deploy termina, um backup falha ou um servidor cai."
+        title={t("Notificações")}
+        description={t("Saiba quando um deploy termina, um backup falha ou um servidor cai.")}
         actions={
-          <Button variant="primary" icon="plus" onClick={() => setEditing("new")}>
-            Novo canal
+          <Button variant="primary" icon="plus" onClick={() => setEditing("new")}>{t("Novo canal")}
           </Button>
         }
       />
@@ -84,14 +96,12 @@ export function NotificationsPage() {
             fallback={
               <EmptyState
                 icon="bell"
-                title="Nenhum canal configurado"
+                title={t("Nenhum canal configurado")}
                 action={
-                  <Button variant="primary" icon="plus" onClick={() => setEditing("new")}>
-                    Configurar o primeiro canal
+                  <Button variant="primary" icon="plus" onClick={() => setEditing("new")}>{t("Configurar o primeiro canal")}
                   </Button>
                 }
-              >
-                Conecte Discord, Slack, Telegram, e-mail ou um webhook e escolha quais eventos quer receber.
+              >{t("Conecte Discord, Slack, Telegram, e-mail ou um webhook e escolha quais eventos quer receber.")}
               </EmptyState>
             }
           >
@@ -106,15 +116,13 @@ export function NotificationsPage() {
                       </span>
                     </div>
                     <Show when={!channel.enabled}>
-                      <span class="tag">pausado</span>
+                      <span class="tag">{t("pausado")}</span>
                     </Show>
-                    <Button small pending={test.pending()} onClick={() => void test.run(channel.id)}>
-                      Testar
+                    <Button small pending={test.pending()} onClick={() => void test.run(channel.id)}>{t("Testar")}
                     </Button>
-                    <Button small onClick={() => setEditing(channel)}>
-                      Editar
+                    <Button small onClick={() => setEditing(channel)}>{t("Editar")}
                     </Button>
-                    <IconButton icon="trash" label={`Remover ${channel.name}`} onClick={() => void remove.run(channel.id)} />
+                    <IconButton icon="trash" label={t("Remover {name}", { name: channel.name })} onClick={() => void remove.run(channel.id)} />
                   </div>
                 )}
               </For>
@@ -149,14 +157,14 @@ function ChannelForm(props: { channel?: NotificationChannel; onClose: () => void
     setEvents(checked ? [...events(), event] : events().filter((item) => item !== event));
   const save = createAction(
     () => {
-      const body = { name: name(), kind: kind(), config: config(), events: events(), enabled: enabled() };
+      const body = { name: name(), kind: kind(), config: kind() === "email" ? { ...config(), require_tls: config().require_tls ?? "true" } : config(), events: events(), enabled: enabled() };
       return props.channel ? api.patch(`/notifications/${props.channel.id}`, body) : api.post("/notifications", body);
     },
-    { success: "Canal salvo.", onSuccess: props.onSaved },
+    { success: t("Canal salvo."), onSuccess: props.onSaved },
   );
 
   return (
-    <Modal title={props.channel ? "Editar canal" : "Novo canal de notificação"} onClose={props.onClose} wide>
+    <Modal title={props.channel ? t("Editar canal") : t("Novo canal de notificação")} onClose={props.onClose} wide>
       <form
         class="stack"
         onSubmit={(event) => {
@@ -165,9 +173,9 @@ function ChannelForm(props: { channel?: NotificationChannel; onClose: () => void
         }}
       >
         <div class="grid-2">
-          <TextInput label="Nome" required placeholder="Alertas de produção" value={name()} onValue={setName} error={save.errors().name} />
+          <TextInput label={t("Nome")} required placeholder={t("Alertas de produção")} value={name()} onValue={setName} error={save.errors().name} />
           <Select
-            label="Tipo"
+            label={t("Tipo")}
             value={kind()}
             onValue={(value) => {
               setKind(value as ChannelKind);
@@ -191,8 +199,7 @@ function ChannelForm(props: { channel?: NotificationChannel; onClose: () => void
           )}
         </For>
         <fieldset class="stack" style={{ border: "0", padding: "0", margin: "0" }}>
-          <legend class="field-label" style={{ "margin-bottom": "var(--space-2)" }}>
-            Eventos
+          <legend class="field-label" style={{ "margin-bottom": "var(--space-2)" }}>{t("Eventos")}
           </legend>
           <div class="grid-2">
             <For each={Object.entries(EVENT_LABEL)}>
@@ -205,11 +212,11 @@ function ChannelForm(props: { channel?: NotificationChannel; onClose: () => void
             <span class="field-error">{save.errors().events}</span>
           </Show>
         </fieldset>
-        <Checkbox label="Canal ativo" checked={enabled()} onChange={setEnabled} />
+        <Show when={kind() === "email"}><Checkbox label={t("Exigir TLS no SMTP")} checked={config().require_tls !== "false"} onChange={(checked) => setConfig({ ...config(), require_tls: String(checked) })} /></Show>
+        <Checkbox label={t("Canal ativo")} checked={enabled()} onChange={setEnabled} />
         <div class="form-actions">
-          <Button onClick={props.onClose}>Cancelar</Button>
-          <Button type="submit" variant="primary" pending={save.pending()}>
-            Salvar canal
+          <Button onClick={props.onClose}>{t("Cancelar")}</Button>
+          <Button type="submit" variant="primary" pending={save.pending()}>{t("Salvar canal")}
           </Button>
         </div>
       </form>

@@ -1,29 +1,23 @@
 name: Terraria Server
 description: Servidor de Terraria, multi-arquitetura.
+description_en: Terraria server, multi-architecture.
 category: Jogos
 website: https://github.com/hexlo/terraria-server-docker
-tags:
-  - terraria
-routes: []
-compose: |
-  services:
-    terraria-server:
-      image: hexlo/terraria-server-docker:1.4.5.0
-      environment:
-        - worldpath=${WORLDPATH:-/root/.local/share/Terraria/Worlds}
-        - autocreate=${AUTOCREATE:-2}
-        - world=${WORLD:-world1.wld}
-        - difficulty=${DIFFICULTY:-1}
-        - maxplayers=${MAXPLAYERS:-8}
-        - password=${PIER_PASSWORD_TERRARIA}
-        - motd=${MOTD:-Welcome to the server!}
-        - language=${LANGUAGE:-en/US}
-        - secure=${SECURE:-1}
-      volumes:
-        - terraria-server:/root/.local/share/Terraria/Worlds
-      ports:
-        - 7777:7777
-      stdin_open: true
-      tty: true
-  volumes:
-    terraria-server: null
+services:
+  terraria-server:
+    image: hexlo/terraria-server-docker:1.4.5.0
+    data: /root/.local/share/Terraria/Worlds
+    ports:
+    - 7777:7777
+    stdin_open: true
+    tty: true
+    env:
+      worldpath: ${WORLDPATH:-/root/.local/share/Terraria/Worlds}
+      autocreate: ${AUTOCREATE:-2}
+      world: ${WORLD:-world1.wld}
+      difficulty: ${DIFFICULTY:-1}
+      maxplayers: ${MAXPLAYERS:-8}
+      password: ${PIER_PASSWORD_TERRARIA}
+      motd: ${MOTD:-Welcome to the server!}
+      language: ${LANGUAGE:-en/US}
+      secure: ${SECURE:-1}

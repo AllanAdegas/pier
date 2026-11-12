@@ -1,104 +1,48 @@
 name: AFFiNE
 description: Espaço de trabalho tudo-em-um para gestão de conhecimento; alternativa ao Notion e ao Miro.
+description_en: All-in-one workspace for knowledge management; an alternative to Notion and Miro.
 category: Produtividade
 website: https://docs.affine.pro/docs/self-host-affine
-tags:
-  - knowledge-management
-  - notion
-  - miro
-  - workspace
-routes:
-  - service: affine
+services:
+  affine:
+    image: ghcr.io/toeverything/affine:0.27.4
     port: 3010
-compose: |
-  services:
-    affine:
-      image: ghcr.io/toeverything/affine:stable
-      environment:
-        - AFFINE_CONFIG_PATH=/root/.affine/config
-        - REDIS_SERVER_HOST=redis
-        - DATABASE_URL=postgres://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@postgres:5432/${POSTGRES_DB:-affine}
-        - NODE_ENV=production
-        - AFFINE_SERVER_HOST=$PIER_URL_AFFINE
-        - AFFINE_SERVER_EXTERNAL_URL=$PIER_URL_AFFINE
-        - MAILER_HOST=${MAILER_HOST}
-        - MAILER_PORT=${MAILER_PORT}
-        - MAILER_USER=${MAILER_USER}
-        - MAILER_PASSWORD=${MAILER_PASSWORD}
-        - MAILER_SENDER=${MAILER_SENDER}
-        - COPILOT_FAL_API_KEY=${COPILOT_FAL_API_KEY}
-        - COPILOT_PERPLEXITY_API_KEY=${COPILOT_PERPLEXITY_API_KEY}
-        - COPILOT_OPENAI_API_KEY=${COPILOT_OPENAI_API_KEY}
-      volumes:
-        - affine-config:/root/.affine/config
-        - affine-storage:/root/.affine/storage
-      depends_on:
-        postgres:
-          condition: service_healthy
-        redis:
-          condition: service_healthy
-      healthcheck:
-        interval: 5s
-        retries: 3
-        test:
-          - CMD-SHELL
-          - bash -c ':> /dev/tcp/127.0.0.1/3010' || exit 1
-        timeout: 20s
-      logging:
-        driver: json-file
-        options:
-          max-size: 1000m
-    affine_migration:
-      image: ghcr.io/toeverything/affine:${AFFINE_REVISION:-stable}
-      command:
-        - sh
-        - -c
-        - node ./scripts/self-host-predeploy.js
-      restart: on-failure
-      environment:
-        - REDIS_SERVER_HOST=redis
-        - DATABASE_URL=postgres://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@postgres:5432/${POSTGRES_DB:-affine}
-        - AFFINE_INDEXER_ENABLED=false
-      volumes:
-        - affine-storage:/root/.affine/storage
-        - affine-config:/root/.affine/config
-      depends_on:
-        postgres:
-          condition: service_healthy
-        redis:
-          condition: service_healthy
-    postgres:
-      image: pgvector/pgvector:pg16
-      environment:
-        - POSTGRES_USER=${PIER_USER_POSTGRES}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
-        - POSTGRES_DB=${POSTGRES_DB:-affine}
-        - PGDATA=/var/lib/postgresql/data/pgdata
-      volumes:
-        - affine-postgres-data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
-        timeout: 20s
-    redis:
-      image: redis
-      volumes:
-        - affine-redis-data:/data
-      healthcheck:
-        interval: 10s
-        retries: 5
-        test:
-          - CMD
-          - redis-cli
-          - --raw
-          - incr
-          - ping
-        timeout: 5s
-  volumes:
-    affine-config: null
-    affine-postgres-data: null
-    affine-redis-data: null
-    affine-storage: null
+    volumes:
+    - affine-config:/root/.affine/config
+    - affine-storage:/root/.affine/storage
+    env:
+      AFFINE_CONFIG_PATH: /root/.affine/config
+      REDIS_SERVER_HOST: redis
+      DATABASE_URL: postgres://{{postgres.user}}:{{postgres.password}}@postgres:5432/{{postgres.database}}
+      NODE_ENV: production
+      AFFINE_SERVER_HOST: $PIER_URL_AFFINE
+      AFFINE_SERVER_EXTERNAL_URL: $PIER_URL_AFFINE
+      MAILER_HOST: ${MAILER_HOST}
+      MAILER_PORT: ${MAILER_PORT}
+      MAILER_USER: ${MAILER_USER}
+      MAILER_PASSWORD: ${MAILER_PASSWORD}
+      MAILER_SENDER: ${MAILER_SENDER}
+      COPILOT_FAL_API_KEY: ${COPILOT_FAL_API_KEY}
+      COPILOT_PERPLEXITY_API_KEY: ${COPILOT_PERPLEXITY_API_KEY}
+      COPILOT_OPENAI_API_KEY: ${COPILOT_OPENAI_API_KEY}
+  affine_migration:
+    image: ghcr.io/toeverything/affine:${AFFINE_REVISION:-0.27.4}
+    command:
+    - sh
+    - -c
+    - node ./scripts/self-host-predeploy.js
+    restart: on-failure
+    volumes:
+    - affine-storage:/root/.affine/storage
+    - affine-config:/root/.affine/config
+    env:
+      REDIS_SERVER_HOST: redis
+      DATABASE_URL: postgres://{{postgres.user}}:{{postgres.password}}@postgres:5432/{{postgres.database}}
+      AFFINE_INDEXER_ENABLED: 'false'
+with:
+  postgres:
+    version: '16'
+    flavor: pgvector
+    database: affine
+  redis:
+    version: '8.2'

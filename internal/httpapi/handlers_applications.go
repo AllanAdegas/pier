@@ -24,11 +24,15 @@ func (a *API) registerApplicationRoutes(mux *http.ServeMux) {
 	a.route(mux, "DELETE /api/v1/applications/{id}", canWrite, a.deleteApplication)
 	a.route(mux, "POST /api/v1/applications/{id}/deploy", canDeploy, a.deployApplication)
 	a.route(mux, "POST /api/v1/applications/{id}/rollback", canDeploy, a.rollbackApplication)
+	a.route(mux, "POST /api/v1/applications/{id}/deploy-archive", canDeploy, a.deployArchive)
+	a.route(mux, "POST /api/v1/applications/{id}/promote", canDeploy, a.promoteApplication)
 	a.route(mux, "POST /api/v1/applications/{id}/actions/{action}", canDeploy, a.operateApplication)
 	a.route(mux, "GET /api/v1/applications/{id}/deployments", canRead, a.listApplicationDeployments)
 	a.route(mux, "GET /api/v1/applications/{id}/containers", canRead, a.applicationContainers)
 	a.route(mux, "GET /api/v1/applications/{id}/webhook", canRead, a.getWebhook)
 	a.route(mux, "POST /api/v1/applications/{id}/webhook/rotate", canWrite, a.rotateWebhook)
+	a.route(mux, "POST /api/v1/applications/{id}/git-host-key/reset", canWrite, a.resetGitHostKey)
+	a.route(mux, "POST /api/v1/applications/image-ports", canWrite, a.imagePorts)
 	a.route(mux, "GET /api/v1/applications/{id}/tasks", canRead, a.listTasks)
 	a.route(mux, "POST /api/v1/applications/{id}/tasks", canWrite, a.createTask)
 	a.route(mux, "PATCH /api/v1/tasks/{id}", canWrite, a.updateTask)
@@ -48,7 +52,7 @@ func (a *API) listApplications(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return ok(w, apps)
+	return ok(w, allForCaller(r, apps))
 }
 
 // applicationDefaults lets the UI prefill the creation form for a build pack.
@@ -65,7 +69,7 @@ func (a *API) getApplication(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return ok(w, app)
+	return ok(w, forCaller(r, app))
 }
 
 func (a *API) createApplication(w http.ResponseWriter, r *http.Request) error {
@@ -99,7 +103,14 @@ func (a *API) updateApplication(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (a *API) deleteApplication(w http.ResponseWriter, r *http.Request) error {
-	err := a.Applications.Delete(r.Context(), r.PathValue("id"), queryFlag(r, "volumes"), queryFlag(r, "force"))
+	app, err := a.Applications.Get(r.Context(), r.PathValue("id"))
+	if err != nil {
+		return err
+	}
+	if err := a.checkDestroy(r, app.EnvironmentID); err != nil {
+		return err
+	}
+	err = a.Applications.Delete(r.Context(), r.PathValue("id"), queryFlag(r, "volumes"), queryFlag(r, "force"))
 	if err != nil {
 		return err
 	}
@@ -107,11 +118,11 @@ func (a *API) deleteApplication(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (a *API) deployApplication(w http.ResponseWriter, r *http.Request) error {
-	trigger := application.TriggerManual
-	if principalFrom(r.Context()).ViaToken {
-		trigger = application.TriggerAPI
+	request, err := decodeOptional[deployRequest](w, r)
+	if err != nil {
+		return err
 	}
-	deployment, err := a.Applications.Deploy(r.Context(), r.PathValue("id"), trigger)
+	deployment, err := a.Applications.DeployRef(r.Context(), r.PathValue("id"), deployTrigger(r), request.Ref)
 	if err != nil {
 		return err
 	}
@@ -210,7 +221,7 @@ func (a *API) publicURL(r *http.Request) string {
 		return current.PublicURL
 	}
 	scheme := "http"
-	if isHTTPS(r) {
+	if a.proxies.isHTTPS(r) {
 		scheme = "https"
 	}
 	return scheme + "://" + r.Host
@@ -264,7 +275,13 @@ func (a *API) runTask(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (a *API) taskExecutions(w http.ResponseWriter, r *http.Request) error {
-	executions, err := a.Tasks.Executions(r.Context(), r.PathValue("id"))
+	raw := queryFlag(r, "raw")
+	if raw {
+		if err := requireSensitive(r); err != nil {
+			return err
+		}
+	}
+	executions, err := a.Tasks.Executions(r.Context(), r.PathValue("id"), raw)
 	if err != nil {
 		return err
 	}
@@ -394,7 +411,7 @@ func (a *API) registerEnvRoutes(mux *http.ServeMux, collection string, ownerType
 		if err != nil {
 			return err
 		}
-		if err := a.Env.Set(r.Context(), owner(r), variable.Key, variable.Value, variable.BuildTime); err != nil {
+		if err := a.Env.Set(r.Context(), owner(r), variable.Key, variable.Value, variable.BuildTime, variable.SecretBuild); err != nil {
 			return err
 		}
 		return noContent(w)
@@ -440,12 +457,13 @@ func (a *API) parseDotenv(r *http.Request, owner envvar.Owner, text string) ([]e
 	if err != nil {
 		return nil, err
 	}
-	buildTime := map[string]bool{}
+	flags := map[string]envvar.Variable{}
 	for _, variable := range existing {
-		buildTime[variable.Key] = variable.BuildTime
+		flags[variable.Key] = variable
 	}
 	for index := range variables {
-		variables[index].BuildTime = buildTime[variables[index].Key]
+		variables[index].BuildTime = flags[variables[index].Key].BuildTime
+		variables[index].SecretBuild = flags[variables[index].Key].SecretBuild
 	}
 	return variables, nil
 }
@@ -483,4 +501,25 @@ func (a *API) gitPushHook(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	return ok(w, result)
+}
+
+func (a *API) resetGitHostKey(w http.ResponseWriter, r *http.Request) error {
+	if err := a.Applications.ResetGitHostKey(r.Context(), r.PathValue("id")); err != nil {
+		return err
+	}
+	return noContent(w)
+}
+func (a *API) imagePorts(w http.ResponseWriter, r *http.Request) error {
+	input, err := decode[struct {
+		ServerID string `json:"server_id"`
+		Image    string `json:"image"`
+	}](w, r)
+	if err != nil {
+		return err
+	}
+	ports, err := a.Applications.ImagePorts(r.Context(), input.ServerID, input.Image)
+	if err != nil {
+		return err
+	}
+	return ok(w, ports)
 }

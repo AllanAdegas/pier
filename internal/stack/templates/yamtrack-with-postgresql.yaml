@@ -1,77 +1,25 @@
 name: Yamtrack com PostgreSQL
 description: Acompanhe filmes, séries, animes, mangás, jogos e livros.
+description_en: Track movies, series, anime, manga, games and books.
 category: Produtividade
 website: https://github.com/FuzzyGrim/Yamtrack/wiki
-tags:
-  - self-hosted
-  - automation
-  - tracker
-  - media
-  - movies
-  - shows
-  - anime
-  - manga
-routes:
-  - service: yamtrack
+services:
+  yamtrack:
+    image: ghcr.io/fuzzygrim/yamtrack:0.26.3
     port: 8000
-compose: |
-  services:
-    postgres:
-      image: postgres:16-alpine
-      environment:
-        - POSTGRES_USER=${PIER_USER_POSTGRESQL}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRESQL}
-        - POSTGRES_DB=${POSTGRESQL_DATABASE:-yamtrack-db}
-      volumes:
-        - yamtrack_postgres_data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
-        timeout: 20s
-    redis:
-      image: redis:7-alpine
-      volumes:
-        - yamtrack_redis_data:/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - redis-cli
-          - ping
-        timeout: 20s
-    yamtrack:
-      image: ghcr.io/fuzzygrim/yamtrack
-      environment:
-        - URLS=${PIER_URL_YAMTRACK}
-        - TZ=${TZ:-Europe/Berlin}
-        - SECRET=${PIER_PASSWORD_SECRET}
-        - REGISTRATION=${REGISTRATION_ENABLED:-true}
-        - REDIS_URL=redis://redis:6379
-        - DB_HOST=postgres
-        - DB_NAME=${POSTGRESQL_DATABASE:-yamtrack-db}
-        - DB_USER=${PIER_USER_POSTGRESQL}
-        - DB_PASSWORD=${PIER_PASSWORD_POSTGRESQL}
-        - DB_PORT=5432
-      depends_on:
-        postgres:
-          condition: service_healthy
-        redis:
-          condition: service_healthy
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - wget
-          - --no-verbose
-          - --tries=1
-          - --spider
-          - http://127.0.0.1:8000/health/
-        timeout: 20s
-  volumes:
-    yamtrack_postgres_data: null
-    yamtrack_redis_data: null
+    env:
+      URLS: ${PIER_URL_YAMTRACK}
+      TZ: ${TZ:-Europe/Berlin}
+      SECRET: ${PIER_PASSWORD_SECRET}
+      REGISTRATION: ${REGISTRATION_ENABLED:-true}
+      REDIS_URL: redis://redis:6379
+      DB_HOST: postgres
+      DB_NAME: '{{postgres.database}}'
+      DB_USER: '{{postgres.user}}'
+      DB_PASSWORD: '{{postgres.password}}'
+      DB_PORT: '5432'
+with:
+  postgres:
+    version: '16'
+    database: yamtrack-db
+  redis: {}

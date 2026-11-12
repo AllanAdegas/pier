@@ -1,35 +1,16 @@
 name: Appsmith
 description: Plataforma low-code para construir ferramentas internas.
+description_en: Low-code platform to build internal tools.
 category: Produtividade
 website: https://appsmith.com
-tags:
-  - lowcode
-  - nocode
-  - "no"
-  - platform
-routes:
-  - service: appsmith
+services:
+  appsmith:
+    image: index.docker.io/appsmith/appsmith-ce:v2.6.0
     port: 80
-compose: |
-  services:
-    appsmith:
-      image: index.docker.io/appsmith/appsmith-ce:latest
-      environment:
-        - APPSMITH_MAIL_ENABLED=${APPSMITH_MAIL_ENABLED:-false}
-        - APPSMITH_DISABLE_TELEMETRY=${APPSMITH_DISABLE_TELEMETRY:-false}
-        - APPSMITH_DISABLE_INTERCOM=${APPSMITH_DISABLE_INTERCOM:-true}
-        - APPSMITH_SENTRY_DSN=${APPSMITH_SENTRY_DSN}
-        - APPSMITH_SMART_LOOK_ID=${APPSMITH_SMART_LOOK_ID}
-      volumes:
-        - stacks-data:/appsmith-stacks
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:80
-        timeout: 20s
-  volumes:
-    stacks-data: null
+    data: /appsmith-stacks
+    env:
+      APPSMITH_MAIL_ENABLED: ${APPSMITH_MAIL_ENABLED:-false}
+      APPSMITH_DISABLE_TELEMETRY: ${APPSMITH_DISABLE_TELEMETRY:-false}
+      APPSMITH_DISABLE_INTERCOM: ${APPSMITH_DISABLE_INTERCOM:-true}
+      APPSMITH_SENTRY_DSN: ${APPSMITH_SENTRY_DSN}
+      APPSMITH_SMART_LOOK_ID: ${APPSMITH_SMART_LOOK_ID}

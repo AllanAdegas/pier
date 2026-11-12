@@ -1,4 +1,5 @@
 import type { DockerContainer, Project, Resources } from "../../lib/types";
+import { t } from "../../i18n";
 
 /** A set of containers shown together in the per-project view. */
 export interface ContainerGroup {
@@ -56,15 +57,15 @@ export function groupContainers(containers: DockerContainer[], index: Map<string
     const owner = container.managed ? container.owner : null;
     const placed = owner ? index.get(owner.id) : undefined;
     if (placed) {
-      add(`project:${placed.project}`, placed.project, "Projeto do Pier", 0, container);
+      add(`project:${placed.project}`, placed.project, t("Projeto do Pier"), 0, container);
     } else if (owner && INFRASTRUCTURE.has(owner.type)) {
-      add("pier", "Infraestrutura do Pier", "Proxy e clusters", 1, container);
+      add("pier", t("Infraestrutura do Pier"), t("Proxy e clusters"), 1, container);
     } else if (owner) {
-      add("orphan", "Recursos sem registro", "Gerenciados por um Pier, mas sem recurso neste painel (removido ou de outra instalação)", 2, container);
+      add("orphan", t("Recursos sem registro"), t("Gerenciados por um Pier, mas sem recurso neste painel (removido ou de outra instalação)"), 2, container);
     } else if (container.compose_project) {
-      add(`compose:${container.compose_project}`, container.compose_project, "Projeto compose fora do Pier", 3, container);
+      add(`compose:${container.compose_project}`, container.compose_project, t("Projeto compose fora do Pier"), 3, container);
     } else {
-      add("loose", "Containers avulsos", "Criados sem compose nem Pier", 4, container);
+      add("loose", t("Containers avulsos"), t("Criados sem compose nem Pier"), 4, container);
     }
   }
   return [...groups.values()].sort((a, b) => a.rank - b.rank || a.title.localeCompare(b.title, "pt-BR"));

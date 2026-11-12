@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 	"sort"
 	"strconv"
@@ -11,6 +10,7 @@ import (
 	"pier/internal/docker"
 	"pier/internal/platform/apperr"
 	"pier/internal/platform/executor"
+	"pier/internal/platform/i18n"
 )
 
 // The proxy publishes fixed ports. When another program already holds one
@@ -33,12 +33,12 @@ var ssProcess = regexp.MustCompile(`users:\(\("([^"]+)"`)
 // (other than the proxy itself) or, when docker does not know, a process.
 // dockerPS is `docker ps --format '{{.Names}}\t{{.Image}}\t{{.Ports}}'`;
 // sockets is `ss -Hltnp` (empty when ss is not available).
-func portHolders(dockerPS, sockets string, wanted []int) map[int]string {
+func portHolders(dockerPS, sockets string, wanted []int) map[int]i18n.Message {
 	want := map[int]bool{}
 	for _, port := range wanted {
 		want[port] = true
 	}
-	holders := map[int]string{}
+	holders := map[int]i18n.Message{}
 	for _, line := range strings.Split(dockerPS, "\n") {
 		fields := strings.SplitN(line, "\t", 3)
 		if len(fields) < 3 || fields[0] == docker.ProxyContainer {
@@ -46,8 +46,8 @@ func portHolders(dockerPS, sockets string, wanted []int) map[int]string {
 		}
 		for _, match := range publishedPort.FindAllStringSubmatch(fields[2], -1) {
 			port, _ := strconv.Atoi(match[1])
-			if want[port] && holders[port] == "" {
-				holders[port] = fmt.Sprintf("o container %s (%s)", fields[0], fields[1])
+			if _, taken := holders[port]; want[port] && !taken {
+				holders[port] = i18n.M("o container %s (%s)", fields[0], fields[1])
 			}
 		}
 	}
@@ -61,7 +61,7 @@ func portHolders(dockerPS, sockets string, wanted []int) map[int]string {
 			continue
 		}
 		port, _ := strconv.Atoi(match[1])
-		if !want[port] || holders[port] != "" {
+		if _, taken := holders[port]; !want[port] || taken {
 			continue
 		}
 		process := ssProcess.FindStringSubmatch(line)
@@ -70,9 +70,9 @@ func portHolders(dockerPS, sockets string, wanted []int) map[int]string {
 			// A port docker publishes; already reported by name above, or it
 			// belongs to the proxy itself.
 		case process != nil:
-			holders[port] = "o processo " + process[1]
+			holders[port] = i18n.M("o processo %s", process[1])
 		default:
-			holders[port] = "outro programa"
+			holders[port] = i18n.M("outro programa")
 		}
 	}
 	return holders
@@ -95,15 +95,17 @@ func requireFreePorts(ctx context.Context, ex executor.Executor, settings ProxyS
 		ports = append(ports, port)
 	}
 	sort.Ints(ports)
-	parts := make([]string, len(ports))
+	parts := make([]i18n.Message, len(ports))
+	caddy := false
 	for index, port := range ports {
-		parts[index] = fmt.Sprintf("a porta %d já é usada por %s", port, holders[port])
+		parts[index] = i18n.M("a porta %d já é usada por %s", port, holders[port])
+		caddy = caddy || strings.Contains(holders[port].String(), "caddy")
 	}
-	advice := "Escolha outras portas em “Portas e certificados” (e acesse os domínios com a porta no endereço) " +
-		"ou libere essas portas no servidor."
-	if strings.Contains(strings.Join(parts, " "), "caddy") {
-		advice = "Para manter esse Caddy, use outras portas (ex.: 8880 e 8843) e configure-o como “Caddy na frente” " +
-			"em “Portas e certificados”: o Pier passa a incluir os domínios dele no Caddyfile."
+	advice := i18n.Text("Escolha outras portas em “Portas e certificados” (e acesse os domínios com a porta no endereço) " +
+		"ou libere essas portas no servidor.")
+	if caddy {
+		advice = i18n.Text("Para manter esse Caddy, use outras portas (ex.: 8880 e 8843) e configure-o como “Caddy na frente” " +
+			"em “Portas e certificados”: o Pier passa a incluir os domínios dele no Caddyfile.")
 	}
-	return apperr.Conflict("O proxy não pode subir: %s. %s", strings.Join(parts, "; "), advice)
+	return apperr.Conflict("O proxy não pode subir: %s. %s", i18n.Join(parts, "; "), advice)
 }

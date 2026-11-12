@@ -16,6 +16,19 @@ const (
 	BackupFailed        EventType = "backup.failed"
 	TaskFailed          EventType = "task.failed"
 	ServerUnreachable   EventType = "server.unreachable"
+	// Runtime alerts: what happens after a deployment succeeded.
+	ContainerRestarting EventType = "container.restarting"
+	ContainerOOMKilled  EventType = "container.oom_killed"
+	ContainerUnhealthy  EventType = "container.unhealthy"
+	ServerDiskHigh      EventType = "server.disk_high"
+	ServerResourceHigh  EventType = "server.resource_high"
+	CertificateExpiring EventType = "certificate.expiring"
+	BackupMissed        EventType = "backup.missed"
+	TaskMissed          EventType = "task.missed"
+	RestoreTestFailed   EventType = "backup.restore_test_failed"
+	UptimeDown          EventType = "uptime.down"
+	// AlertResolved closes any of the runtime alerts above ("back to normal").
+	AlertResolved EventType = "alert.resolved"
 	// TestMessage is only sent by the "test channel" action.
 	TestMessage EventType = "test"
 )
@@ -23,6 +36,8 @@ const (
 // AllEvents lists the events a channel can subscribe to.
 var AllEvents = []EventType{
 	DeploymentSucceeded, DeploymentFailed, BackupSucceeded, BackupFailed, TaskFailed, ServerUnreachable,
+	ContainerRestarting, ContainerOOMKilled, ContainerUnhealthy, ServerDiskHigh, ServerResourceHigh,
+	CertificateExpiring, BackupMissed, TaskMissed, RestoreTestFailed, UptimeDown, AlertResolved,
 }
 
 // Event is an immutable fact that already happened.
@@ -37,7 +52,9 @@ type Event struct {
 // Failure reports whether the event describes something that went wrong.
 func (e Event) Failure() bool {
 	switch e.Type {
-	case DeploymentFailed, BackupFailed, TaskFailed, ServerUnreachable:
+	case DeploymentFailed, BackupFailed, TaskFailed, ServerUnreachable,
+		ContainerRestarting, ContainerOOMKilled, ContainerUnhealthy, ServerDiskHigh, ServerResourceHigh,
+		CertificateExpiring, BackupMissed, TaskMissed, RestoreTestFailed, UptimeDown:
 		return true
 	}
 	return false

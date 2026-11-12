@@ -5,6 +5,8 @@ package oplog
 import (
 	"sync"
 	"time"
+
+	"pier/internal/platform/i18n"
 )
 
 const maxLines = 2000
@@ -33,6 +35,11 @@ func (o *Operation) Append(line string) {
 		o.snapshot.Lines = o.snapshot.Lines[1:]
 	}
 	o.snapshot.Lines = append(o.snapshot.Lines, line)
+}
+
+// Say adds a message for people, in the language of the instance.
+func (o *Operation) Say(format string, args ...any) {
+	o.Append(i18n.Instance().Sprintf(format, args...))
 }
 
 // Finish closes the operation, recording the error when it failed.

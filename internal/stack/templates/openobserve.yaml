@@ -1,40 +1,16 @@
 name: OpenObserve
 description: Observabilidade para logs, métricas, traces, RUM e erros.
+description_en: Observability for logs, metrics, traces, RUM and errors.
 category: Monitoramento
 website: https://openobserve.ai/docs/
-tags:
-  - logs
-  - metrics
-  - traces
-  - observability
-  - monitoring
-  - opentelemetry
-  - otel
-  - elasticsearch
-routes:
-  - service: openobserve
+services:
+  openobserve:
+    image: public.ecr.aws/zinclabs/openobserve:v0.90.0
     port: 5080
-compose: |
-  services:
-    openobserve:
-      image: public.ecr.aws/zinclabs/openobserve:v0.90.0
-      environment:
-        - ZO_DATA_DIR=/data
-        - ZO_ROOT_USER_EMAIL=${ZO_ROOT_USER_EMAIL:-root@example.com}
-        - ZO_ROOT_USER_PASSWORD=${PIER_PASSWORD_OPENOBSERVE}
-        - ZO_TELEMETRY=${ZO_TELEMETRY:-false}
-        - ZO_COOKIE_SECURE_ONLY=${ZO_COOKIE_SECURE_ONLY:-true}
-      volumes:
-        - openobserve-data:/data
-      healthcheck:
-        interval: 10s
-        retries: 5
-        start_period: 60s
-        test:
-          - CMD
-          - /openobserve
-          - node
-          - status
-        timeout: 5s
-  volumes:
-    openobserve-data: null
+    data: /data
+    env:
+      ZO_DATA_DIR: /data
+      ZO_ROOT_USER_EMAIL: ${ZO_ROOT_USER_EMAIL:-root@example.com}
+      ZO_ROOT_USER_PASSWORD: ${PIER_PASSWORD_OPENOBSERVE}
+      ZO_TELEMETRY: ${ZO_TELEMETRY:-false}
+      ZO_COOKIE_SECURE_ONLY: ${ZO_COOKIE_SECURE_ONLY:-true}

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"pier/internal/docker"
 	"pier/internal/envvar"
@@ -24,7 +25,7 @@ import (
 type fakeConnector struct{ ex *executor.Fake }
 
 func (f fakeConnector) Executor(context.Context, string) (executor.Executor, server.Server, error) {
-	return f.ex, server.Server{ID: "srv1", Name: "test", DataDir: "/data/pier"}, nil
+	return f.ex, server.Server{ID: "srv1", Name: "test", DataDir: "/data/pier", ProxyToken: "test-persisted-route-token"}, nil
 }
 
 type recordingPublisher struct {
@@ -74,12 +75,16 @@ func newDeployFixture(t *testing.T, config Config) *deployFixture {
 		store: NewStore(db, box), env: envvar.NewStore(db, box),
 		ex: executor.NewFake(), publisher: &recordingPublisher{},
 	}
+	fixture.ex.On("{{json .Config.Env}}", "[]", 0)
+	fixture.ex.On("docker image inspect --format '{{json .Config.Labels}}'", "{}", 0)
+	fixture.ex.On("docker info --format", "/var/lib/docker", 0)
+	fixture.ex.On("df -Pk", "99999999", 0)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	fixture.deployer = NewDeployer(fixture.store, fixture.env, fakeConnector{fixture.ex}, nil,
 		fixture.publisher, pubsub.NewHub[LogEntry](), logger)
 	// The dispatcher is only needed to accept the enqueue; nothing consumes it here.
 	service := NewService(fixture.store, fixture.env, fakeConnector{fixture.ex},
-		NewDispatcher(fixture.store, fixture.deployer, logger))
+		NewDispatcher(fixture.store, fixture.deployer, logger, time.Hour))
 	fixture.app, err = service.Create(ctx, CreateInput{EnvironmentID: "env1", ServerID: "srv1", Name: "demo", Config: config})
 	if err != nil {
 		t.Fatalf("create application: %v", err)
@@ -283,7 +288,7 @@ func TestGitSourceIsClonedWithValuesPassedAsDataNotCode(t *testing.T) {
 	config.Source.Branch = "main"
 	config.Health.Enabled = true
 	fixture := newDeployFixture(t, config)
-	fixture.ex.On("alpine/git", "Cloning into '/work/src'...\nPIER_COMMIT 0123456789abcdef fix: something", 0)
+	fixture.ex.On("git clone --depth", "Cloning into '/work/src'...\nPIER_COMMIT 0123456789abcdef fix: something", 0)
 	fixture.ex.On("docker inspect --format '{{.State.Status}}", "running|healthy|0", 0)
 
 	deployment := fixture.deploy(t)
@@ -297,10 +302,14 @@ func TestGitSourceIsClonedWithValuesPassedAsDataNotCode(t *testing.T) {
 	clone := fixture.ex.Commands[indexOf(fixture.ex.Commands, "alpine/git")]
 	// Repository and branch travel as environment values; the script only
 	// ever expands them inside double quotes.
-	if !strings.Contains(clone, "PIER_REPOSITORY=https://github.com/acme/app") || !strings.Contains(clone, `-- "$PIER_REPOSITORY"`) {
+	if strings.Contains(clone, "PIER_REPOSITORY=https://github.com/acme/app") || !strings.Contains(clone, "--env-file") || !strings.Contains(clone, `-- "$PIER_REPOSITORY"`) {
 		t.Errorf("unexpected clone command:\n%s", clone)
 	}
-	build := fixture.ex.Commands[indexOf(fixture.ex.Commands, "docker build")]
+	privateEnv := fixture.ex.Files["/data/pier/builds/"+deployment.ID+"/clone.env"]
+	if !strings.Contains(string(privateEnv), "PIER_REPOSITORY=https://github.com/acme/app") {
+		t.Error("repository missing from private clone env file")
+	}
+	build := fixture.ex.Commands[indexOf(fixture.ex.Commands, "docker buildx build")]
 	wantImage := "pier/" + fixture.app.ID + ":" + deployment.ID
 	if !strings.Contains(build, wantImage) || deployment.Image != wantImage {
 		t.Errorf("image tag mismatch: build=%q deployment=%q", build, deployment.Image)

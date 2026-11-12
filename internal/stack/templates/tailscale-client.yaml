@@ -1,50 +1,24 @@
 name: Tailscale Client
 description: Conecta seus dispositivos com segurança usando WireGuard.
+description_en: Connects your devices securely using WireGuard.
 category: Rede
 website: https://tailscale.com/kb
-tags:
-  - vpn
-  - wireguard
-  - remote-access
-routes: []
-compose: |
-  services:
-    nginx:
-      image: nginx:latest
-      depends_on:
-        - tailscale-client
-      network_mode: service:tailscale-client
-      healthcheck:
-        interval: 20s
-        retries: 3
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://localhost:80/
-          - -o
-          - /dev/null
-        timeout: 5s
-    tailscale-client:
-      image: tailscale/tailscale:latest
-      hostname: ${TS_HOSTNAME:-pier-ts}
-      environment:
-        - TS_HOSTNAME=${TS_HOSTNAME:-pier-ts}
-        - TS_AUTHKEY=${TS_AUTHKEY:?}
-        - TS_STATE_DIR=${TS_STATE_DIR:-/var/lib/tailscale}
-        - TS_USERSPACE=${TS_USERSPACE:-false}
-      volumes:
-        - tailscale-client:/var/lib/tailscale
-      healthcheck:
-        interval: 10s
-        retries: 5
-        test:
-          - CMD-SHELL
-          - tailscale status --json | grep -q 'BackendState'
-        timeout: 5s
-      cap_add:
-        - net_admin
-      devices:
-        - /dev/net/tun:/dev/net/tun
-  volumes:
-    tailscale-client: null
+services:
+  nginx:
+    image: nginx:1.31.8
+    network_mode: service:tailscale-client
+    needs:
+    - tailscale-client
+  tailscale-client:
+    image: tailscale/tailscale:v1.104.4
+    data: /var/lib/tailscale
+    hostname: ${TS_HOSTNAME:-pier-ts}
+    cap_add:
+    - net_admin
+    devices:
+    - /dev/net/tun:/dev/net/tun
+    env:
+      TS_HOSTNAME: ${TS_HOSTNAME:-pier-ts}
+      TS_AUTHKEY: ${TS_AUTHKEY:?}
+      TS_STATE_DIR: ${TS_STATE_DIR:-/var/lib/tailscale}
+      TS_USERSPACE: ${TS_USERSPACE:-false}

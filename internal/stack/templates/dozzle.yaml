@@ -1,27 +1,31 @@
+auth: generated
 name: Dozzle
-description: Interface web simples e leve para logs do Docker.
+description: Interface web simples e leve para logs do Docker, com login. O usuário é admin e a senha é gerada na instalação (variável PIER_PASSWORD_DOZZLE).
+description_en: Simple, lightweight web interface for Docker logs, with login. The user is admin and the password is generated at install time (PIER_PASSWORD_DOZZLE variable).
 category: Desenvolvimento
-website: https://dozzle.dev/guide/getting-started#running-with-docker
-tags:
-  - dozzle
-  - docker
-  - logs
-  - web-ui
-routes:
-  - service: dozzle
+website: https://dozzle.dev/
+services:
+  dozzle-init:
+    image: httpd:2.4-alpine
+    volumes:
+    - dozzle_data:/data
+    entrypoint:
+    - sh
+    - -c
+    - |
+      HASH=$$(htpasswd -nbBC 11 admin "$$DOZZLE_ADMIN_PASSWORD" | cut -d: -f2)
+      printf 'users:\n  admin:\n    email: admin@localhost\n    name: Admin\n    password: %s\n' "$$HASH" > /data/users.yml
+    restart: 'no'
+    env:
+      DOZZLE_ADMIN_PASSWORD: ${PIER_PASSWORD_DOZZLE}
+  dozzle:
+    image: amir20/dozzle:v11.4.2
     port: 8080
-compose: |
-  services:
-    dozzle:
-      image: amir20/dozzle:latest
-      volumes:
-        - /var/run/docker.sock:/var/run/docker.sock
-      healthcheck:
-        interval: 3s
-        retries: 5
-        start_period: 30s
-        test:
-          - CMD
-          - /dozzle
-          - healthcheck
-        timeout: 30s
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - dozzle_data:/data
+    env:
+      DOZZLE_AUTH_PROVIDER: simple
+    depends_on:
+      dozzle-init:
+        condition: service_completed_successfully

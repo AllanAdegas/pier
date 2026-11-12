@@ -1,22 +1,9 @@
 name: Web-Check
 description: Ferramenta de OSINT para analisar qualquer site.
+description_en: OSINT tool to analyze any website.
 category: Monitoramento
 website: https://github.com/lissy93/web-check
-tags:
-  - osint
-  - website
-  - analysis
-routes:
-  - service: web-check
+services:
+  web-check:
+    image: lissy93/web-check:2.4.0
     port: 3000
-compose: |
-  services:
-    web-check:
-      image: lissy93/web-check
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - wget -qO- http://127.0.0.1:3000/
-        timeout: 20s

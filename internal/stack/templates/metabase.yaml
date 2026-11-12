@@ -1,37 +1,22 @@
 name: Metabase
 description: Business intelligence simples, com perguntas e dashboards sobre seus bancos.
+description_en: Simple business intelligence, with questions and dashboards over your databases.
 category: Dados
 website: https://www.metabase.com
 verified: true
-routes:
-  - service: metabase
+services:
+  metabase:
+    image: metabase/metabase:v0.65.4
     port: 3000
-compose: |
-  services:
-    metabase:
-      image: metabase/metabase:latest
-      environment:
-        MB_DB_TYPE: postgres
-        MB_DB_HOST: db
-        MB_DB_PORT: "5432"
-        MB_DB_DBNAME: metabase
-        MB_DB_USER: metabase
-        MB_DB_PASS: ${PIER_PASSWORD_DB}
-      depends_on:
-        db:
-          condition: service_healthy
-    db:
-      image: postgres:17-alpine
-      environment:
-        POSTGRES_USER: metabase
-        POSTGRES_PASSWORD: ${PIER_PASSWORD_DB}
-        POSTGRES_DB: metabase
-      volumes:
-        - db:/var/lib/postgresql/data
-      healthcheck:
-        test: ["CMD-SHELL", "pg_isready -U metabase -d metabase"]
-        interval: 5s
-        timeout: 5s
-        retries: 20
-  volumes:
-    db:
+    env:
+      MB_DB_TYPE: postgres
+      MB_DB_HOST: '{{db.host}}'
+      MB_DB_PORT: '{{db.port}}'
+      MB_DB_DBNAME: '{{db.database}}'
+      MB_DB_USER: '{{db.user}}'
+      MB_DB_PASS: '{{db.password}}'
+with:
+  db:
+    kind: postgres
+    user: metabase
+    database: metabase

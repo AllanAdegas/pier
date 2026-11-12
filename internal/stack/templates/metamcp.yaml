@@ -1,58 +1,24 @@
 name: MetaMCP
 description: Agregador, orquestrador, middleware e gateway de MCP em uma aplicação.
+description_en: MCP aggregator, orchestrator, middleware and gateway in one application.
 category: Desenvolvimento
 website: https://github.com/metatool-ai/metamcp
-tags:
-  - mcp
-  - ai
-  - sse
-  - aggregator
-  - orchestrator
-  - middleware
-routes:
-  - service: app
+services:
+  app:
+    image: ghcr.io/metatool-ai/metamcp:2.4
     port: 12008
-compose: |
-  services:
-    app:
-      image: ghcr.io/metatool-ai/metamcp:2.4
-      environment:
-        - POSTGRES_HOST=${POSTGRES_HOST:-postgres}
-        - POSTGRES_PORT=${POSTGRES_PORT:-5432}
-        - POSTGRES_USER=${PIER_USER_POSTGRES}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
-        - POSTGRES_DB=${POSTGRES_DB:-metamcp_db}
-        - DATABASE_URL=postgresql://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-metamcp_db}
-        - APP_URL=${PIER_URL_APP}
-        - NEXT_PUBLIC_APP_URL=${PIER_URL_APP}
-        - BETTER_AUTH_SECRET=${PIER_PASSWORD_AUTH}
-        - TRANSFORM_LOCALHOST_TO_DOCKER_INTERNAL=${TRANSFORM_LOCALHOST_TO_DOCKER_INTERNAL:-true}
-      depends_on:
-        postgres:
-          condition: service_healthy
-      healthcheck:
-        interval: 10s
-        retries: 5
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://localhost:12008/health
-        timeout: 5s
-    postgres:
-      image: postgres:16-alpine
-      environment:
-        - POSTGRES_DB=${POSTGRES_DB:-metamcp_db}
-        - POSTGRES_USER=${PIER_USER_POSTGRES}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
-      volumes:
-        - postgres_data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 10s
-        retries: 5
-        test:
-          - CMD-SHELL
-          - pg_isready -U ${PIER_USER_POSTGRES} -d ${POSTGRES_DB:-metamcp_db}
-        timeout: 5s
-  volumes:
-    postgres_data: null
+    env:
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_USER: '{{postgres.user}}'
+      POSTGRES_PASSWORD: '{{postgres.password}}'
+      POSTGRES_DB: '{{postgres.database}}'
+      DATABASE_URL: postgresql://{{postgres.user}}:{{postgres.password}}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/{{postgres.database}}
+      APP_URL: ${PIER_URL_APP}
+      NEXT_PUBLIC_APP_URL: ${PIER_URL_APP}
+      BETTER_AUTH_SECRET: ${PIER_PASSWORD_AUTH}
+      TRANSFORM_LOCALHOST_TO_DOCKER_INTERNAL: ${TRANSFORM_LOCALHOST_TO_DOCKER_INTERNAL:-true}
+with:
+  postgres:
+    version: '16'
+    database: metamcp_db

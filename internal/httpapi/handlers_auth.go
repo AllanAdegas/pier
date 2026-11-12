@@ -2,9 +2,11 @@ package httpapi
 
 import (
 	"net/http"
+	"strings"
 
 	"pier/internal/identity"
 	"pier/internal/platform/apperr"
+	"pier/internal/platform/i18n"
 )
 
 func (a *API) registerAuthRoutes(mux *http.ServeMux) {
@@ -48,20 +50,19 @@ type credentialsRequest struct {
 }
 
 func (a *API) setup(w http.ResponseWriter, r *http.Request) error {
-	// Guessing the setup code is throttled like guessing a password.
-	if !a.loginLimiter.allow(clientAddress(r)) {
-		w.Header().Set("Retry-After", "60")
-		writeJSON(w, http.StatusTooManyRequests, errorBody{Error: errorDetail{
-			Code: "rate_limited", Message: "Muitas tentativas. Aguarde um minuto.",
-		}})
-		return nil
-	}
 	request, err := decode[identity.SetupRequest](w, r)
 	if err != nil {
 		return err
 	}
+	// Guessing the setup code is throttled like guessing a password.
+	if !a.allowGuess(r, "setup") {
+		return tooManyAttempts(w, i18n.FromContext(r.Context()).Text("Muitas tentativas. Aguarde um minuto."))
+	}
 	user, err := a.Identity.Setup(r.Context(), request)
 	if err != nil {
+		return err
+	}
+	if err := a.Settings.AdoptLanguage(r.Context(), i18n.FromContext(r.Context())); err != nil {
 		return err
 	}
 	token, err := a.Identity.OpenSession(r.Context(), user.ID)
@@ -69,34 +70,42 @@ func (a *API) setup(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	a.setSessionCookie(w, r, token)
+	auditActor(r, identity.Principal{User: user})
 	return created(w, user)
 }
 
 func (a *API) login(w http.ResponseWriter, r *http.Request) error {
-	if !a.loginLimiter.allow(clientAddress(r)) {
-		w.Header().Set("Retry-After", "60")
-		writeJSON(w, http.StatusTooManyRequests, errorBody{Error: errorDetail{
-			Code: "rate_limited", Message: "Muitas tentativas de login. Aguarde um minuto.",
-		}})
-		return nil
-	}
 	request, err := decode[credentialsRequest](w, r)
 	if err != nil {
 		return err
+	}
+	if len(request.Email) > 320 {
+		return apperr.Invalid("Informe um e-mail com até 320 caracteres.")
+	}
+	target := "login:" + strings.ToLower(strings.TrimSpace(request.Email))
+	if !a.allowGuess(r, target) {
+		return tooManyAttempts(w, i18n.FromContext(r.Context()).Text("Muitas tentativas de login. Aguarde um minuto."))
 	}
 	token, user, err := a.Identity.Login(r.Context(), request.Email, request.Password)
 	if err != nil {
 		return err
 	}
+	auditActor(r, identity.Principal{User: user})
+	a.accountLimiter.reset(target)
 	a.setSessionCookie(w, r, token)
 	return ok(w, user)
 }
 
 func (a *API) logout(w http.ResponseWriter, r *http.Request) error {
-	if cookie, err := r.Cookie(sessionCookie); err == nil {
-		_ = a.Identity.Logout(r.Context(), cookie.Value)
+	if principal, err := a.resolvePrincipal(r); err == nil {
+		auditActor(r, principal)
 	}
-	clearSessionCookie(w, r)
+	a.clearSessionCookie(w, r)
+	if cookie, err := r.Cookie(sessionCookie); err == nil {
+		if err := a.Identity.Logout(r.Context(), cookie.Value); err != nil {
+			return err
+		}
+	}
 	return noContent(w)
 }
 
@@ -123,6 +132,9 @@ func (a *API) changePassword(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	userID := principalFrom(r.Context()).User.ID
+	if !a.accountLimiter.allow("password:" + userID) {
+		return tooManyAttempts(w, i18n.FromContext(r.Context()).Text("Muitas tentativas. Aguarde um minuto."))
+	}
 	if err := a.Identity.ChangePassword(r.Context(), userID, request.Current, request.Next); err != nil {
 		return err
 	}
@@ -207,5 +219,18 @@ func requireSensitive(r *http.Request) error {
 	if !principalFrom(r.Context()).Can(identity.AbilityWrite) {
 		return apperr.Forbidden("Dados sensíveis exigem um token com a permissão \"write\".")
 	}
+	return nil
+}
+
+// allowGuess throttles a credential guess both per client address and per
+// target (an account, or the setup code). Rotating addresses — possible for
+// anyone a trusted proxy forwards — still runs into the per-target limit.
+func (a *API) allowGuess(r *http.Request, target string) bool {
+	return a.addressLimiter.allow(a.proxies.clientAddress(r)) && a.accountLimiter.allow(target)
+}
+
+func tooManyAttempts(w http.ResponseWriter, translated string) error {
+	w.Header().Set("Retry-After", "60")
+	writeJSON(w, http.StatusTooManyRequests, errorBody{Error: errorDetail{Code: "rate_limited", Message: translated}})
 	return nil
 }

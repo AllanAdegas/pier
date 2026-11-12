@@ -1,6 +1,7 @@
 # Pier in a container, managing the Docker of the machine it runs on.
 #
 #   cp .env.example .env        # review PIER_DATA_DIR first
+#   docker network inspect pier-panel >/dev/null 2>&1 || docker network create pier-panel
 #   docker compose up --detach --build
 #
 # Pier drives the host's Docker through its socket, so every path it hands to
@@ -18,12 +19,30 @@ services:
     restart: unless-stopped
     # Pier gives running deploys 10 s to stop before it exits.
     stop_grace_period: 20s
+    # Pier needs the Docker socket (which already equals root on the host),
+    # but nothing in the container needs to gain privileges through setuid.
+    security_opt:
+      - no-new-privileges:true
+    # Rotated logs: the default driver grows without limit.
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "5"
     ports:
       - "${PIER_BIND:-127.0.0.1}:${PIER_PORT:-8700}:8700"
     environment:
       PIER_DATA_DIR: ${PIER_DATA_DIR:-/data/pier}
+      PIER_COOKIE_SECURE: ${PIER_COOKIE_SECURE:-0}
+      PIER_DOMAIN: ${PIER_DOMAIN:-}
+      PIER_BUILD_CPUS: ${PIER_BUILD_CPUS:-1}
+      PIER_BUILD_MEMORY: ${PIER_BUILD_MEMORY:-2g}
+      PIER_BUILD_MIN_FREE_GB: ${PIER_BUILD_MIN_FREE_GB:-2}
+      PIER_BUILD_CACHE_GB: ${PIER_BUILD_CACHE_GB:-10}
       PIER_SECRET_KEY: ${PIER_SECRET_KEY:-}
       PIER_DEPLOY_CONCURRENCY: ${PIER_DEPLOY_CONCURRENCY:-2}
+      PIER_DEPLOY_TIMEOUT: ${PIER_DEPLOY_TIMEOUT:-1h}
+      PIER_TRUSTED_PROXIES: ${PIER_TRUSTED_PROXIES:-}
       TZ: ${TZ:-UTC}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -31,6 +50,14 @@ services:
       # Folders used by "pasta do servidor" stacks must be visible to Pier at
       # their host path too. Add one line per folder, same path on both sides:
       # - /srv/stacks:/srv/stacks
+    networks:
+      panel:
+        aliases: [pier-panel]
     extra_hosts:
       # Makes PIER_LOCAL_HOST resolve on Linux; Docker Desktop already has it.
       - host.docker.internal:host-gateway
+
+networks:
+  panel:
+    name: pier-panel
+    external: true

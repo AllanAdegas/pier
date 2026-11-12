@@ -1,33 +1,22 @@
 name: Pi-hole
 description: Bloqueio de anúncios para a rede inteira.
+description_en: Network-wide ad blocking.
 category: Rede
 website: https://pi-hole.net/
-tags:
-  - ad-block
-  - dns
-  - sinkhole
-  - ntp
-  - dhcp
-routes:
-  - service: pihole
+services:
+  pihole:
+    image: pihole/pihole:2026.10.1
     port: 80
-compose: |
-  services:
-    pihole:
-      image: pihole/pihole:latest
-      environment:
-        - TZ=${TZ:-Europe/London}
-        - FTLCONF_webserver_api_password=${PIER_PASSWORD_PIHOLE}
-        - FTLCONF_dns_listeningMode=${FTLCONF_dns_listeningMode:-all}
-      volumes:
-        - pihole-data:/etc/pihole
-      ports:
-        - 53:53/tcp
-        - 53:53/udp
-        - 67:67/udp
-        - 123:123/udp
-      cap_add:
-        - NET_ADMIN
-        - SYS_TIME
-  volumes:
-    pihole-data: null
+    data: /etc/pihole
+    ports:
+    - 53:53/tcp
+    - 53:53/udp
+    cap_add:
+    - NET_ADMIN
+    - SYS_TIME
+    env:
+      TZ: ${TZ:-Europe/London}
+      FTLCONF_webserver_api_password: ${PIER_PASSWORD_PIHOLE}
+      # LOCAL refuses non-local clients; bridge/NAT deployments may need an explicit
+      # listening-mode change after restricting port 53 in the host/provider firewall.
+      FTLCONF_dns_listeningMode: ${FTLCONF_dns_listeningMode:-local}

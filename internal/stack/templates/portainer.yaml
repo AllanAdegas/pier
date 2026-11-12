@@ -1,27 +1,29 @@
+auth: generated
 name: Portainer
 description: Interface leve de gestão do Docker.
+description_en: Lightweight Docker management interface.
 category: Desenvolvimento
 website: https://docs.portainer.io
-tags:
-  - docker
-  - management
-  - ui
-routes:
-  - service: portainer
+services:
+  portainer-init:
+    image: busybox:1.37.0
+    restart: 'no'
+    volumes:
+    - portainer_credentials:/credentials
+    env:
+      ADMIN_PASSWORD: ${PIER_PASSWORD_PORTAINER}
+    entrypoint:
+    - sh
+    - -ec
+    - 'umask 077; printf "%s" "$$ADMIN_PASSWORD" > /credentials/admin-password'
+  portainer:
+    image: portainer/portainer-ce:2.33.7-alpine
     port: 9000
-compose: |
-  services:
-    portainer:
-      image: portainer/portainer-ce:alpine
-      volumes:
-        - /var/run/docker.sock:/var/run/docker.sock
-        - portainer_data:/data
-      healthcheck:
-        interval: 20s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - wget -qO- http://127.0.0.1:9000/
-        timeout: 20s
-  volumes:
-    portainer_data: null
+    command: ['--admin-password-file', '/credentials/admin-password']
+    depends_on:
+      portainer-init:
+        condition: service_completed_successfully
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - portainer_data:/data
+    - portainer_credentials:/credentials:ro

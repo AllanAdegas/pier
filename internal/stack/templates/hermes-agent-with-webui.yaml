@@ -1,80 +1,48 @@
 name: Hermes Agent com Web UI
 description: Agente de IA autônomo com memória persistente, agendamento e chat web.
+description_en: Autonomous AI agent with persistent memory, scheduling and web chat.
 category: IA
 website: https://github.com/nesquena/hermes-webui
-tags:
-  - ai
-  - agent
-  - llm
-  - chatbot
-  - hermes
-  - openrouter
-  - anthropic
-  - openai
-routes:
-  - service: hermes-webui
+services:
+  hermes-agent:
+    image: nousresearch/hermes-agent:v2026.6.5
+    command: gateway run
+    volumes:
+    - hermes-home:/home/hermes/.hermes
+    - hermes-skills:/home/hermes/.hermes/skills
+    - hermes-agent-src:/opt/hermes
+    env:
+      HERMES_HOME: /home/hermes/.hermes
+      WIKI_PATH: /home/hermes/.hermes/wiki
+      GATEWAY_ALLOW_ALL_USERS: 'true'
+      HERMES_REDACT_SECRETS: 'true'
+      HERMES_UID: '1000'
+      HERMES_GID: '1000'
+      HERMES_ENABLE_PROJECT_PLUGINS: ${HERMES_ENABLE_PROJECT_PLUGINS:-true}
+      HERMES_OPTIONAL_SKILLS: ${HERMES_OPTIONAL_SKILLS:-}
+      HERMES_ALLOW_PRIVATE_URLS: ${HERMES_ALLOW_PRIVATE_URLS:-false}
+      FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY:-}
+      FIRECRAWL_API_URL: ${FIRECRAWL_API_URL:-https://api.firecrawl.dev}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+  hermes-webui:
+    image: ghcr.io/nesquena/hermes-webui:0.51.489
     port: 8787
-compose: |
-  services:
-    hermes-agent:
-      image: nousresearch/hermes-agent:v2026.6.5
-      command: gateway run
-      environment:
-        - HERMES_HOME=/home/hermes/.hermes
-        - WIKI_PATH=/home/hermes/.hermes/wiki
-        - GATEWAY_ALLOW_ALL_USERS=true
-        - HERMES_REDACT_SECRETS=true
-        - HERMES_UID=1000
-        - HERMES_GID=1000
-        - HERMES_ENABLE_PROJECT_PLUGINS=${HERMES_ENABLE_PROJECT_PLUGINS:-true}
-        - HERMES_OPTIONAL_SKILLS=${HERMES_OPTIONAL_SKILLS:-}
-        - HERMES_ALLOW_PRIVATE_URLS=${HERMES_ALLOW_PRIVATE_URLS:-false}
-        - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
-        - FIRECRAWL_API_URL=${FIRECRAWL_API_URL:-https://api.firecrawl.dev}
-        - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
-        - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-        - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-        - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
-      volumes:
-        - hermes-home:/home/hermes/.hermes
-        - hermes-skills:/home/hermes/.hermes/skills
-        - hermes-agent-src:/opt/hermes
-      healthcheck:
-        interval: 10s
-        retries: 5
-        test:
-          - CMD-SHELL
-          - test -d /home/hermes/.hermes || exit 1
-        timeout: 5s
-    hermes-webui:
-      image: ghcr.io/nesquena/hermes-webui:0.51.489
-      environment:
-        - PIER_USER_HERMESWEBUI
-        - PIER_PASSWORD_HERMESWEBUI
-        - HERMES_WEBUI_HOST=0.0.0.0
-        - HERMES_WEBUI_PORT=8787
-        - HERMES_WEBUI_STATE_DIR=/home/hermeswebui/.hermes/webui
-        - WANTED_UID=1000
-        - WANTED_GID=1000
-        - HERMES_WEBUI_USERNAME=${PIER_USER_HERMESWEBUI}
-        - HERMES_WEBUI_PASSWORD=${PIER_PASSWORD_HERMESWEBUI}
-      volumes:
-        - hermes-home:/home/hermeswebui/.hermes
-        - hermes-agent-src:/home/hermeswebui/.hermes/hermes-agent:ro
-        - hermes-workspace:/workspace
-      depends_on:
-        - hermes-agent
-      healthcheck:
-        interval: 30s
-        retries: 3
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:8787/health
-        timeout: 5s
-  volumes:
-    hermes-agent-src: null
-    hermes-home: null
-    hermes-skills: null
-    hermes-workspace: null
+    volumes:
+    - hermes-home:/home/hermeswebui/.hermes
+    - hermes-agent-src:/home/hermeswebui/.hermes/hermes-agent:ro
+    - hermes-workspace:/workspace
+    env:
+      PIER_USER_HERMESWEBUI: ''
+      PIER_PASSWORD_HERMESWEBUI: ''
+      HERMES_WEBUI_HOST: 0.0.0.0
+      HERMES_WEBUI_PORT: '8787'
+      HERMES_WEBUI_STATE_DIR: /home/hermeswebui/.hermes/webui
+      WANTED_UID: '1000'
+      WANTED_GID: '1000'
+      HERMES_WEBUI_USERNAME: ${PIER_USER_HERMESWEBUI}
+      HERMES_WEBUI_PASSWORD: ${PIER_PASSWORD_HERMESWEBUI}
+    needs:
+    - hermes-agent

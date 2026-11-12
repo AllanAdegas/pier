@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"pier/internal/platform/i18n"
 	"pier/internal/platform/secretbox"
 	"pier/internal/platform/sqlite"
 )
@@ -174,7 +175,7 @@ func (s *Store) deleteBackup(ctx context.Context, id string) error {
 
 func (s *Store) failRunningBackups(ctx context.Context) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE backup_executions SET status = ?, message = ?, finished_at = ?
-		WHERE status = ?`, BackupFailed, "Interrompido pela reinicialização do Pier.",
+		WHERE status = ?`, BackupFailed, i18n.Instance().Text("Interrompido pela reinicialização do Pier."),
 		sqlite.FormatTime(time.Now()), BackupRunning)
 	return err
 }

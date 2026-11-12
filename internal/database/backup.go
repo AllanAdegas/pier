@@ -14,6 +14,7 @@ import (
 	"pier/internal/notify"
 	"pier/internal/platform/apperr"
 	"pier/internal/platform/executor"
+	"pier/internal/platform/i18n"
 	"pier/internal/platform/idgen"
 	"pier/internal/platform/shell"
 	"pier/internal/platform/sqlite"
@@ -49,7 +50,73 @@ func (s *Service) BackupSchedules(ctx context.Context) ([]Schedule, error) {
 }
 
 // RecoverBackups marks executions interrupted by a restart as failed.
-func (s *Service) RecoverBackups(ctx context.Context) error { return s.store.failRunningBackups(ctx) }
+func (s *Service) RecoverBackups(ctx context.Context) error {
+	if err := s.recoverOperations(ctx); err != nil {
+		return err
+	}
+	rows, err := s.store.db.QueryContext(ctx, `SELECT id FROM backup_executions WHERE status='running'`)
+	if err != nil {
+		return err
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return err
+		}
+		ids = append(ids, id)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		if err := s.recoverBackup(ctx, id); err != nil {
+			if err := s.store.finishBackup(ctx, id, BackupFailed, 0, i18n.Instance().Sprintf("A limpeza da operação interrompida falhou: %s", err)); err != nil {
+				return err
+			}
+		}
+	}
+	if _, err := s.store.db.ExecContext(ctx, `UPDATE database_operations SET status='failed', message=?, finished_at=? WHERE status='running'`, i18n.Instance().Text("Interrompido pela reinicialização do Pier."), sqlite.FormatTime(time.Now())); err != nil {
+		return err
+	}
+	return s.store.failRunningBackups(ctx)
+}
+
+func (s *Service) recoverBackup(ctx context.Context, id string) error {
+
+	b, ex, err := s.reachBackup(ctx, id)
+	if err != nil {
+		return err
+	}
+	if b.FilePath == "" {
+		db, err := s.Get(ctx, b.DatabaseID)
+		if err != nil {
+			return err
+		}
+		_, target, err := s.connector.Executor(ctx, db.ServerID)
+		if err != nil {
+			return err
+		}
+		spec, _ := specFor(db.Engine)
+		if spec.Dump != nil {
+			b.FilePath = path.Join(target.BackupDir(db.ID), b.StartedAt.UTC().Format("20060102-150405")+"-"+b.ID+"."+spec.Dump.Extension)
+		}
+	}
+	if b.FilePath != "" {
+		if _, err := ex.Run(ctx, "rm -f "+shell.Quote(path.Dir(b.FilePath)+"/.s3-")+"*"); err != nil {
+			return err
+		}
+	}
+	if b.FilePath != "" {
+		if _, err := ex.Run(ctx, shell.Join("rm", "-f", b.FilePath, b.FilePath+".gz")); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 // ListBackups returns the executions of a database, newest first.
 func (s *Service) ListBackups(ctx context.Context, databaseID string) ([]BackupExecution, error) {
@@ -62,6 +129,19 @@ func (s *Service) ListBackups(ctx context.Context, databaseID string) ([]BackupE
 // StartBackup validates the request, records the execution and runs the dump
 // in the background, returning immediately.
 func (s *Service) StartBackup(ctx context.Context, databaseID, trigger string) (BackupExecution, error) {
+	release, err := s.acquire(databaseID)
+	if err != nil {
+		return BackupExecution{}, err
+	}
+	started := false
+	defer func() {
+		if !started {
+			release()
+		}
+	}()
+	if err := s.ensureIdle(ctx, databaseID); err != nil {
+		return BackupExecution{}, err
+	}
 	database, err := s.Get(ctx, databaseID)
 	if err != nil {
 		return BackupExecution{}, err
@@ -76,7 +156,8 @@ func (s *Service) StartBackup(ctx context.Context, databaseID, trigger string) (
 	if err := s.store.insertBackup(ctx, backup); err != nil {
 		return BackupExecution{}, err
 	}
-	go s.runBackup(database, *spec.Dump, backup)
+	started = true
+	go func() { defer release(); s.runBackup(database, *spec.Dump, backup) }()
 	return backup, nil
 }
 
@@ -84,19 +165,28 @@ func (s *Service) runBackup(database Database, dump dumpSpec, backup BackupExecu
 	ctx, cancel := context.WithTimeout(context.Background(), backupTimeout)
 	defer cancel()
 	filePath, size, err := s.dump(ctx, database, dump, backup)
+	language := i18n.Instance()
 	if err != nil {
-		_ = s.store.finishBackup(ctx, backup.ID, BackupFailed, 0, err.Error())
+		reason := i18n.Localize(err, language)
+		_ = s.store.finishBackup(context.WithoutCancel(ctx), backup.ID, BackupFailed, 0, reason)
 		s.events.Publish(notify.Event{
 			Type: notify.BackupFailed, Resource: database.Name,
-			Title: "Backup falhou: " + database.Name, Message: err.Error(),
+			Title: language.Sprintf("Backup falhou: %s", database.Name), Message: reason,
 		})
 		return
 	}
-	_ = s.store.finishBackup(ctx, backup.ID, BackupSucceeded, size, "")
+	message := ""
+	if database.Config.Backup.S3 {
+		if err := s.uploadBackup(ctx, database, backup.ID, filePath); err != nil {
+			message = language.Sprintf("Backup local concluído; a cópia S3 falhou: %s", i18n.Localize(err, language))
+			s.events.Publish(notify.Event{Type: notify.BackupFailed, Resource: database.Name, Title: language.Sprintf("Backup falhou: %s", database.Name), Message: message})
+		}
+	}
+	_ = s.store.finishBackup(context.WithoutCancel(ctx), backup.ID, BackupSucceeded, size, message)
 	s.events.Publish(notify.Event{
 		Type: notify.BackupSucceeded, Resource: database.Name,
-		Title:   "Backup concluído: " + database.Name,
-		Message: fmt.Sprintf("Arquivo %s (%d bytes).", path.Base(filePath), size),
+		Title:   language.Sprintf("Backup concluído: %s", database.Name),
+		Message: language.Sprintf("Arquivo %s (%d bytes).", path.Base(filePath), size),
 	})
 	s.applyRetention(ctx, database)
 }
@@ -113,20 +203,33 @@ func (s *Service) dump(ctx context.Context, database Database, dump dumpSpec, ba
 	}
 	container := firstRunning(containers)
 	if container == "" {
-		return "", 0, errors.New("o banco precisa estar em execução para gerar o backup")
+		return "", 0, i18n.Errorf("o banco precisa estar em execução para gerar o backup")
 	}
 	directory := target.BackupDir(database.ID)
 	fileName := backup.StartedAt.UTC().Format("20060102-150405") + "-" + backup.ID + "." + dump.Extension
 	filePath := path.Join(directory, fileName)
-	command := fmt.Sprintf("mkdir -p %s && %s > %s", shell.Quote(directory),
-		docker.Exec(container, dump.Script), shell.Quote(filePath))
+	// Dumps hold the whole database: private to the user running them,
+	// whatever the umask of the server.
+	if err := s.store.setBackupFile(ctx, backup.ID, filePath); err != nil {
+		return "", 0, err
+	}
+	success := false
+	defer func() {
+		if !success {
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
+			_, _ = ex.Run(cleanupCtx, shell.Join("rm", "-f", path.Join(directory, fileName), path.Join(directory, fileName)+".gz"))
+		}
+	}()
+	command := fmt.Sprintf("umask 077 && mkdir -p %s && chmod 700 %s && %s > %s", shell.Quote(directory),
+		shell.Quote(directory), docker.Exec(container, dump.Script), shell.Quote(filePath))
 	if _, err := ex.Run(ctx, command); err != nil {
 		_, _ = ex.Run(ctx, shell.Join("rm", "-f", filePath))
-		return "", 0, fmt.Errorf("o dump falhou: %w", err)
+		return "", 0, i18n.Errorf("o dump falhou: %w", err)
 	}
 	if dump.Compress {
 		if _, err := ex.Run(ctx, shell.Join("gzip", "--force", filePath)); err != nil {
-			return "", 0, fmt.Errorf("compactar o dump: %w", err)
+			return "", 0, i18n.Errorf("compactar o dump: %w", err)
 		}
 		filePath += ".gz"
 	}
@@ -139,8 +242,9 @@ func (s *Service) dump(ctx context.Context, database Database, dump dumpSpec, ba
 	}
 	size, _ := strconv.ParseInt(strings.TrimSpace(sizeOutput), 10, 64)
 	if size == 0 {
-		return "", 0, errors.New("o dump gerou um arquivo vazio")
+		return "", 0, i18n.Errorf("o dump gerou um arquivo vazio")
 	}
+	success = true
 	return filePath, size, nil
 }
 
@@ -166,16 +270,35 @@ func (s *Service) applyRetention(ctx context.Context, database Database) {
 		}
 		kept++
 		if kept > database.Config.Backup.Retention {
-			_ = s.DeleteBackup(ctx, backup.ID)
+			_ = s.deleteBackup(ctx, backup.ID)
 		}
 	}
 }
 
 // DeleteBackup removes the execution record and its file.
 func (s *Service) DeleteBackup(ctx context.Context, backupID string) error {
+	b, err := s.store.getBackup(ctx, backupID)
+	if err != nil {
+		return err
+	}
+	release, err := s.acquire(b.DatabaseID)
+	if err != nil {
+		return err
+	}
+	defer release()
+	return s.deleteBackup(ctx, backupID)
+}
+func (s *Service) deleteBackup(ctx context.Context, backupID string) error {
 	backup, ex, err := s.reachBackup(ctx, backupID)
 	if err != nil {
 		return err
+	}
+	var running int
+	if err := s.store.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM database_operations WHERE backup_id=? AND status='running'`, backupID).Scan(&running); err != nil {
+		return err
+	}
+	if running > 0 {
+		return apperr.Conflict("Aguarde a operação do banco terminar.")
 	}
 	if backup.Status == BackupRunning {
 		return apperr.Conflict("Aguarde o backup terminar antes de removê-lo.")
@@ -184,6 +307,9 @@ func (s *Service) DeleteBackup(ctx context.Context, backupID string) error {
 		if _, err := ex.Run(ctx, shell.Join("rm", "-f", backup.FilePath)); err != nil {
 			return unavailable(err)
 		}
+	}
+	if err := s.removeRemote(ctx, backup, ex); err != nil {
+		return err
 	}
 	return s.store.deleteBackup(ctx, backupID)
 }

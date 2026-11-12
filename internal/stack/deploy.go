@@ -2,7 +2,6 @@ package stack
 
 import (
 	"context"
-	"path"
 	"strings"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"pier/internal/envvar"
 	"pier/internal/platform/apperr"
 	"pier/internal/platform/executor"
+	"pier/internal/platform/i18n"
 	"pier/internal/platform/oplog"
 	"pier/internal/platform/sqlite"
 	"pier/internal/server"
@@ -21,6 +21,15 @@ const operationTimeout = 30 * time.Minute
 // Deploy brings the stack up in the background; the progress is available
 // through Operation.
 func (s *Service) Deploy(ctx context.Context, id string) error {
+	if s.guard != nil {
+		stack, err := s.Get(ctx, id)
+		if err != nil {
+			return err
+		}
+		if err := s.guard.CheckDeploy(ctx, stack.EnvironmentID); err != nil {
+			return err
+		}
+	}
 	return s.runInBackground(ctx, id, "Deploy da stack", func(ctx context.Context, run *stackRun) error {
 		if run.stack.FromDirectory() {
 			return s.deployDirectory(ctx, run)
@@ -31,6 +40,7 @@ func (s *Service) Deploy(ctx context.Context, id string) error {
 
 // deployInline runs the compose file Pier keeps.
 func (s *Service) deployInline(ctx context.Context, run *stackRun) error {
+	s.withPendingCertificates(ctx, run)
 	doc, err := parseCompose(run.stack.Compose)
 	if err != nil {
 		return err
@@ -60,7 +70,8 @@ func (s *Service) deployInline(ctx context.Context, run *stackRun) error {
 // deployDirectory runs the compose file of a folder of the server. The file
 // is read again on every deployment, so editing it and deploying is enough.
 func (s *Service) deployDirectory(ctx context.Context, run *stackRun) error {
-	run.operation.Append("Pasta: " + run.stack.Directory + " (" + run.stack.ComposeFile + ")")
+	run.operation.Say("Pasta: %s (%s)", run.stack.Directory, run.stack.ComposeFile)
+	s.withPendingCertificates(ctx, run)
 	raw, err := readSource(ctx, run.ex, run.project.BaseFile)
 	if err != nil {
 		return apperr.Unavailable("Não foi possível ler %s: %s", run.project.BaseFile, lastLine(err))
@@ -70,7 +81,7 @@ func (s *Service) deployDirectory(ctx context.Context, run *stackRun) error {
 		return err
 	}
 	if len(run.project.EnvFiles) > 0 {
-		run.operation.Append("Usando o .env da pasta.")
+		run.operation.Say("Usando o .env da pasta.")
 	}
 	dotenv, err := s.environment(ctx, run, raw, doc)
 	if err != nil {
@@ -116,8 +127,8 @@ func (s *Service) environment(ctx context.Context, run *stackRun, raw string, do
 		variables[directoryVariable] = run.project.Dir
 	}
 	for _, service := range unpublished(raw, addresses) {
-		run.operation.Append("AVISO: o compose usa o endereço público de " + service + " (PIER_URL_…/PIER_HOST_…), " +
-			"mas esse serviço não tem domínio; defina um em Compose e domínios.")
+		run.operation.Say("AVISO: o compose usa o endereço público de %s (PIER_URL_…/PIER_HOST_…), "+
+			"mas esse serviço não tem domínio; defina um em Compose e domínios.", service)
 	}
 	return envvar.FormatDotenv(variables), nil
 }
@@ -125,12 +136,8 @@ func (s *Service) environment(ctx context.Context, run *stackRun, raw string, do
 // writeHostFile creates a file the compose file mounts, unless it is already
 // there: what the user changed on the server is not overwritten.
 func writeHostFile(ctx context.Context, run *stackRun, file hostFile) error {
-	target := path.Join(run.project.Dir, file.Path)
-	if exists(ctx, run.ex, "-e", target) {
-		return nil
-	}
-	run.operation.Append("Criando " + file.Path)
-	return run.ex.WriteFile(ctx, target, file.Content, file.Mode)
+	run.operation.Say("Criando %s", file.Path)
+	return createHostFile(ctx, run.ex, run.project.Dir, file)
 }
 
 func bringUp(ctx context.Context, run *stackRun, extraArgs ...string) error {
@@ -139,7 +146,18 @@ func bringUp(ctx context.Context, run *stackRun, extraArgs ...string) error {
 	// not block a deploy whose images are already on the server. If an image
 	// is really missing, "up" fails right after with a clear message.
 	if err := run.project.Pull(ctx, run.ex, run.operation.Append); err != nil {
-		run.operation.Append("AVISO: não foi possível atualizar as imagens (" + err.Error() + "); usando as locais.")
+		run.operation.Say("AVISO: não foi possível atualizar as imagens (%s); usando as locais.", err)
+	}
+	if run.stack.FromDirectory() {
+		// The images of a folder are built here, so they can be inspected
+		// before anything starts; "up --build" afterwards reuses the cache.
+		run.operation.Append("$ docker compose build")
+		if err := run.ex.Stream(ctx, run.project.Command("build"), run.operation.Append); err != nil {
+			return docker.Explain(err)
+		}
+	}
+	if err := verifyRoutedServices(ctx, run); err != nil {
+		return err
 	}
 	args := append([]string{"--remove-orphans"}, extraArgs...)
 	run.operation.Append("$ docker compose up --detach " + strings.Join(args, " "))
@@ -148,7 +166,7 @@ func bringUp(ctx context.Context, run *stackRun, extraArgs ...string) error {
 	}
 	docker.ConnectProxy(ctx, run.ex, IngressNetwork(run.stack.ID))
 	if len(run.stack.Routes) > 0 && !docker.ProxyRunning(ctx, run.ex) {
-		run.operation.Append(docker.ProxyStoppedWarning)
+		run.operation.Say(docker.ProxyStoppedWarning)
 	}
 	server.ReportEdgeSync(ctx, run.ex, run.target, run.operation.Append)
 	return nil
@@ -186,13 +204,14 @@ type stackRun struct {
 
 func (s *Service) runInBackground(ctx context.Context, id, title string,
 	action func(ctx context.Context, run *stackRun) error) error {
-	run, err := s.reach(ctx, id)
-	if err != nil {
-		return err
-	}
-	operation, started := s.operations.Begin(id, title)
+	operation, started := s.operations.Begin(id, i18n.Instance().Text(title))
 	if !started {
 		return apperr.Conflict("Já existe uma operação em andamento nesta stack.")
+	}
+	run, err := s.reach(ctx, id)
+	if err != nil {
+		operation.Finish(err)
+		return err
 	}
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), operationTimeout)
@@ -200,9 +219,9 @@ func (s *Service) runInBackground(ctx context.Context, id, title string,
 		run.operation = operation
 		err := action(ctx, run)
 		if err != nil {
-			operation.Append("ERRO: " + err.Error())
+			operation.Say("ERRO: %s", err)
 		} else {
-			operation.Append("Concluído.")
+			operation.Say("Concluído.")
 		}
 		operation.Finish(err)
 	}()
@@ -212,6 +231,11 @@ func (s *Service) runInBackground(ctx context.Context, id, title string,
 // Delete brings the stack down and erases it. deleteVolumes destroys its
 // data. The folder of a directory stack is never touched.
 func (s *Service) Delete(ctx context.Context, id string, deleteVolumes, force bool) error {
+	operation, started := s.operations.Begin(id, "")
+	if !started {
+		return apperr.Conflict("Já existe uma operação em andamento nesta stack.")
+	}
+	defer operation.Finish(nil)
 	if _, err := s.Get(ctx, id); err != nil {
 		return err
 	}
@@ -222,8 +246,11 @@ func (s *Service) Delete(ctx context.Context, id string, deleteVolumes, force bo
 	if err := s.env.DeleteAll(ctx, owner(id)); err != nil {
 		return err
 	}
+	if err := sqlite.RequireAffected(s.db.ExecContext(ctx, `DELETE FROM stacks WHERE id = ?`, id)); err != nil {
+		return err
+	}
 	s.operations.Forget(id)
-	return sqlite.RequireAffected(s.db.ExecContext(ctx, `DELETE FROM stacks WHERE id = ?`, id))
+	return nil
 }
 
 func (s *Service) cleanup(ctx context.Context, id string, deleteVolumes bool) error {
@@ -279,5 +306,6 @@ func (s *Service) reach(ctx context.Context, id string) (*stackRun, error) {
 		return nil, err
 	}
 	stack.proxyEntry = target.Proxy.Entry()
+	stack.proxyLabels = server.ProxyRouteLabels(target)
 	return &stackRun{stack: stack, ex: ex, target: target, project: projectFor(ctx, ex, target, stack)}, nil
 }

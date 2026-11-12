@@ -1,8 +1,13 @@
+import { LanguageSwitch } from "../components/LanguageSwitch";
 import { A, useLocation, type RouteSectionProps } from "@solidjs/router";
 import { createEffect, createSignal, For, on, Show } from "solid-js";
 import { Button, IconButton } from "../components/Button";
 import { Icon, type IconName } from "../components/Icon";
 import { currentUser, signOut, theme, toggleTheme } from "../lib/state";
+import { Alert } from "../components/Feedback";
+import { createQuery, createAction } from "../lib/query";
+import { api } from "../lib/api";
+import { t } from "../i18n";
 
 interface NavItem {
   href: string;
@@ -15,13 +20,13 @@ interface NavItem {
 // Seven destinations at most (Hick/Miller); resources live inside projects,
 // and servers and clusters share "Infraestrutura".
 const NAVIGATION: NavItem[] = [
-  { href: "/", label: "Painel", icon: "dashboard" },
-  { href: "/projects", label: "Projetos", icon: "folder", also: ["/applications", "/databases", "/stacks"] },
+  { href: "/", label: t("Painel"), icon: "dashboard" },
+  { href: "/projects", label: t("Projetos"), icon: "folder", also: ["/applications", "/databases", "/stacks"] },
   { href: "/deployments", label: "Deploys", icon: "rocket" },
-  { href: "/servers", label: "Infraestrutura", icon: "server", also: ["/clusters"] },
-  { href: "/security", label: "Segurança", icon: "shield" },
-  { href: "/notifications", label: "Notificações", icon: "bell" },
-  { href: "/settings", label: "Configurações", icon: "settings" },
+  { href: "/servers", label: t("Infraestrutura"), icon: "server", also: ["/clusters", "/monitoring"] },
+  { href: "/security", label: t("Segurança"), icon: "shield" },
+  { href: "/notifications", label: t("Notificações"), icon: "bell" },
+  { href: "/settings", label: t("Configurações"), icon: "settings" },
 ];
 
 function isCurrent(item: NavItem, pathname: string): boolean {
@@ -34,6 +39,8 @@ function isCurrent(item: NavItem, pathname: string): boolean {
 /** Persistent frame: brand and navigation on the left, the page on the right. */
 export function Shell(props: RouteSectionProps) {
   const location = useLocation();
+  const logout = createAction(signOut);
+  const backup = createQuery(() => true, () => api.get<{last_backup_at: string | null}>("/instance/backups/status"), {pollMs:30000});
   const [menuOpen, setMenuOpen] = createSignal(false);
 
   // Navigating closes the mobile drawer.
@@ -48,10 +55,10 @@ export function Shell(props: RouteSectionProps) {
           </span>
           Pier
         </A>
-        <IconButton icon="menu" label="Abrir menu" onClick={() => setMenuOpen(true)} />
+        <IconButton icon="menu" label={t("Abrir menu")} onClick={() => setMenuOpen(true)} />
       </div>
       <Show when={menuOpen()}>
-        <button type="button" class="sidebar-scrim" aria-label="Fechar menu" onClick={() => setMenuOpen(false)} />
+        <button type="button" class="sidebar-scrim" aria-label={t("Fechar menu")} onClick={() => setMenuOpen(false)} />
       </Show>
 
       <aside class="sidebar" data-open={menuOpen() ? "true" : "false"}>
@@ -61,7 +68,7 @@ export function Shell(props: RouteSectionProps) {
           </span>
           Pier
         </A>
-        <nav class="nav" aria-label="Seções">
+        <nav class="nav" aria-label={t("Seções")}>
           <For each={NAVIGATION}>
             {(item) => (
               <A
@@ -86,15 +93,15 @@ export function Shell(props: RouteSectionProps) {
             <span class="small muted truncate">{currentUser()?.email}</span>
           </div>
           <Button variant="ghost" small icon={theme() === "dark" ? "sun" : "moon"} onClick={toggleTheme}>
-            {theme() === "dark" ? "Tema claro" : "Tema escuro"}
+            {theme() === "dark" ? t("Tema claro") : t("Tema escuro")}
           </Button>
-          <Button variant="ghost" small icon="logout" onClick={() => void signOut()}>
-            Sair
+          <LanguageSwitch />
+          <Button variant="ghost" small icon="logout" pending={logout.pending()} onClick={() => void logout.run()}>{t("Sair")}
           </Button>
         </div>
       </aside>
 
-      <main class="main">{props.children}</main>
+      <main class="main"><Show when={backup.data() && !backup.data()!.last_backup_at}><Alert tone="warning">{t("Faça um backup da instância para proteger o Pier e suas credenciais.")} <A href="/settings#instance-backup">{t("Configurar backup")}</A></Alert></Show>{props.children}</main>
     </div>
   );
 }

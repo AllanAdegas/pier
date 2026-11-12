@@ -1,25 +1,14 @@
 name: LibreSpeed
 description: Teste de velocidade leve e auto-hospedado.
+description_en: Lightweight, self-hosted speed test.
 category: Desenvolvimento
 website: https://github.com/librespeed/speedtest
-tags:
-  - speedtest
-  - internet-speed
-routes:
-  - service: librespeed
+services:
+  librespeed:
+    image: ghcr.io/librespeed/speedtest:6.3.1
     port: 82
-compose: |
-  services:
-    librespeed:
-      image: ghcr.io/librespeed/speedtest:latest
-      container_name: librespeed
-      environment:
-        - MODE=standalone
-        - TELEMETRY=false
-        - DISTANCE=km
-        - WEBPORT=82
-      healthcheck:
-        interval: 1m0s
-        retries: 1
-        test: curl 127.0.0.1:82 || exit 1
-        timeout: 1s
+    env:
+      MODE: standalone
+      TELEMETRY: 'false'
+      DISTANCE: km
+      WEBPORT: '82'

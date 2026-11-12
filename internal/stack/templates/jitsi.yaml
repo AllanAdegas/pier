@@ -1,163 +1,95 @@
 name: Jitsi Meet
 description: Videoconferência open source.
+description_en: Open source video conferencing.
 category: Produtividade
 website: https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-docker/
-tags:
-  - jitsi
-  - video
-  - conference
-  - webrtc
-  - meeting
-  - self-hosted
-routes:
-  - service: jitsi-web
+services:
+  jicofo:
+    image: jitsi/jicofo:stable-10888
+    data: /config
+    env:
+      AUTH_TYPE: internal
+      ENABLE_AUTH: '0'
+      XMPP_DOMAIN: meet.jitsi
+      XMPP_AUTH_DOMAIN: auth.meet.jitsi
+      XMPP_INTERNAL_MUC_DOMAIN: internal.auth.meet.jitsi
+      XMPP_MUC_DOMAIN: conference.meet.jitsi
+      XMPP_SERVER: prosody
+      JICOFO_COMPONENT_SECRET: ${PIER_PASSWORD_JICOFO}
+      JICOFO_AUTH_PASSWORD: ${PIER_PASSWORD_JICOFO}
+      JVB_BREWERY_MUC: jvbbrewery
+      JICOFO_ENABLE_HEALTH_CHECKS: '1'
+      TZ: ${TZ:-UTC}
+    needs:
+    - prosody
+  jitsi-web:
+    image: jitsi/web:stable-10888
     port: 80
-compose: |
-  services:
-    jicofo:
-      image: jitsi/jicofo:stable-10888
-      restart: unless-stopped
-      environment:
-        - AUTH_TYPE=internal
-        - ENABLE_AUTH=0
-        - XMPP_DOMAIN=meet.jitsi
-        - XMPP_AUTH_DOMAIN=auth.meet.jitsi
-        - XMPP_INTERNAL_MUC_DOMAIN=internal.auth.meet.jitsi
-        - XMPP_MUC_DOMAIN=conference.meet.jitsi
-        - XMPP_SERVER=prosody
-        - JICOFO_COMPONENT_SECRET=${PIER_PASSWORD_JICOFO}
-        - JICOFO_AUTH_PASSWORD=${PIER_PASSWORD_JICOFO}
-        - JVB_BREWERY_MUC=jvbbrewery
-        - JICOFO_ENABLE_HEALTH_CHECKS=1
-        - TZ=${TZ:-UTC}
-      volumes:
-        - jitsi-jicofo:/config
-      depends_on:
-        - prosody
-      networks:
-        meet.jitsi: null
-      healthcheck:
-        interval: 5s
-        retries: 15
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://localhost:8888/about/health
-        timeout: 10s
-    jitsi-web:
-      image: jitsi/web:stable-10888
-      restart: unless-stopped
-      environment:
-        - PUBLIC_URL=$PIER_URL_JITSI_WEB
-        - ENABLE_AUTH=0
-        - ENABLE_GUESTS=1
-        - ENABLE_LETSENCRYPT=0
-        - ENABLE_HTTP_REDIRECT=0
-        - DISABLE_HTTPS=1
-        - XMPP_DOMAIN=meet.jitsi
-        - XMPP_AUTH_DOMAIN=auth.meet.jitsi
-        - XMPP_GUEST_DOMAIN=guest.meet.jitsi
-        - XMPP_MUC_DOMAIN=conference.meet.jitsi
-        - XMPP_INTERNAL_MUC_DOMAIN=internal.auth.meet.jitsi
-        - XMPP_BOSH_URL_BASE=http://prosody:5280
-        - JVB_BREWERY_MUC=jvbbrewery
-        - JICOFO_COMPONENT_SECRET=${PIER_PASSWORD_JICOFO}
-        - JICOFO_AUTH_PASSWORD=${PIER_PASSWORD_JICOFO}
-        - JVB_AUTH_PASSWORD=${PIER_PASSWORD_JVB}
-        - TZ=${TZ:-UTC}
-      volumes:
-        - jitsi-web:/config
-      depends_on:
-        - prosody
-        - jicofo
-        - jvb
-      networks:
-        meet.jitsi:
-          aliases:
-            - meet.jitsi
-      healthcheck:
-        interval: 5s
-        retries: 15
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://localhost
-        timeout: 10s
-    jvb:
-      image: jitsi/jvb:stable-10888
-      restart: unless-stopped
-      environment:
-        - XMPP_SERVER=prosody
-        - XMPP_DOMAIN=meet.jitsi
-        - XMPP_AUTH_DOMAIN=auth.meet.jitsi
-        - XMPP_INTERNAL_MUC_DOMAIN=internal.auth.meet.jitsi
-        - XMPP_MUC_DOMAIN=conference.meet.jitsi
-        - JVB_AUTH_USER=jvb
-        - JVB_AUTH_PASSWORD=${PIER_PASSWORD_JVB}
-        - JVB_BREWERY_MUC=jvbbrewery
-        - JVB_PORT=10000
-        - JVB_ADVERTISE_IPS=${JVB_ADVERTISE_IPS:-}
-        - JVB_STUN_SERVERS=${JVB_STUN_SERVERS:-stun.l.google.com:19302}
-        - PUBLIC_URL=$PIER_URL_JITSI_WEB
-        - TZ=${TZ:-UTC}
-      volumes:
-        - jitsi-jvb:/config
-      ports:
-        - 10000:10000/udp
-      depends_on:
-        - prosody
-      networks:
-        meet.jitsi: null
-      healthcheck:
-        interval: 5s
-        retries: 15
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://localhost:8080/about/health
-        timeout: 10s
-    prosody:
-      image: jitsi/prosody:stable-10888
-      restart: unless-stopped
-      environment:
-        - AUTH_TYPE=internal
-        - ENABLE_AUTH=0
-        - ENABLE_GUESTS=1
-        - XMPP_DOMAIN=meet.jitsi
-        - XMPP_AUTH_DOMAIN=auth.meet.jitsi
-        - XMPP_GUEST_DOMAIN=guest.meet.jitsi
-        - XMPP_MUC_DOMAIN=conference.meet.jitsi
-        - XMPP_INTERNAL_MUC_DOMAIN=internal.auth.meet.jitsi
-        - JICOFO_COMPONENT_SECRET=${PIER_PASSWORD_JICOFO}
-        - JICOFO_AUTH_PASSWORD=${PIER_PASSWORD_JICOFO}
-        - JVB_AUTH_PASSWORD=${PIER_PASSWORD_JVB}
-        - PUBLIC_URL=$PIER_URL_JITSI_WEB
-        - TZ=${TZ:-UTC}
-        - LOG_LEVEL=${LOG_LEVEL:-info}
-      volumes:
-        - jitsi-prosody:/config
-      networks:
-        meet.jitsi:
-          aliases:
-            - xmpp.meet.jitsi
-            - auth.meet.jitsi
-            - guest.meet.jitsi
-      healthcheck:
-        interval: 5s
-        retries: 15
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://localhost:5280/http-bind
-        timeout: 10s
-  volumes:
-    jitsi-jicofo: null
-    jitsi-jvb: null
-    jitsi-prosody: null
-    jitsi-web: null
-  networks:
-    meet.jitsi: null
+    data: /config
+    env:
+      PUBLIC_URL: $PIER_URL_JITSI_WEB
+      ENABLE_AUTH: '0'
+      ENABLE_GUESTS: '1'
+      ENABLE_LETSENCRYPT: '0'
+      ENABLE_HTTP_REDIRECT: '0'
+      DISABLE_HTTPS: '1'
+      XMPP_DOMAIN: meet.jitsi
+      XMPP_AUTH_DOMAIN: auth.meet.jitsi
+      XMPP_GUEST_DOMAIN: guest.meet.jitsi
+      XMPP_MUC_DOMAIN: conference.meet.jitsi
+      XMPP_INTERNAL_MUC_DOMAIN: internal.auth.meet.jitsi
+      XMPP_BOSH_URL_BASE: http://prosody:5280
+      JVB_BREWERY_MUC: jvbbrewery
+      JICOFO_COMPONENT_SECRET: ${PIER_PASSWORD_JICOFO}
+      JICOFO_AUTH_PASSWORD: ${PIER_PASSWORD_JICOFO}
+      JVB_AUTH_PASSWORD: ${PIER_PASSWORD_JVB}
+      TZ: ${TZ:-UTC}
+    needs:
+    - prosody
+    - jicofo
+    - jvb
+    aliases:
+    - meet.jitsi
+  jvb:
+    image: jitsi/jvb:stable-10888
+    data: /config
+    ports:
+    - 10000:10000/udp
+    env:
+      XMPP_SERVER: prosody
+      XMPP_DOMAIN: meet.jitsi
+      XMPP_AUTH_DOMAIN: auth.meet.jitsi
+      XMPP_INTERNAL_MUC_DOMAIN: internal.auth.meet.jitsi
+      XMPP_MUC_DOMAIN: conference.meet.jitsi
+      JVB_AUTH_USER: jvb
+      JVB_AUTH_PASSWORD: ${PIER_PASSWORD_JVB}
+      JVB_BREWERY_MUC: jvbbrewery
+      JVB_PORT: '10000'
+      JVB_ADVERTISE_IPS: ${JVB_ADVERTISE_IPS:-}
+      JVB_STUN_SERVERS: ${JVB_STUN_SERVERS:-stun.l.google.com:19302}
+      PUBLIC_URL: $PIER_URL_JITSI_WEB
+      TZ: ${TZ:-UTC}
+    needs:
+    - prosody
+  prosody:
+    image: jitsi/prosody:stable-10888
+    data: /config
+    env:
+      AUTH_TYPE: internal
+      ENABLE_AUTH: '0'
+      ENABLE_GUESTS: '1'
+      XMPP_DOMAIN: meet.jitsi
+      XMPP_AUTH_DOMAIN: auth.meet.jitsi
+      XMPP_GUEST_DOMAIN: guest.meet.jitsi
+      XMPP_MUC_DOMAIN: conference.meet.jitsi
+      XMPP_INTERNAL_MUC_DOMAIN: internal.auth.meet.jitsi
+      JICOFO_COMPONENT_SECRET: ${PIER_PASSWORD_JICOFO}
+      JICOFO_AUTH_PASSWORD: ${PIER_PASSWORD_JICOFO}
+      JVB_AUTH_PASSWORD: ${PIER_PASSWORD_JVB}
+      PUBLIC_URL: $PIER_URL_JITSI_WEB
+      TZ: ${TZ:-UTC}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    aliases:
+    - xmpp.meet.jitsi
+    - auth.meet.jitsi
+    - guest.meet.jitsi

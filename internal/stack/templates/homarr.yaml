@@ -1,30 +1,15 @@
+auth: first-visitor
 name: Homarr
 description: Página inicial para os seus serviços.
+description_en: Home page for your services.
 category: Produtividade
 website: https://homarr.dev
-tags:
-  - homarr
-  - self-hosted
-  - homepage
-routes:
-  - service: homarr
+services:
+  homarr:
+    image: ghcr.io/homarr-labs/homarr:v1.74.0
     port: 7575
-compose: |
-  services:
-    homarr:
-      image: ghcr.io/homarr-labs/homarr:v1.74.0
-      environment:
-        - SECRET_ENCRYPTION_KEY=${PIER_HEX_64_HOMARR}
-      volumes:
-        - /var/run/docker.sock:/var/run/docker.sock
-        - ./homarr/appdata:/appdata
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - wget
-          - -q
-          - --spider
-          - http://127.0.0.1:7575
-        timeout: 20s
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - ./homarr/appdata:/appdata
+    env:
+      SECRET_ENCRYPTION_KEY: ${PIER_HEX_64_HOMARR}

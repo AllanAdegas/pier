@@ -1,35 +1,10 @@
-# Publishes the panel on a domain, with HTTPS, through the Traefik that Pier
-# itself manages on this server.
-#
-# Use it only after Pier has validated the local server once: the "pier"
-# network is created by Pier, and the proxy must be running (Infraestrutura →
-# servidor → Proxy).
-#
-#   docker compose -f compose.yaml -f compose.proxy.yaml up --detach
-#
-# Router and entrypoint names follow the ones Pier gives to applications
-# (internal/compose/route.go and internal/server/proxy.go).
-
+# HTTPS panel routing uses the protected file provider written at startup from
+# PIER_DOMAIN, at <local-server-data>/proxy/dynamic/pier-panel.yaml.
+# The dedicated pier-panel network is declared by compose.yaml and attached
+# by the managed proxy. No route token belongs in labels or this file.
+# Recreate both panel and proxy when upgrading from the shared pier network.
 services:
   pier:
-    networks:
-      - default
-      - pier
-    labels:
-      traefik.enable: "true"
-      traefik.docker.network: pier
-      traefik.http.services.pier-panel.loadbalancer.server.port: "8700"
-      traefik.http.middlewares.pier-panel-https.redirectscheme.scheme: https
-      traefik.http.routers.pier-panel-http.rule: Host(`${PIER_DOMAIN:?set PIER_DOMAIN in .env}`)
-      traefik.http.routers.pier-panel-http.entrypoints: http
-      traefik.http.routers.pier-panel-http.service: pier-panel
-      traefik.http.routers.pier-panel-http.middlewares: pier-panel-https
-      traefik.http.routers.pier-panel-https.rule: Host(`${PIER_DOMAIN}`)
-      traefik.http.routers.pier-panel-https.entrypoints: https
-      traefik.http.routers.pier-panel-https.service: pier-panel
-      traefik.http.routers.pier-panel-https.tls: "true"
-      traefik.http.routers.pier-panel-https.tls.certresolver: letsencrypt
-
-networks:
-  pier:
-    external: true
+    environment:
+      PIER_DOMAIN: ${PIER_DOMAIN:?set PIER_DOMAIN in .env}
+      PIER_COOKIE_SECURE: "1"

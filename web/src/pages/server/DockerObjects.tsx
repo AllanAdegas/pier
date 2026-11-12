@@ -1,11 +1,13 @@
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { Button, IconButton } from "../../components/Button";
 import { QueryView } from "../../components/Feedback";
-import { TextInput } from "../../components/Form";
 import { ConfirmDelete, Modal } from "../../components/Modal";
 import { api } from "../../lib/api";
 import { createAction, createQuery } from "../../lib/query";
 import type { DockerImage, DockerNetwork, DockerVolume } from "../../lib/types";
+import { Trans } from "../../i18n/Trans";
+import { t } from "../../i18n";
+import { TextInput } from "../../components/Form";
 
 function reference(image: DockerImage): string {
   return image.repository === "<none>" || image.tag === "<none>" ? image.id : `${image.repository}:${image.tag}`;
@@ -24,7 +26,7 @@ export function Images(props: { base: string }) {
     return (images.data() ?? []).filter((item) => term === "" || reference(item).toLowerCase().includes(term));
   });
   const pull = createAction(() => api.post<{ result: string }>(`${props.base}/images/pull`, { image: image() }), {
-    success: (result) => result.result || "Imagem baixada.",
+    success: (result) => result.result || t("Imagem baixada."),
     onSuccess: () => {
       setPulling(false);
       setImage("");
@@ -33,14 +35,14 @@ export function Images(props: { base: string }) {
   });
   const [removing, setRemoving] = createSignal<DockerImage | null>(null);
   const remove = createAction((item: DockerImage) => api.delete(`${props.base}/images?ref=${encodeURIComponent(reference(item))}`), {
-    success: "Imagem removida.",
+    success: t("Imagem removida."),
     onSuccess: () => {
       setRemoving(null);
       void images.refetch();
     },
   });
   const prune = createAction(() => api.post<{ report: string }>(`${props.base}/images/prune`), {
-    success: (result) => result.report.split("\n").pop() || "Limpeza concluída.",
+    success: (result) => result.report.split("\n").pop() || t("Limpeza concluída."),
     onSuccess: () => void images.refetch(),
   });
 
@@ -48,14 +50,12 @@ export function Images(props: { base: string }) {
     <div class="stack">
       <div class="row-between">
         <div class="grow" style={{ "max-width": "360px" }}>
-          <TextInput label="Filtrar" type="search" placeholder="repositório ou tag" value={filter()} onValue={setFilter} />
+          <TextInput label={t("Filtrar")} type="search" placeholder={t("repositório ou tag")} value={filter()} onValue={setFilter} />
         </div>
         <div class="row">
-          <Button icon="trash" pending={prune.pending()} onClick={() => void prune.run()}>
-            Remover imagens sem tag
+          <Button icon="trash" pending={prune.pending()} onClick={() => void prune.run()}>{t("Remover imagens sem tag")}
           </Button>
-          <Button variant="primary" icon="download" onClick={() => setPulling(true)}>
-            Baixar imagem
+          <Button variant="primary" icon="download" onClick={() => setPulling(true)}>{t("Baixar imagem")}
           </Button>
         </div>
       </div>
@@ -65,11 +65,11 @@ export function Images(props: { base: string }) {
             <table class="table">
               <thead>
                 <tr>
-                  <th>Imagem</th>
-                  <th>Tamanho</th>
-                  <th>Criada</th>
+                  <th>{t("Imagem")}</th>
+                  <th>{t("Tamanho")}</th>
+                  <th>{t("Criada")}</th>
                   <th>
-                    <span class="visually-hidden">Ações</span>
+                    <span class="visually-hidden">{t("Ações")}</span>
                   </th>
                 </tr>
               </thead>
@@ -81,7 +81,7 @@ export function Images(props: { base: string }) {
                       <td>{item.size}</td>
                       <td>{item.created}</td>
                       <td style={{ "text-align": "right" }}>
-                        <IconButton icon="trash" label={`Remover ${reference(item)}`} onClick={() => setRemoving(() => item)} />
+                        <IconButton icon="trash" label={t("Remover {name}", { name: reference(item) })} onClick={() => setRemoving(() => item)} />
                       </td>
                     </tr>
                   )}
@@ -91,19 +91,20 @@ export function Images(props: { base: string }) {
           </div>
         )}
       </QueryView>
-      <p class="muted small">O Docker recusa a remoção de imagens em uso por algum container.</p>
+      <p class="muted small">{t("O Docker recusa a remoção de imagens em uso por algum container.")}</p>
       <Show when={removing()}>
         {(item) => (
-          <Modal title="Remover imagem" onClose={() => setRemoving(null)}>
+          <Modal title={t("Remover imagem")} onClose={() => setRemoving(null)}>
             <div class="stack">
               <p>
-                A imagem <span class="mono">{reference(item())}</span> será apagada deste servidor. Uma imagem construída aqui não pode ser
-                baixada de novo.
+                <Trans
+                  text="A imagem {image} será apagada deste servidor. Uma imagem construída aqui não pode ser baixada de novo."
+                  values={{ image: <span class="mono">{reference(item())}</span> }}
+                />
               </p>
               <div class="form-actions">
-                <Button onClick={() => setRemoving(null)}>Cancelar</Button>
-                <Button variant="danger" icon="trash" pending={remove.pending()} onClick={() => void remove.run(item())}>
-                  Remover imagem
+                <Button onClick={() => setRemoving(null)}>{t("Cancelar")}</Button>
+                <Button variant="danger" icon="trash" pending={remove.pending()} onClick={() => void remove.run(item())}>{t("Remover imagem")}
                 </Button>
               </div>
             </div>
@@ -111,7 +112,7 @@ export function Images(props: { base: string }) {
         )}
       </Show>
       <Show when={pulling()}>
-        <Modal title="Baixar imagem" onClose={() => setPulling(false)}>
+        <Modal title={t("Baixar imagem")} onClose={() => setPulling(false)}>
           <form
             class="stack"
             onSubmit={(event) => {
@@ -119,11 +120,10 @@ export function Images(props: { base: string }) {
               void pull.run();
             }}
           >
-            <TextInput label="Imagem" required mono placeholder="postgres:17-alpine" value={image()} onValue={setImage} error={pull.errors().image} />
+            <TextInput label={t("Imagem")} required mono placeholder="postgres:17-alpine" value={image()} onValue={setImage} error={pull.errors().image} />
             <div class="form-actions">
-              <Button onClick={() => setPulling(false)}>Cancelar</Button>
-              <Button type="submit" variant="primary" icon="download" pending={pull.pending()}>
-                Baixar
+              <Button onClick={() => setPulling(false)}>{t("Cancelar")}</Button>
+              <Button type="submit" variant="primary" icon="download" pending={pull.pending()}>{t("Baixar")}
               </Button>
             </div>
           </form>
@@ -137,9 +137,7 @@ export function Images(props: { base: string }) {
 function NamedObjects<T extends { name: string }>(props: {
   base: string;
   collection: "volumes" | "networks";
-  singular: string;
-  createLabel: string;
-  removeDescription: string;
+  labels: { create: string; created: string; removed: string; removeTitle: string; removeDescription: string };
   detail: (item: T) => string;
   locked?: (item: T) => boolean;
 }) {
@@ -150,14 +148,14 @@ function NamedObjects<T extends { name: string }>(props: {
   const [name, setName] = createSignal("");
   const [removing, setRemoving] = createSignal<T | null>(null);
   const create = createAction(() => api.post(`${props.base}/${props.collection}`, { name: name() }), {
-    success: `${props.singular} criado(a).`,
+    success: props.labels.created,
     onSuccess: () => {
       setName("");
       void items.refetch();
     },
   });
   const remove = createAction((item: T) => api.delete(`${props.base}/${props.collection}/${encodeURIComponent(item.name)}`), {
-    success: `${props.singular} removido(a).`,
+    success: props.labels.removed,
     onSuccess: () => {
       setRemoving(null);
       void items.refetch();
@@ -175,10 +173,9 @@ function NamedObjects<T extends { name: string }>(props: {
         }}
       >
         <div class="grow" style={{ "max-width": "360px" }}>
-          <TextInput label={props.createLabel} mono value={name()} onValue={setName} error={create.errors().name} />
+          <TextInput label={props.labels.create} mono value={name()} onValue={setName} error={create.errors().name} />
         </div>
-        <Button type="submit" icon="plus" pending={create.pending()} disabled={!name().trim()}>
-          Criar
+        <Button type="submit" icon="plus" pending={create.pending()} disabled={!name().trim()}>{t("Criar")}
         </Button>
       </form>
       <QueryView query={items}>
@@ -193,9 +190,9 @@ function NamedObjects<T extends { name: string }>(props: {
                   </div>
                   <Show
                     when={!props.locked?.(item)}
-                    fallback={<span class="tag">reservada</span>}
+                    fallback={<span class="tag">{t("reservada")}</span>}
                   >
-                    <IconButton icon="trash" label={`Remover ${item.name}`} onClick={() => setRemoving(() => item)} />
+                    <IconButton icon="trash" label={t("Remover {name}", { name: item.name })} onClick={() => setRemoving(() => item)} />
                   </Show>
                 </div>
               )}
@@ -206,9 +203,9 @@ function NamedObjects<T extends { name: string }>(props: {
       <Show when={removing()}>
         {(item) => (
           <ConfirmDelete
-            title={`Remover ${props.singular.toLowerCase()}`}
+            title={props.labels.removeTitle}
             resourceName={item().name}
-            description={props.removeDescription}
+            description={props.labels.removeDescription}
             pending={remove.pending()}
             onConfirm={() => void remove.run(item())}
             onClose={() => setRemoving(null)}
@@ -224,9 +221,15 @@ export function Volumes(props: { base: string }) {
     <NamedObjects<DockerVolume>
       base={props.base}
       collection="volumes"
-      singular="Volume"
-      createLabel="Novo volume"
-      removeDescription="Os dados do volume são apagados e não podem ser recuperados. O Docker recusa se algum container ainda o usa."
+      labels={{
+        create: t("Novo volume"),
+        created: t("Volume criado."),
+        removed: t("Volume removido."),
+        removeTitle: t("Remover volume"),
+        removeDescription: t(
+          "Os dados do volume são apagados e não podem ser recuperados. O Docker recusa se algum container ainda o usa.",
+        ),
+      }}
       detail={(volume) => `driver ${volume.driver}`}
     />
   );
@@ -237,9 +240,13 @@ export function Networks(props: { base: string }) {
     <NamedObjects<DockerNetwork>
       base={props.base}
       collection="networks"
-      singular="Rede"
-      createLabel="Nova rede (bridge)"
-      removeDescription="A rede é removida. O Docker recusa se algum container ainda está conectado a ela."
+      labels={{
+        create: t("Nova rede (bridge)"),
+        created: t("Rede criada."),
+        removed: t("Rede removida."),
+        removeTitle: t("Remover rede"),
+        removeDescription: t("A rede é removida. O Docker recusa se algum container ainda está conectado a ela."),
+      }}
       detail={(network) => `${network.driver} · ${network.scope}`}
       locked={(network) => network.reserved}
     />

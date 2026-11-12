@@ -1,30 +1,11 @@
+auth: first-visitor
 name: Open WebUI
 description: Interface amigável para IA (Ollama, API da OpenAI e outras).
+description_en: Friendly interface for AI (Ollama, the OpenAI API and others).
 category: IA
 website: https://docs.openwebui.com
-tags:
-  - ai
-  - models
-  - deployment
-  - open-web-ui
-  - integration
-routes:
-  - service: open-webui
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:0.13.3
     port: 8080
-compose: |
-  services:
-    open-webui:
-      image: ghcr.io/open-webui/open-webui:main
-      volumes:
-        - open-webui:/app/backend/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:8080
-        timeout: 30s
-  volumes:
-    open-webui: null
+    data: /app/backend/data

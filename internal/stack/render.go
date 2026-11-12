@@ -14,6 +14,7 @@ import (
 	"pier/internal/compose"
 	"pier/internal/docker"
 	"pier/internal/platform/apperr"
+	"pier/internal/platform/i18n"
 )
 
 var serviceNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]*$`)
@@ -136,6 +137,9 @@ func render(stack Stack) ([]byte, []hostFile, error) {
 		if _, hasRestart := service["restart"]; !hasRestart {
 			service["restart"] = "unless-stopped"
 		}
+		if !hasKey(service, "logging") {
+			service["logging"] = compose.DefaultLogging()
+		}
 		qualifyRelativeBinds(service)
 		serviceFiles, err := resolveHostFiles(name, service)
 		if err != nil {
@@ -168,7 +172,7 @@ type publication struct {
 // networks that make it reachable by the proxy.
 func publish(stack Stack, name string, declaredNetworks any, usesNetworkMode bool) (publication, error) {
 	result := publication{labels: docker.Labels(docker.TypeStack, stack.ID)}
-	routes, port, err := routesFor(stack.Routes, name)
+	routes, port, err := routesFor(stack, name)
 	if err != nil || len(routes) == 0 {
 		return result, err
 	}
@@ -181,6 +185,9 @@ func publish(stack Stack, name string, declaredNetworks any, usesNetworkMode boo
 	}
 	for key, value := range publication.Labels() {
 		result.labels[key] = compose.EscapeInterpolation(value)
+	}
+	for key, value := range stack.proxyLabels {
+		result.labels[key] = value
 	}
 	result.networks = joinIngress(declaredNetworks)
 	return result, nil
@@ -198,16 +205,19 @@ func withIngress(existing any, stackID string) map[string]any {
 	return networks
 }
 
-func routesFor(routes []Route, service string) ([]compose.Route, int, error) {
+func routesFor(stack Stack, service string) ([]compose.Route, int, error) {
 	parsed := []compose.Route{}
 	port := 0
-	for _, route := range routes {
+	for _, route := range stack.Routes {
 		if route.Service != service {
 			continue
 		}
 		proxyRoute, err := compose.ParseRoute(route.Domain)
 		if err != nil {
-			return nil, 0, fmt.Errorf("domínio %q: %w", route.Domain, err)
+			return nil, 0, i18n.Errorf("domínio %q: %w", route.Domain, err)
+		}
+		if stack.pendingHosts[proxyRoute.Host] && proxyRoute.Scheme == "https" {
+			proxyRoute.Scheme = "http"
 		}
 		parsed = append(parsed, proxyRoute)
 		port = route.Port

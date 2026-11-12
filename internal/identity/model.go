@@ -39,6 +39,8 @@ type APIToken struct {
 
 // Principal is the authenticated caller of a request.
 type Principal struct {
+	TokenID   string `json:"-"`
+	TokenName string `json:"-"`
 	User      User
 	Abilities []Ability
 	// ViaToken is true for API-token calls, false for browser sessions.

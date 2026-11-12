@@ -3,6 +3,7 @@ import { openStream } from "../lib/api";
 import type { Container } from "../lib/types";
 import { Checkbox, Select } from "./Form";
 import { EmptyState } from "./Feedback";
+import { t } from "../i18n";
 
 export interface LogLine {
   id: number;
@@ -31,11 +32,11 @@ export function LogViewer(props: { lines: LogLine[]; emptyText?: string }) {
   return (
     <div class="stack-sm">
       <div class="row-between">
-        <span class="muted small">{props.lines.length} linha(s)</span>
-        <Checkbox label="Acompanhar o final" checked={follow()} onChange={setFollow} />
+        <span class="muted small">{t("{count} linha(s)", { count: props.lines.length })}</span>
+        <Checkbox label={t("Acompanhar o final")} checked={follow()} onChange={setFollow} />
       </div>
       <div class="log" ref={box} role="log" aria-live="off" tabindex="0">
-        <Show when={props.lines.length > 0} fallback={<span class="muted">{props.emptyText ?? "Sem linhas ainda."}</span>}>
+        <Show when={props.lines.length > 0} fallback={<span class="muted">{props.emptyText ?? t("Sem linhas ainda.")}</span>}>
           <For each={props.lines}>
             {(entry) => (
               <div class="log-line" data-level={entry.level}>
@@ -104,7 +105,7 @@ export function LogStream(props: { path: string | undefined; emptyText?: string 
     }),
   );
 
-  return <LogViewer lines={buffer.lines()} emptyText={props.emptyText ?? "Aguardando saída…"} />;
+  return <LogViewer lines={buffer.lines()} emptyText={props.emptyText ?? t("Aguardando saída…")} />;
 }
 
 /** Live runtime logs of the containers of a resource. */
@@ -117,15 +118,14 @@ export function ContainerLogs(props: { serverId: string; containers: Container[]
     <Show
       when={props.containers.length > 0}
       fallback={
-        <EmptyState icon="terminal" title="Nenhum container">
-          Os logs aparecem aqui assim que o recurso estiver em execução.
+        <EmptyState icon="terminal" title={t("Nenhum container")}>{t("Os logs aparecem aqui assim que o recurso estiver em execução.")}
         </EmptyState>
       }
     >
       <div class="stack">
         <Show when={props.containers.length > 1}>
           <Select
-            label="Container"
+            label={t("Container")}
             value={current()?.id ?? ""}
             onValue={setSelected}
             options={props.containers.map((container) => ({
@@ -134,7 +134,7 @@ export function ContainerLogs(props: { serverId: string; containers: Container[]
             }))}
           />
         </Show>
-        <LogStream path={path()} emptyText="Aguardando saída do container…" />
+        <LogStream path={path()} emptyText={t("Aguardando saída do container…")} />
       </div>
     </Show>
   );

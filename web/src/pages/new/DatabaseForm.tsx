@@ -2,11 +2,12 @@ import { useNavigate } from "@solidjs/router";
 import { createSignal, For, Show } from "solid-js";
 import { Button } from "../../components/Button";
 import { QueryView } from "../../components/Feedback";
-import { Select, TextInput } from "../../components/Form";
 import { api } from "../../lib/api";
 import { createAction, createQuery } from "../../lib/query";
 import type { Database, EngineInfo } from "../../lib/types";
 import type { Placement } from "../NewResource";
+import { t } from "../../i18n";
+import { Select, TextInput } from "../../components/Form";
 
 /** Provisions a database and starts it right away. */
 export function DatabaseForm(props: { placement: Placement }) {
@@ -36,7 +37,7 @@ export function DatabaseForm(props: { placement: Placement }) {
       return database;
     },
     {
-      success: "Banco de dados criado.",
+      success: t("Banco de dados criado."),
       onSuccess: (database) => navigate(`/databases/${database.id}`),
     },
   );
@@ -52,7 +53,7 @@ export function DatabaseForm(props: { placement: Placement }) {
       <QueryView query={engines}>
         {(list) => (
           <div class="stack-sm">
-            <span class="field-label">Engine</span>
+            <span class="field-label">{t("Engine")}</span>
             <div class="choice-grid">
               <For each={list()}>
                 {(item) => (
@@ -77,38 +78,37 @@ export function DatabaseForm(props: { placement: Placement }) {
 
       <div class="grid-2">
         <TextInput
-          label="Nome"
+          label={t("Nome")}
           required
-          placeholder="banco-principal"
+          placeholder={t("banco-principal")}
           value={name()}
           onValue={setName}
           error={create.errors().name}
         />
         <TextInput
-          label="Imagem"
+          label={t("Imagem")}
           mono
           placeholder={current()?.default_image}
-          hint="Deixe vazio para usar a versão padrão."
+          hint={t("Deixe vazio para usar a versão padrão.")}
           value={image()}
           onValue={setImage}
           error={create.errors()["config.image"]}
         />
       </div>
       <Select
-        label="Servidor"
+        label={t("Servidor")}
         value={serverId()}
         onValue={setServerId}
         options={props.placement.servers.map((server) => ({ value: server.id, label: server.name }))}
         error={create.errors().server_id}
       />
       <Show when={current() && !current()!.supports_backup}>
-        <p class="muted small">{current()!.label} ainda não tem backup automático no Pier.</p>
+        <p class="muted small">{t("{engine} ainda não tem backup automático no Pier.", { engine: current()!.label })}</p>
       </Show>
-      <p class="muted small">Usuário e senha são gerados automaticamente e ficam visíveis na página do banco.</p>
+      <p class="muted small">{t("Usuário e senha são gerados automaticamente e ficam visíveis na página do banco.")}</p>
 
       <div class="form-actions">
-        <Button type="submit" variant="primary" icon="database" pending={create.pending()}>
-          Criar e iniciar
+        <Button type="submit" variant="primary" icon="database" pending={create.pending()}>{t("Criar e iniciar")}
         </Button>
       </div>
     </form>

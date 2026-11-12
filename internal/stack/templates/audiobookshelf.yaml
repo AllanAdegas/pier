@@ -1,37 +1,16 @@
 name: Audiobookshelf
 description: Servidor de audiolivros, e-books e podcasts.
+description_en: Audiobook, e-book and podcast server.
 category: Mídia
 website: https://www.audiobookshelf.org/
-tags:
-  - audiobooks
-  - ebooks
-  - podcasts
-  - server
-  - self-hosted
-routes:
-  - service: audiobookshelf
+services:
+  audiobookshelf:
+    image: ghcr.io/advplyr/audiobookshelf:2.34.0
     port: 80
-compose: |
-  services:
-    audiobookshelf:
-      image: ghcr.io/advplyr/audiobookshelf:2.34.0
-      environment:
-        - TZ=${TIMEZONE:-America/Toronto}
-      volumes:
-        - audiobookshelf-audiobooks:/audiobooks
-        - audiobookshelf-podcasts:/podcasts
-        - audiobookshelf-config:/config
-        - audiobookshelf-metadata:/metadata
-      healthcheck:
-        interval: 30s
-        retries: 3
-        start_period: 15s
-        test:
-          - CMD-SHELL
-          - wget --quiet --tries=1 --timeout=5 http://localhost:80/ping -O /dev/null || exit 1
-        timeout: 10s
-  volumes:
-    audiobookshelf-audiobooks: null
-    audiobookshelf-config: null
-    audiobookshelf-metadata: null
-    audiobookshelf-podcasts: null
+    volumes:
+    - audiobookshelf-audiobooks:/audiobooks
+    - audiobookshelf-podcasts:/podcasts
+    - audiobookshelf-config:/config
+    - audiobookshelf-metadata:/metadata
+    env:
+      TZ: ${TIMEZONE:-America/Toronto}

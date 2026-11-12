@@ -6,16 +6,21 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"time"
 
 	"pier/internal/application"
+	"pier/internal/audit"
 	"pier/internal/cluster"
 	"pier/internal/database"
 	"pier/internal/engine"
 	"pier/internal/envvar"
 	"pier/internal/identity"
+	"pier/internal/instance"
 	"pier/internal/mcp"
+	"pier/internal/monitor"
 	"pier/internal/notify"
+	"pier/internal/platform/i18n"
 	"pier/internal/project"
 	"pier/internal/schedule"
 	"pier/internal/server"
@@ -26,6 +31,9 @@ import (
 
 // Dependencies are the application services the API delegates to.
 type Dependencies struct {
+	Instance      *instance.Service
+	Audit         *audit.Store
+	Monitoring    *monitor.State
 	Identity      *identity.Service
 	Servers       *server.Service
 	Keys          *server.KeyService
@@ -45,17 +53,30 @@ type Dependencies struct {
 	Logger        *slog.Logger
 	WebUI         fs.FS
 	SessionTTL    time.Duration
+	// TrustedProxies may describe, through X-Forwarded-*, the client they
+	// forward. See config.TrustedProxies.
+	TrustedProxies []netip.Prefix
+	CookieSecure   bool
 }
 
 // API holds the HTTP handlers.
 type API struct {
 	Dependencies
-	loginLimiter *rateLimiter
+	proxies proxyTrust
+	// addressLimiter throttles guesses per client address; accountLimiter
+	// per account, so rotating addresses does not buy more guesses.
+	addressLimiter *rateLimiter
+	accountLimiter *rateLimiter
 }
 
 // New creates the API.
 func New(deps Dependencies) *API {
-	return &API{Dependencies: deps, loginLimiter: newRateLimiter(10, time.Minute)}
+	return &API{
+		Dependencies:   deps,
+		proxies:        proxyTrust{prefixes: deps.TrustedProxies},
+		addressLimiter: newRateLimiter(10, time.Minute),
+		accountLimiter: newRateLimiter(20, time.Minute),
+	}
 }
 
 // Handler builds the root handler with every route registered.
@@ -69,6 +90,9 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("GET /api/v1/version", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"version": version.Number, "api": version.API})
 	})
+	a.registerInstanceRoutes(mux)
+	a.registerAuditRoutes(mux)
+	a.registerMonitoringRoutes(mux)
 	a.registerAuthRoutes(mux)
 	a.registerServerRoutes(mux)
 	a.registerProjectRoutes(mux)
@@ -79,13 +103,15 @@ func (a *API) Handler() http.Handler {
 	a.registerClusterRoutes(mux)
 	a.registerMiscRoutes(mux)
 	a.registerWebhookRoutes(mux)
-	mux.Handle("/api/", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusNotFound, errorBody{Error: errorDetail{Code: "not_found", Message: "Rota inexistente."}})
+	mux.Handle("/api/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusNotFound, errorBody{Error: errorDetail{
+			Code: "not_found", Message: i18n.FromContext(r.Context()).Text("Rota inexistente."),
+		}})
 	}))
 	mux.Handle("/", a.webUIHandler())
 	// Tools call the API routes above in process, with the agent's token.
-	mux.Handle(mcp.Path, mcp.NewHandler(mux, a.Identity, a.Logger))
-	return a.recoverPanics(a.securityHeaders(a.logRequests(mux)))
+	mux.Handle(mcp.Path, mcp.NewHandler(a.auditRequest(mux), a.Identity, a.Logger))
+	return withLanguage(a.recoverPanics(a.securityHeaders(a.logRequests(a.auditRequest(requestReadDeadline(mux))))))
 }
 
 // access describes what a route demands from the caller.

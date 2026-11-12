@@ -2,16 +2,21 @@ package application
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 	"strings"
+	"sync/atomic"
 
+	"pier/internal/platform/i18n"
 	"pier/internal/platform/pubsub"
 )
 
 const (
 	maxLogLineLength = 4000
 	minSecretLength  = 6
+	// maxOutputLines caps what one deployment keeps of the output of its
+	// commands. A build prints a few thousand lines; code under build that
+	// prints forever must not fill the database of the panel.
+	maxOutputLines = 20000
 )
 
 // ansiPattern matches terminal color/cursor sequences emitted by build tools.
@@ -26,26 +31,24 @@ type deployLog struct {
 	store        *Store
 	hub          *LogHub
 	deploymentID string
-	secrets      []string
+	OutputRedactor
+	outputLines atomic.Int64
 }
 
-// redact registers values that must never appear in the log.
-func (l *deployLog) redact(values ...string) {
-	for _, value := range values {
-		if len(value) >= minSecretLength {
-			l.secrets = append(l.secrets, value)
-		}
-	}
-}
+func (l *deployLog) redact(values ...string) { l.OutputRedactor.Redact(values...) }
+func (l *deployLog) mask(text string) string { return l.OutputRedactor.Mask(text) }
 
-func (l *deployLog) Info(format string, args ...any) { l.write(LogInfo, fmt.Sprintf(format, args...)) }
+// Info, Error and Success record a message, in the language of the instance.
+func (l *deployLog) Info(format string, args ...any) {
+	l.write(LogInfo, i18n.Instance().Sprintf(format, args...))
+}
 
 func (l *deployLog) Error(format string, args ...any) {
-	l.write(LogError, fmt.Sprintf(format, args...))
+	l.write(LogError, i18n.Instance().Sprintf(format, args...))
 }
 
 func (l *deployLog) Success(format string, args ...any) {
-	l.write(LogSuccess, fmt.Sprintf(format, args...))
+	l.write(LogSuccess, i18n.Instance().Sprintf(format, args...))
 }
 
 // Command records a command about to run, in a form safe to display.
@@ -59,11 +62,17 @@ func (l *deployLog) write(level LogLevel, line string) {
 	if line == "" && level == LogOutput {
 		return
 	}
-	for _, secret := range l.secrets {
-		line = strings.ReplaceAll(line, secret, "••••••")
+	if level == LogOutput {
+		switch count := l.outputLines.Add(1); {
+		case count == maxOutputLines+1:
+			level, line = LogError, i18n.Instance().Sprintf("Saída longa demais: as linhas depois de %d foram descartadas.", maxOutputLines)
+		case count > maxOutputLines:
+			return
+		}
 	}
+	line = l.mask(line)
 	if len(line) > maxLogLineLength {
-		line = line[:maxLogLineLength] + "… (linha truncada)"
+		line = line[:maxLogLineLength] + i18n.Instance().Text("… (linha truncada)")
 	}
 	// Logs must survive cancellation of the deployment context.
 	entry, err := l.store.appendLog(context.Background(), l.deploymentID, level, line)

@@ -3,13 +3,14 @@ package database
 import (
 	"context"
 	"path/filepath"
-	"pier/internal/docker"
 	"strings"
 	"testing"
 
+	"pier/internal/docker"
 	"pier/internal/notify"
 	"pier/internal/platform/apperr"
 	"pier/internal/platform/executor"
+	"pier/internal/platform/i18n"
 	"pier/internal/platform/secretbox"
 	"pier/internal/platform/sqlite"
 	"pier/internal/server"
@@ -58,7 +59,7 @@ func create(t *testing.T, service *Service, engine Engine) Database {
 }
 
 func TestEveryEngineProducesAComposeFileAndAConnectionURL(t *testing.T) {
-	for _, info := range Engines() {
+	for _, info := range Engines(i18n.Portuguese) {
 		t.Run(string(info.Engine), func(t *testing.T) {
 			service, fake := newService(t)
 			database := create(t, service, info.Engine)
@@ -71,7 +72,7 @@ func TestEveryEngineProducesAComposeFileAndAConnectionURL(t *testing.T) {
 			compose := string(fake.Files["/data/pier/databases/"+database.ID+"/docker-compose.yaml"])
 			// Readable container name; service, alias and volume keep the ID,
 			// so connection strings and data survive a rename.
-			for _, expected := range []string{"image: " + info.DefaultImage, database.ID + "_data:", "pier.type: database", "healthcheck:",
+			for _, expected := range []string{"image: " + info.DefaultImage, database.ID + "_data:", "pier.type: database", "healthcheck:", "logging:", "driver: local", "max-size:", "max-file:",
 				"container_name: " + docker.ReadableName(database.Name, database.ID), "- " + database.ID, "    " + database.ID + ":"} {
 				if !strings.Contains(compose, expected) {
 					t.Errorf("compose file misses %q:\n%s", expected, compose)
@@ -190,7 +191,10 @@ func TestDeleteDestroysDataOnlyWhenAsked(t *testing.T) {
 		if _, err := service.Get(context.Background(), database.ID); err != nil {
 			t.Error("the record must survive a failed cleanup")
 		}
-		if err := service.Delete(context.Background(), database.ID, true, true); err != nil {
+		if err := service.Delete(context.Background(), database.ID, true, true); err == nil {
+			t.Fatal("force must not claim successful data destruction on an unreachable server")
+		}
+		if err := service.Delete(context.Background(), database.ID, false, true); err != nil {
 			t.Errorf("forced delete must remove the record: %v", err)
 		}
 	})

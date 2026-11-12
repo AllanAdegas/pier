@@ -1,33 +1,15 @@
 name: Radarr
 description: Gestão de coleção de filmes para Usenet e BitTorrent.
+description_en: Movie collection manager for Usenet and BitTorrent.
 category: Mídia
 website: https://hub.docker.com/r/linuxserver/radarr
-tags:
-  - media
-  - server
-  - movies
-routes:
-  - service: radarr
+services:
+  radarr:
+    image: lscr.io/linuxserver/radarr:6.4.4
     port: 7878
-compose: |
-  services:
-    radarr:
-      image: lscr.io/linuxserver/radarr:latest
-      environment:
-        - _APP_URL=$PIER_URL_RADARR
-        - PUID=1000
-        - PGID=1000
-        - TZ=${TZ:-America/Toronto}
-      volumes:
-        - radarr-config:/config
-      healthcheck:
-        interval: 2s
-        retries: 15
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://localhost:7878/ping
-        timeout: 10s
-  volumes:
-    radarr-config: null
+    data: /config
+    env:
+      _APP_URL: $PIER_URL_RADARR
+      PUID: '1000'
+      PGID: '1000'
+      TZ: ${TZ:-America/Toronto}

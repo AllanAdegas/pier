@@ -9,12 +9,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@solidjs/router": "^0.15.3",
-    "solid-js": "^1.9.5"
+    "@solidjs/router": "~0.15.4",
+    "solid-js": "^1.9.18"
   },
   "devDependencies": {
-    "typescript": "^5.8.3",
-    "vite": "^6.3.5",
-    "vite-plugin-solid": "^2.11.6"
+    "typescript": "^5.9.3",
+    "vite": "^6.4.6",
+    "vite-plugin-solid": "^2.11.15"
   }
 }

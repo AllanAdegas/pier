@@ -1,57 +1,18 @@
 name: Joomla com MariaDB
 description: CMS livre e open source para construir sites.
+description_en: Free and open source CMS to build websites.
 category: CMS
 website: https://joomla.org
-tags:
-  - cms
-  - blog
-  - content
-  - management
-  - mariadb
-routes:
-  - service: joomla
+services:
+  joomla:
+    image: joomla:6.2.0
     port: 80
-compose: |
-  services:
-    joomla:
-      image: joomla:latest
-      environment:
-        - JOOMLA_DB_HOST=mariadb
-        - JOOMLA_DB_USER=${PIER_USER_JOOMLA}
-        - JOOMLA_DB_PASSWORD=${PIER_PASSWORD_JOOMLA}
-        - JOOMLA_DB_NAME=${MYSQL_DATABASE:-joomla-db}
-      volumes:
-        - joomla_data:/var/www/html
-      depends_on:
-        mariadb:
-          condition: service_healthy
-      healthcheck:
-        interval: 2s
-        retries: 10
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1
-        timeout: 10s
-    mariadb:
-      image: mariadb:11
-      environment:
-        - MYSQL_ROOT_PASSWORD=${PIER_PASSWORD_ROOT}
-        - MYSQL_DATABASE=${MYSQL_DATABASE:-joomla-db}
-        - MYSQL_USER=${PIER_USER_JOOMLA}
-        - MYSQL_PASSWORD=${PIER_PASSWORD_JOOMLA}
-      volumes:
-        - joomla_mariadb_data:/var/lib/mysql
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - healthcheck.sh
-          - --connect
-          - --innodb_initialized
-        timeout: 20s
-  volumes:
-    joomla_data: null
-    joomla_mariadb_data: null
+    data: /var/www/html
+    env:
+      JOOMLA_DB_HOST: mariadb
+      JOOMLA_DB_USER: '{{mariadb.user}}'
+      JOOMLA_DB_PASSWORD: '{{mariadb.password}}'
+      JOOMLA_DB_NAME: '{{mariadb.database}}'
+with:
+  mariadb:
+    database: joomla-db

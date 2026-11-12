@@ -1,101 +1,51 @@
 name: Grist
 description: 'Planilha relacional moderna: flexibilidade de planilha, robustez de banco.'
+description_en: 'Modern relational spreadsheet: the flexibility of a spreadsheet, the robustness of a database.'
 category: Produtividade
 website: https://support.getgrist.com/
-tags:
-  - lowcode
-  - nocode
-  - spreadsheet
-  - database
-  - relational
-routes:
-  - service: grist
+services:
+  grist:
+    image: gristlabs/grist:1.7.22
     port: 8484
-compose: |
-  services:
-    grist:
-      image: gristlabs/grist:latest
-      environment:
-        - APP_HOME_URL=${PIER_URL_GRIST}
-        - APP_DOC_URL=${PIER_URL_GRIST}
-        - GRIST_DOMAIN=${PIER_HOST_GRIST}
-        - TZ=${TZ:-UTC}
-        - GRIST_SUPPORT_ANON=${SUPPORT_ANON:-false}
-        - GRIST_FORCE_LOGIN=${FORCE_LOGIN:-true}
-        - COOKIE_MAX_AGE=${COOKIE_MAX_AGE:-86400000}
-        - GRIST_PAGE_TITLE_SUFFIX=${PAGE_TITLE_SUFFIX:- - Suffix}
-        - GRIST_HIDE_UI_ELEMENTS=${HIDE_UI_ELEMENTS:-billing,sendToDrive,supportGrist,multiAccounts,tutorials}
-        - GRIST_UI_FEATURES=${UI_FEATURES:-helpCenter,billing,templates,createSite,multiSite,sendToDrive,tutorials,supportGrist}
-        - GRIST_DEFAULT_EMAIL=${DEFAULT_EMAIL:-?}
-        - GRIST_ORG_IN_PATH=${ORG_IN_PATH:-true}
-        - GRIST_OIDC_SP_HOST=${PIER_URL_GRIST}
-        - GRIST_OIDC_IDP_SCOPES=${OIDC_IDP_SCOPES:-openid profile email}
-        - GRIST_OIDC_IDP_SKIP_END_SESSION_ENDPOINT=${OIDC_IDP_SKIP_END_SESSION_ENDPOINT:-false}
-        - GRIST_OIDC_IDP_ISSUER=${OIDC_IDP_ISSUER:?}
-        - GRIST_OIDC_IDP_CLIENT_ID=${OIDC_IDP_CLIENT_ID:?}
-        - GRIST_OIDC_IDP_CLIENT_SECRET=${OIDC_IDP_CLIENT_SECRET:?}
-        - GRIST_SESSION_SECRET=${PIER_BASE64_128}
-        - GRIST_HOME_INCLUDE_STATIC=${HOME_INCLUDE_STATIC:-true}
-        - GRIST_SANDBOX_FLAVOR=${SANDBOX_FLAVOR:-gvisor}
-        - ALLOWED_WEBHOOK_DOMAINS=${ALLOWED_WEBHOOK_DOMAINS}
-        - COMMENTS=${COMMENTS:-true}
-        - TYPEORM_TYPE=${TYPEORM_TYPE:-postgres}
-        - TYPEORM_DATABASE=${POSTGRES_DATABASE:-grist-db}
-        - TYPEORM_USERNAME=${PIER_USER_POSTGRES}
-        - TYPEORM_PASSWORD=${PIER_PASSWORD_POSTGRES}
-        - TYPEORM_HOST=${TYPEORM_HOST:-postgres}
-        - TYPEORM_PORT=${TYPEORM_PORT:-5432}
-        - TYPEORM_LOGGING=${TYPEORM_LOGGING:-false}
-        - REDIS_URL=${REDIS_URL:-redis://redis:6379}
-        - GRIST_HELP_CENTER=${PIER_URL_GRIST}/help
-        - GRIST_TERMS_OF_SERVICE_URL=${PIER_URL_GRIST}/terms
-        - FREE_COACHING_CALL_URL=${FREE_COACHING_CALL_URL}
-        - GRIST_CONTACT_SUPPORT_URL=${CONTACT_SUPPORT_URL}
-      volumes:
-        - grist-data:/persist
-      depends_on:
-        postgres:
-          condition: service_healthy
-        redis:
-          condition: service_healthy
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - node
-          - -e
-          - 'require(''http'').get(''http://localhost:8484/status'', res => process.exit(res.statusCode === 200 ? 0 : 1))'
-          - '> /dev/null 2>&1'
-        timeout: 20s
-    postgres:
-      image: postgres:16
-      environment:
-        - POSTGRES_DB=${POSTGRES_DATABASE:-grist-db}
-        - POSTGRES_USER=${PIER_USER_POSTGRES}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
-      volumes:
-        - grist_postgres_data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 5s
-        retries: 20
-        test:
-          - CMD-SHELL
-          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
-        timeout: 10s
-    redis:
-      image: redis:7
-      volumes:
-        - grist_redis_data:/data
-      healthcheck:
-        interval: 5s
-        retries: 20
-        test:
-          - CMD
-          - redis-cli
-          - PING
-        timeout: 10s
-  volumes:
-    grist-data: null
-    grist_postgres_data: null
-    grist_redis_data: null
+    data: /persist
+    env:
+      APP_HOME_URL: ${PIER_URL_GRIST}
+      APP_DOC_URL: ${PIER_URL_GRIST}
+      GRIST_DOMAIN: ${PIER_HOST_GRIST}
+      TZ: ${TZ:-UTC}
+      GRIST_SUPPORT_ANON: ${SUPPORT_ANON:-false}
+      GRIST_FORCE_LOGIN: ${FORCE_LOGIN:-true}
+      COOKIE_MAX_AGE: ${COOKIE_MAX_AGE:-86400000}
+      GRIST_PAGE_TITLE_SUFFIX: ${PAGE_TITLE_SUFFIX:- - Suffix}
+      GRIST_HIDE_UI_ELEMENTS: ${HIDE_UI_ELEMENTS:-billing,sendToDrive,supportGrist,multiAccounts,tutorials}
+      GRIST_UI_FEATURES: ${UI_FEATURES:-helpCenter,billing,templates,createSite,multiSite,sendToDrive,tutorials,supportGrist}
+      GRIST_DEFAULT_EMAIL: ${DEFAULT_EMAIL:-?}
+      GRIST_ORG_IN_PATH: ${ORG_IN_PATH:-true}
+      GRIST_OIDC_SP_HOST: ${PIER_URL_GRIST}
+      GRIST_OIDC_IDP_SCOPES: ${OIDC_IDP_SCOPES:-openid profile email}
+      GRIST_OIDC_IDP_SKIP_END_SESSION_ENDPOINT: ${OIDC_IDP_SKIP_END_SESSION_ENDPOINT:-false}
+      GRIST_OIDC_IDP_ISSUER: ${OIDC_IDP_ISSUER:?}
+      GRIST_OIDC_IDP_CLIENT_ID: ${OIDC_IDP_CLIENT_ID:?}
+      GRIST_OIDC_IDP_CLIENT_SECRET: ${OIDC_IDP_CLIENT_SECRET:?}
+      GRIST_SESSION_SECRET: ${PIER_BASE64_128_SESSION}
+      GRIST_HOME_INCLUDE_STATIC: ${HOME_INCLUDE_STATIC:-true}
+      GRIST_SANDBOX_FLAVOR: ${SANDBOX_FLAVOR:-gvisor}
+      ALLOWED_WEBHOOK_DOMAINS: ${ALLOWED_WEBHOOK_DOMAINS}
+      COMMENTS: ${COMMENTS:-true}
+      TYPEORM_TYPE: ${TYPEORM_TYPE:-postgres}
+      TYPEORM_DATABASE: '{{postgres.database}}'
+      TYPEORM_USERNAME: '{{postgres.user}}'
+      TYPEORM_PASSWORD: '{{postgres.password}}'
+      TYPEORM_HOST: ${TYPEORM_HOST:-postgres}
+      TYPEORM_PORT: ${TYPEORM_PORT:-5432}
+      TYPEORM_LOGGING: ${TYPEORM_LOGGING:-false}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      GRIST_HELP_CENTER: ${PIER_URL_GRIST}/help
+      GRIST_TERMS_OF_SERVICE_URL: ${PIER_URL_GRIST}/terms
+      FREE_COACHING_CALL_URL: ${FREE_COACHING_CALL_URL}
+      GRIST_CONTACT_SUPPORT_URL: ${CONTACT_SUPPORT_URL}
+with:
+  postgres:
+    version: '16'
+    database: grist-db
+  redis: {}

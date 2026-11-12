@@ -1,11 +1,13 @@
+import { LanguageSwitch } from "../components/LanguageSwitch";
 import { createSignal, type JSX } from "solid-js";
 import { Button } from "../components/Button";
-import { TextInput } from "../components/Form";
 import { Icon } from "../components/Icon";
 import { api } from "../lib/api";
 import { createAction } from "../lib/query";
 import { signIn } from "../lib/state";
 import type { User } from "../lib/types";
+import { t } from "../i18n";
+import { TextInput } from "../components/Form";
 
 function AuthLayout(props: { title: string; subtitle: string; children: JSX.Element }) {
   return (
@@ -19,6 +21,9 @@ function AuthLayout(props: { title: string; subtitle: string; children: JSX.Elem
           <p class="muted">{props.subtitle}</p>
         </div>
         <div class="card">{props.children}</div>
+        <div class="row" style={{ "justify-content": "center" }}>
+          <LanguageSwitch />
+        </div>
       </div>
     </main>
   );
@@ -32,7 +37,7 @@ export function LoginPage() {
   });
 
   return (
-    <AuthLayout title="Entrar no Pier" subtitle="Seu painel de deploy.">
+    <AuthLayout title={t("Entrar no Pier")} subtitle={t("Seu painel de deploy.")}>
       <form
         class="stack"
         onSubmit={(event) => {
@@ -42,15 +47,14 @@ export function LoginPage() {
       >
         <TextInput label="E-mail" type="email" autocomplete="username" required value={email()} onValue={setEmail} />
         <TextInput
-          label="Senha"
+          label={t("Senha")}
           type="password"
           autocomplete="current-password"
           required
           value={password()}
           onValue={setPassword}
         />
-        <Button type="submit" variant="primary" pending={login.pending()}>
-          Entrar
+        <Button type="submit" variant="primary" pending={login.pending()}>{t("Entrar")}
         </Button>
       </form>
     </AuthLayout>
@@ -69,7 +73,7 @@ export function SetupPage() {
   );
 
   return (
-    <AuthLayout title="Bem-vindo ao Pier" subtitle="Crie a conta de administrador para começar.">
+    <AuthLayout title={t("Bem-vindo ao Pier")} subtitle={t("Crie a conta de administrador para começar.")}>
       <form
         class="stack"
         onSubmit={(event) => {
@@ -78,8 +82,8 @@ export function SetupPage() {
         }}
       >
         <TextInput
-          label="Código de configuração"
-          hint="Aparece no log do Pier ao iniciar (no Docker: docker logs pier). Prova que você controla esta instalação."
+          label={t("Código de configuração")}
+          hint={t("Aparece no log do Pier ao iniciar (no Docker: docker logs pier). Prova que você controla esta instalação.")}
           autocomplete="off"
           placeholder="XXXX-XXXX-XXXX"
           required
@@ -87,7 +91,7 @@ export function SetupPage() {
           onValue={setCode}
           error={setup.errors().setup_code}
         />
-        <TextInput label="Nome" autocomplete="name" required value={name()} onValue={setName} error={setup.errors().name} />
+        <TextInput label={t("Nome")} autocomplete="name" required value={name()} onValue={setName} error={setup.errors().name} />
         <TextInput
           label="E-mail"
           type="email"
@@ -98,17 +102,16 @@ export function SetupPage() {
           error={setup.errors().email}
         />
         <TextInput
-          label="Senha"
+          label={t("Senha")}
           type="password"
           autocomplete="new-password"
           required
-          hint="Mínimo de 10 caracteres."
+          hint={t("Mínimo de 10 caracteres.")}
           value={password()}
           onValue={setPassword}
           error={setup.errors().password}
         />
-        <Button type="submit" variant="primary" pending={setup.pending()}>
-          Criar conta e entrar
+        <Button type="submit" variant="primary" pending={setup.pending()}>{t("Criar conta e entrar")}
         </Button>
       </form>
     </AuthLayout>

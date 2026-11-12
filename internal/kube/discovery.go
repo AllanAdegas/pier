@@ -14,6 +14,8 @@ import (
 	"sync"
 
 	"gopkg.in/yaml.v3"
+
+	"pier/internal/platform/i18n"
 )
 
 // Resource identifies one kind of object the cluster serves, as discovered
@@ -109,7 +111,7 @@ func (c *Client) Resources(ctx context.Context) ([]Resource, error) {
 	}
 	wait.Wait()
 	if len(resources) == 0 {
-		return nil, errors.New("o cluster não informou nenhum recurso")
+		return nil, i18n.Errorf("o cluster não informou nenhum recurso")
 	}
 	sort.Slice(resources, func(i, j int) bool {
 		if resources[i].Group != resources[j].Group {
@@ -183,7 +185,7 @@ func (c *Client) Apply(ctx context.Context, resources []Resource, manifest []byt
 		return nil, err
 	}
 	if len(objects) == 0 {
-		return nil, errors.New("o manifesto está vazio")
+		return nil, i18n.Errorf("o manifesto está vazio")
 	}
 	applied := []Applied{}
 	for _, object := range objects {
@@ -191,11 +193,11 @@ func (c *Client) Apply(ctx context.Context, resources []Resource, manifest []byt
 		kind, _ := object["kind"].(string)
 		resource, found := findByKind(resources, apiVersion, kind)
 		if !found {
-			return applied, fmt.Errorf("o cluster não conhece %s %s", apiVersion, kind)
+			return applied, i18n.Errorf("o cluster não conhece %s %s", apiVersion, kind)
 		}
 		metadata, _ := object["metadata"].(map[string]any)
 		if metadata == nil {
-			return applied, fmt.Errorf("%s sem metadata", kind)
+			return applied, i18n.Errorf("%s sem metadata", kind)
 		}
 		namespace, _ := metadata["namespace"].(string)
 		if resource.Namespaced && namespace == "" {
@@ -225,13 +227,13 @@ func DecodeManifest(manifest []byte) ([]Object, error) {
 			return objects, nil
 		}
 		if err != nil {
-			return nil, fmt.Errorf("o manifesto não é um YAML válido: %w", err)
+			return nil, i18n.Errorf("o manifesto não é um YAML válido: %w", err)
 		}
 		if len(object) == 0 {
 			continue
 		}
 		if object["kind"] == nil || object["apiVersion"] == nil {
-			return nil, errors.New("todo documento do manifesto precisa de apiVersion e kind")
+			return nil, i18n.Errorf("todo documento do manifesto precisa de apiVersion e kind")
 		}
 		objects = append(objects, object)
 	}

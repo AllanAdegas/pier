@@ -1,34 +1,11 @@
+auth: first-visitor
 name: CloudBeaver
 description: Aplicação web leve para gestão de dados e bancos.
+description_en: Lightweight web application for data and database management.
 category: Desenvolvimento
 website: https://dbeaver.com/docs/cloudbeaver/
-tags:
-  - dbeaver
-  - data management
-  - data
-  - database
-  - mysql
-  - postgres
-  - sqlite
-  - sql
-routes:
-  - service: cloudbeaver
+services:
+  cloudbeaver:
+    image: dbeaver/cloudbeaver:24
     port: 8978
-compose: |
-  services:
-    cloudbeaver:
-      image: dbeaver/cloudbeaver:24
-      volumes:
-        - cloudbeaver-data:/opt/cloudbeaver/workspace
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - wget
-          - -q
-          - --spider
-          - http://127.0.0.1:8978/
-        timeout: 20s
-  volumes:
-    cloudbeaver-data: null
+    data: /opt/cloudbeaver/workspace

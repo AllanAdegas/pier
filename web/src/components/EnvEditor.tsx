@@ -1,12 +1,13 @@
 import { createSignal, For, Show } from "solid-js";
 import { api } from "../lib/api";
 import { createAction, createQuery } from "../lib/query";
-import type { EnvVariable } from "../lib/types";
+import type { Application, Database, EnvVariable } from "../lib/types";
 import { Button, IconButton } from "./Button";
 import { EmptyState, QueryView } from "./Feedback";
-import { Checkbox, TextArea, TextInput } from "./Form";
+import { Checkbox, Select, TextArea, TextInput } from "./Form";
 import { Modal } from "./Modal";
 import { Section } from "./Page";
+import { t } from "../i18n";
 
 /**
  * Environment variables of a resource. `basePath` is the API prefix of the
@@ -17,6 +18,16 @@ export function EnvEditor(props: { basePath: string; allowBuildTime?: boolean; n
     () => props.basePath,
     (base) => api.get<EnvVariable[]>(`${base}/envs`),
   );
+  const application = createQuery(
+    () => props.basePath.startsWith("/applications/") && props.basePath,
+    (base) => api.get<Application>(base),
+  );
+  const databases = createQuery(
+    () => application.data()?.environment_id,
+    (environment) => api.get<Database[]>(`/databases?environment_id=${encodeURIComponent(environment)}`),
+  );
+  const [database, setDatabase] = createSignal("");
+  const [secretBuild, setSecretBuild] = createSignal(false);
   const [key, setKey] = createSignal("");
   const [value, setValue] = createSignal("");
   const [buildTime, setBuildTime] = createSignal(false);
@@ -24,29 +35,29 @@ export function EnvEditor(props: { basePath: string; allowBuildTime?: boolean; n
   const [bulkOpen, setBulkOpen] = createSignal(false);
 
   const add = createAction(
-    () => api.post(`${props.basePath}/envs`, { key: key(), value: value(), build_time: buildTime() }),
+    () => api.post(`${props.basePath}/envs`, { key: key(), value: value(), build_time: buildTime(), secret_build: secretBuild() }),
     {
-      success: "Variável salva.",
+      success: t("Variável salva."),
       onSuccess: () => {
         setKey("");
         setValue("");
         setBuildTime(false);
+        setSecretBuild(false);
         void variables.refetch();
       },
     },
   );
   const remove = createAction((id: string) => api.delete(`${props.basePath}/envs/${id}`), {
-    success: "Variável removida.",
+    success: t("Variável removida."),
     onSuccess: () => void variables.refetch(),
   });
 
   return (
     <Section
-      title="Variáveis de ambiente"
+      title={t("Variáveis de ambiente")}
       description={props.note}
       actions={
-        <Button small onClick={() => setBulkOpen(true)}>
-          Editar como .env
+        <Button small onClick={() => setBulkOpen(true)}>{t("Editar como .env")}
         </Button>
       }
     >
@@ -55,8 +66,7 @@ export function EnvEditor(props: { basePath: string; allowBuildTime?: boolean; n
           <Show
             when={list().length > 0}
             fallback={
-              <EmptyState icon="key" title="Nenhuma variável">
-                Adicione segredos e configurações abaixo. Os valores ficam criptografados no banco do Pier.
+              <EmptyState icon="key" title={t("Nenhuma variável")}>{t("Adicione segredos e configurações abaixo. Os valores ficam criptografados no banco do Pier.")}
               </EmptyState>
             }
           >
@@ -72,15 +82,18 @@ export function EnvEditor(props: { basePath: string; allowBuildTime?: boolean; n
                         {revealed()[variable.id] ? variable.value || "(vazio)" : "••••••••"}
                       </span>
                     </div>
-                    <Show when={variable.build_time}>
+                    <Show when={variable.secret_build}>
+                      <span class="tag">{t("segredo de build")}</span>
+                    </Show>
+                    <Show when={variable.build_time && !variable.secret_build}>
                       <span class="tag">build</span>
                     </Show>
                     <IconButton
                       icon={revealed()[variable.id] ? "eye-off" : "eye"}
-                      label={revealed()[variable.id] ? `Ocultar ${variable.key}` : `Mostrar ${variable.key}`}
+                      label={revealed()[variable.id] ? t("Ocultar {name}", { name: variable.key }) : t("Mostrar {name}", { name: variable.key })}
                       onClick={() => setRevealed({ ...revealed(), [variable.id]: !revealed()[variable.id] })}
                     />
-                    <IconButton icon="trash" label={`Remover ${variable.key}`} onClick={() => void remove.run(variable.id)} />
+                    <IconButton icon="trash" label={t("Remover {name}", { name: variable.key })} onClick={() => void remove.run(variable.id)} />
                   </div>
                 )}
               </For>
@@ -88,6 +101,27 @@ export function EnvEditor(props: { basePath: string; allowBuildTime?: boolean; n
           </Show>
         )}
       </QueryView>
+
+      <Show when={application.data()}>
+        <div class="grid-2">
+          <Select
+            label={t("Conectar a um banco")}
+            placeholder={t("Selecione um banco deste ambiente")}
+            value={database()}
+            onValue={(id) => {
+              setDatabase(id);
+              if (id) {
+                setKey("DATABASE_URL");
+                setValue("${{" + id + ".url}}");
+                setBuildTime(false);
+                setSecretBuild(false);
+              }
+            }}
+            options={(databases.data() ?? []).map((item) => ({ value: item.id, label: item.name }))}
+            hint={t("A conexão atual do banco será resolvida no próximo deploy.")}
+          />
+        </div>
+      </Show>
 
       <form
         class="stack"
@@ -98,7 +132,7 @@ export function EnvEditor(props: { basePath: string; allowBuildTime?: boolean; n
       >
         <div class="grid-2">
           <TextInput
-            label="Nome"
+            label={t("Nome")}
             mono
             placeholder="DATABASE_URL"
             value={key()}
@@ -106,19 +140,24 @@ export function EnvEditor(props: { basePath: string; allowBuildTime?: boolean; n
             error={add.errors().key}
             autocomplete="off"
           />
-          <TextInput label="Valor" mono value={value()} onValue={setValue} autocomplete="off" />
+          <TextInput label={t("Valor")} mono value={value()} onValue={setValue} autocomplete="off" />
         </div>
         <Show when={props.allowBuildTime}>
           <Checkbox
-            label="Disponível durante o build"
-            hint="Passada como --build-arg ao docker build. Evite para segredos: build args ficam no histórico da imagem."
+            label={t("Disponível durante o build")}
+            hint={t("Passada como --build-arg ao docker build. Evite para segredos: build args ficam no histórico da imagem.")}
             checked={buildTime()}
-            onChange={setBuildTime}
+            onChange={(checked) => { setBuildTime(checked); if (checked) setSecretBuild(false); }}
+          />
+          <Checkbox
+            label={t("Segredo de build")}
+            hint={t("Disponível apenas por mount do BuildKit durante o build; não vira build arg nem fica no histórico da imagem.")}
+            checked={secretBuild()}
+            onChange={(checked) => { setSecretBuild(checked); if (checked) setBuildTime(false); }}
           />
         </Show>
         <div class="form-actions">
-          <Button type="submit" icon="plus" pending={add.pending()} disabled={!key().trim()}>
-            Adicionar variável
+          <Button type="submit" icon="plus" pending={add.pending()} disabled={!key().trim()}>{t("Adicionar variável")}
           </Button>
         </div>
       </form>
@@ -146,12 +185,12 @@ function BulkEnvModal(props: { basePath: string; current: EnvVariable[]; onClose
   const [text, setText] = createSignal(toDotenv(props.current));
   // The backend parses the .env text, the single implementation of that format.
   const save = createAction(() => api.put(`${props.basePath}/envs`, { dotenv: text() }), {
-    success: "Variáveis substituídas.",
+    success: t("Variáveis substituídas."),
     onSuccess: props.onSaved,
   });
 
   return (
-    <Modal title="Editar como .env" onClose={props.onClose} wide>
+    <Modal title={t("Editar como .env")} onClose={props.onClose} wide>
       <form
         class="stack"
         onSubmit={(event) => {
@@ -160,17 +199,16 @@ function BulkEnvModal(props: { basePath: string; current: EnvVariable[]; onClose
         }}
       >
         <TextArea
-          label="Conteúdo"
-          hint="Uma variável por linha, no formato CHAVE=valor. Salvar substitui todas as variáveis atuais."
+          label={t("Conteúdo")}
+          hint={t("Uma variável por linha, no formato CHAVE=valor. Salvar substitui todas as variáveis atuais.")}
           mono
           rows={14}
           value={text()}
           onValue={setText}
         />
         <div class="form-actions">
-          <Button onClick={props.onClose}>Cancelar</Button>
-          <Button type="submit" variant="primary" pending={save.pending()}>
-            Substituir variáveis
+          <Button onClick={props.onClose}>{t("Cancelar")}</Button>
+          <Button type="submit" variant="primary" pending={save.pending()}>{t("Substituir variáveis")}
           </Button>
         </div>
       </form>

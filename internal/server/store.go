@@ -19,19 +19,22 @@ type Store struct {
 func NewStore(db *sql.DB) *Store { return &Store{db: db} }
 
 const serverColumns = `id, name, description, kind, host, port, username, COALESCE(private_key_id, ''),
-	host_key, data_dir, proxy, status, status_message, docker_version, last_checked_at, created_at`
+	host_key, data_dir, proxy, status, status_message, docker_version, last_checked_at, created_at, proxy_token, validation_checks`
 
 func (s *Store) insert(ctx context.Context, server Server) error {
+	if server.ProxyToken == "" {
+		server.ProxyToken = NewProxyToken()
+	}
 	proxy, err := json.Marshal(server.Proxy)
 	if err != nil {
 		return err
 	}
 	_, err = s.db.ExecContext(ctx, `INSERT INTO servers
-		(id, name, description, kind, host, port, username, private_key_id, host_key, data_dir, proxy, status, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''), ?, ?, ?, ?, ?)`,
+		(id, name, description, kind, host, port, username, private_key_id, host_key, data_dir, proxy, status, created_at, proxy_token)
+		VALUES (?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''), ?, ?, ?, ?, ?, ?)`,
 		server.ID, server.Name, server.Description, server.Kind, server.Host, server.Port, server.User,
 		server.PrivateKeyID, server.HostKey, server.DataDir, string(proxy), server.Status,
-		sqlite.FormatTime(server.CreatedAt))
+		sqlite.FormatTime(server.CreatedAt), server.ProxyToken)
 	return err
 }
 
@@ -42,14 +45,18 @@ func (s *Store) update(ctx context.Context, server Server) error {
 	}
 	return sqlite.RequireAffected(s.db.ExecContext(ctx, `UPDATE servers SET
 		name = ?, description = ?, host = ?, port = ?, username = ?, private_key_id = NULLIF(?, ''),
-		host_key = ?, data_dir = ?, proxy = ? WHERE id = ?`,
+		host_key = CASE WHEN host <> ? OR port <> ? THEN '' ELSE host_key END, data_dir = ?, proxy = ? WHERE id = ?`,
 		server.Name, server.Description, server.Host, server.Port, server.User, server.PrivateKeyID,
-		server.HostKey, server.DataDir, string(proxy), server.ID))
+		server.Host, server.Port, server.DataDir, string(proxy), server.ID))
 }
 
-func (s *Store) setHostKey(ctx context.Context, id, hostKey string) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE servers SET host_key = ? WHERE id = ?`, hostKey, id)
-	return err
+func (s *Store) setHostKey(ctx context.Context, id, hostKey, host string, port int) error {
+	return sqlite.RequireAffected(s.db.ExecContext(ctx, `UPDATE servers SET host_key = ?
+ WHERE id = ? AND host_key = '' AND host = ? AND port = ?`, hostKey, id, host, port))
+}
+
+func (s *Store) clearHostKey(ctx context.Context, id string) error {
+	return sqlite.RequireAffected(s.db.ExecContext(ctx, `UPDATE servers SET host_key = '' WHERE id = ?`, id))
 }
 
 func (s *Store) setStatus(ctx context.Context, id string, status Status, message, dockerVersion string) error {
@@ -104,16 +111,19 @@ type rowScanner interface {
 
 func scanServer(row rowScanner) (Server, error) {
 	var server Server
-	var proxy, createdAt string
+	var proxy, createdAt, checks string
 	var lastCheckedAt sql.NullString
 	err := row.Scan(&server.ID, &server.Name, &server.Description, &server.Kind, &server.Host, &server.Port,
 		&server.User, &server.PrivateKeyID, &server.HostKey, &server.DataDir, &proxy, &server.Status,
-		&server.StatusMessage, &server.DockerVersion, &lastCheckedAt, &createdAt)
+		&server.StatusMessage, &server.DockerVersion, &lastCheckedAt, &createdAt, &server.ProxyToken, &checks)
 	if err != nil {
 		return Server{}, err
 	}
 	if err := json.Unmarshal([]byte(proxy), &server.Proxy); err != nil {
 		return Server{}, fmt.Errorf("decode proxy settings of server %s: %w", server.ID, err)
+	}
+	if err := json.Unmarshal([]byte(checks), &server.Checks); err != nil {
+		return Server{}, err
 	}
 	server.LastCheckedAt = sqlite.ParseOptionalTime(lastCheckedAt)
 	server.CreatedAt = sqlite.ParseTime(createdAt)
@@ -162,4 +172,12 @@ func (s *Store) countServersUsingKey(ctx context.Context, keyID string) (int, er
 	var count int
 	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM servers WHERE private_key_id = ?`, keyID).Scan(&count)
 	return count, err
+}
+
+func (s *Store) setChecks(ctx context.Context, id string, checks []Check) error {
+	encoded, err := json.Marshal(checks)
+	if err != nil {
+		return err
+	}
+	return sqlite.RequireAffected(s.db.ExecContext(ctx, `UPDATE servers SET validation_checks = ? WHERE id = ?`, string(encoded), id))
 }

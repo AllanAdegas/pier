@@ -1,104 +1,64 @@
 name: Open Archiver
 description: Arquivamento de e-mails com busca em texto completo.
+description_en: Email archiving with full-text search.
 category: E-mail
 website: https://docs.openarchiver.com/
-tags:
-  - email archiving
-  - email
-  - compliance
-  - search
-routes:
-  - service: open-archiver
+services:
+  meilisearch:
+    image: getmeili/meilisearch:v1.15
+    data: /meili_data
+    env:
+      MEILI_MASTER_KEY: ${PIER_PASSWORD_MEILISEARCH}
+    health:
+    - CMD
+    - curl
+    - -f
+    - http://127.0.0.1:7700/health
+  open-archiver:
+    image: logiclabshq/open-archiver:v0.6.2
     port: 3000
-compose: |
-  services:
-    meilisearch:
-      image: getmeili/meilisearch:v1.15
-      environment:
-        - MEILI_MASTER_KEY=${PIER_PASSWORD_MEILISEARCH}
-      volumes:
-        - meilisearch-data:/meili_data
-      healthcheck:
-        interval: 2s
-        retries: 15
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:7700/health
-        timeout: 10s
-    open-archiver:
-      image: logiclabshq/open-archiver:latest
-      environment:
-        - ENCRYPTION_KEY=${PIER_HEX_64_ENCRYPTIONKEY}
-        - STORAGE_ENCRYPTION_KEY=${PIER_HEX_64_STORAGEENCRYPTIONKEY}
-        - PORT_BACKEND=${PORT_BACKEND:-4000}
-        - PORT_FRONTEND=${PORT_FRONTEND:-3000}
-        - NODE_ENV=${NODE_ENV:-production}
-        - SYNC_FREQUENCY=${SYNC_FREQUENCY:-* * * * *}
-        - POSTGRES_DB=${POSTGRES_DB:-open_archive}
-        - POSTGRES_USER=${PIER_USER_POSTGRES}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
-        - DATABASE_URL=postgresql://${PIER_USER_POSTGRES}:${PIER_PASSWORD_POSTGRES}@postgres:5432/${POSTGRES_DB:-open-archiver-db}
-        - MEILI_MASTER_KEY=${PIER_PASSWORD_MEILISEARCH}
-        - MEILI_HOST=http://meilisearch:7700
-        - REDIS_HOST=valkey
-        - REDIS_PORT=6379
-        - REDIS_PASSWORD=${PIER_PASSWORD_VALKEY}
-        - REDIS_TLS_ENABLED=false
-        - STORAGE_TYPE=${STORAGE_TYPE:-local}
-        - STORAGE_LOCAL_ROOT_PATH=${STORAGE_LOCAL_ROOT_PATH:-/var/data/open-archiver}
-        - BODY_SIZE_LIMIT=${BODY_SIZE_LIMIT:-100M}
-        - STORAGE_S3_ENDPOINT=${STORAGE_S3_ENDPOINT}
-        - STORAGE_S3_BUCKET=${STORAGE_S3_BUCKET}
-        - STORAGE_S3_ACCESS_KEY_ID=${STORAGE_S3_ACCESS_KEY_ID}
-        - STORAGE_S3_SECRET_ACCESS_KEY=${STORAGE_S3_SECRET_ACCESS_KEY}
-        - STORAGE_S3_REGION=${STORAGE_S3_REGION}
-        - STORAGE_S3_FORCE_PATH_STYLE=${STORAGE_S3_FORCE_PATH_STYLE:-false}
-        - JWT_SECRET=${PIER_PASSWORD_128_JWT}
-        - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-7d}
-        - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS:-60000}
-        - RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS:-100}
-      volumes:
-        - archiver-data:/var/data/open-archiver
-      depends_on:
-        meilisearch:
-          condition: service_healthy
-        postgres:
-          condition: service_healthy
-        valkey:
-          condition: service_healthy
-    postgres:
-      image: postgres:17-alpine
-      environment:
-        - POSTGRES_DB=${POSTGRES_DB:-open-archiver-db}
-        - POSTGRES_USER=${PIER_USER_POSTGRES}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
-        - LC_ALL=C
-      volumes:
-        - postgres-data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 10s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
-        timeout: 20s
-    valkey:
-      image: valkey/valkey:8-alpine
-      command: valkey-server --requirepass ${PIER_PASSWORD_VALKEY}
-      volumes:
-        - valkey-data:/data
-      healthcheck:
-        interval: 10s
-        retries: 3
-        test:
-          - CMD
-          - redis-cli
-          - ping
-        timeout: 5s
-  volumes:
-    archiver-data: null
-    meilisearch-data: null
-    postgres-data: null
-    valkey-data: null
+    data: /var/data/open-archiver
+    env:
+      ENCRYPTION_KEY: ${PIER_HEX_64_ENCRYPTIONKEY}
+      STORAGE_ENCRYPTION_KEY: ${PIER_HEX_64_STORAGEENCRYPTIONKEY}
+      PORT_BACKEND: ${PORT_BACKEND:-4000}
+      PORT_FRONTEND: ${PORT_FRONTEND:-3000}
+      NODE_ENV: ${NODE_ENV:-production}
+      SYNC_FREQUENCY: ${SYNC_FREQUENCY:-* * * * *}
+      POSTGRES_DB: '{{postgres.database}}'
+      POSTGRES_USER: '{{postgres.user}}'
+      POSTGRES_PASSWORD: '{{postgres.password}}'
+      DATABASE_URL: postgresql://{{postgres.user}}:{{postgres.password}}@postgres:5432/{{postgres.database}}
+      MEILI_MASTER_KEY: ${PIER_PASSWORD_MEILISEARCH}
+      MEILI_HOST: http://meilisearch:7700
+      REDIS_HOST: valkey
+      REDIS_PORT: '6379'
+      REDIS_PASSWORD: '{{valkey.password}}'
+      REDIS_TLS_ENABLED: 'false'
+      STORAGE_TYPE: ${STORAGE_TYPE:-local}
+      STORAGE_LOCAL_ROOT_PATH: ${STORAGE_LOCAL_ROOT_PATH:-/var/data/open-archiver}
+      BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT:-100M}
+      STORAGE_S3_ENDPOINT: ${STORAGE_S3_ENDPOINT}
+      STORAGE_S3_BUCKET: ${STORAGE_S3_BUCKET}
+      STORAGE_S3_ACCESS_KEY_ID: ${STORAGE_S3_ACCESS_KEY_ID}
+      STORAGE_S3_SECRET_ACCESS_KEY: ${STORAGE_S3_SECRET_ACCESS_KEY}
+      STORAGE_S3_REGION: ${STORAGE_S3_REGION}
+      STORAGE_S3_FORCE_PATH_STYLE: ${STORAGE_S3_FORCE_PATH_STYLE:-false}
+      JWT_SECRET: ${PIER_PASSWORD_128_JWT}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-60000}
+      RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-100}
+    depends_on:
+      meilisearch:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+with:
+  postgres:
+    env:
+      LC_ALL: C
+    database: open-archiver-db
+  valkey:
+    password: true

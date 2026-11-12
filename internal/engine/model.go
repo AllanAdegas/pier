@@ -33,6 +33,13 @@ type Container struct {
 	ComposeProject string `json:"compose_project"`
 }
 
+// WithoutSecrets is the container as a caller without access to secrets
+// sees it: command lines often carry passwords (redis-server --requirepass).
+func (c Container) WithoutSecrets() Container {
+	c.Command = ""
+	return c
+}
+
 // Owner points to the Pier resource that manages a container.
 type Owner struct {
 	Type string `json:"type"`

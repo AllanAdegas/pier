@@ -5,7 +5,10 @@ package stack
 import (
 	"time"
 
+	"gopkg.in/yaml.v3"
+
 	"pier/internal/compose"
+	"pier/internal/platform/i18n"
 )
 
 // Route publishes one service of the stack on a domain through the proxy.
@@ -42,10 +45,21 @@ type Stack struct {
 	Routes         []Route `json:"routes"`
 	// proxyEntry is how browsers reach the proxy of the stack's server; set
 	// when the server is reached, never stored.
-	proxyEntry compose.ProxyEntry
-	Status     string    `json:"status"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	proxyEntry  compose.ProxyEntry
+	proxyLabels map[string]string
+	// pendingHosts are HTTPS hosts whose DNS does not point to the server
+	// yet; they are published over HTTP for this deployment. Never stored.
+	pendingHosts map[string]bool
+	Status       string    `json:"status"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+// WithoutSecrets is the stack as a caller without access to secrets sees it:
+// a compose file can carry credentials inline, so it is left out.
+func (s Stack) WithoutSecrets() Stack {
+	s.Compose = ""
+	return s
 }
 
 // FromDirectory reports whether the stack runs a compose file that lives in
@@ -91,14 +105,22 @@ type TemplateRoute struct {
 
 // Template is a ready-to-run compose definition from the catalog.
 type Template struct {
-	Slug        string          `yaml:"-" json:"slug"`
-	Name        string          `yaml:"name" json:"name"`
-	Description string          `yaml:"description" json:"description"`
-	Category    string          `yaml:"category" json:"category"`
-	Website     string          `yaml:"website" json:"website"`
-	Tags        []string        `yaml:"tags,omitempty" json:"tags"`
-	Routes      []TemplateRoute `yaml:"routes" json:"routes"`
-	Compose     string          `yaml:"compose" json:"compose,omitempty"`
+	Auth        string   `yaml:"auth,omitempty" json:"auth,omitempty"`
+	HostPorts   []string `yaml:"-" json:"host_ports"`
+	Slug        string   `yaml:"-" json:"slug"`
+	Name        string   `yaml:"name" json:"name"`
+	Description string   `yaml:"description" json:"description"`
+	// DescriptionEN is the description in English; Localized picks one.
+	DescriptionEN string          `yaml:"description_en" json:"-"`
+	Category      string          `yaml:"category" json:"category"`
+	Website       string          `yaml:"website" json:"website"`
+	Tags          []string        `yaml:"tags,omitempty" json:"tags"`
+	Routes        []TemplateRoute `yaml:"routes" json:"routes"`
+	Compose       string          `yaml:"compose" json:"compose,omitempty"`
+	// Services and With are the template written as a blueprint (see
+	// blueprint.go); Compose is generated from them on load.
+	Services yaml.Node                   `yaml:"services" json:"-"`
+	With     map[string]ComponentOptions `yaml:"with" json:"-"`
 	// Verified templates were deployed and checked by hand; the others are
 	// only known to be valid compose files.
 	Verified bool `yaml:"verified,omitempty" json:"verified"`
@@ -107,6 +129,16 @@ type Template struct {
 	// Risks are the powers over the server the template asks for; computed
 	// on load so the creation form can warn before anything runs.
 	Risks []string `yaml:"-" json:"risks"`
+}
+
+// Localized describes the template in a language: its description and the
+// name of its category.
+func (t Template) Localized(language i18n.Language) Template {
+	if language == i18n.English {
+		t.Description = t.DescriptionEN
+		t.Category = categoryInEnglish[t.Category]
+	}
+	return t
 }
 
 // Summary is the template without its compose file, for listings.

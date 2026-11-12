@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"pier/internal/application"
+	"pier/internal/audit"
 	"pier/internal/cluster"
 	"pier/internal/config"
 	"pier/internal/database"
@@ -22,9 +23,11 @@ import (
 	"pier/internal/envvar"
 	"pier/internal/httpapi"
 	"pier/internal/identity"
+	"pier/internal/instance"
 	"pier/internal/mcp"
 	"pier/internal/monitor"
 	"pier/internal/notify"
+	"pier/internal/platform/i18n"
 	"pier/internal/platform/oplog"
 	"pier/internal/platform/pubsub"
 	"pier/internal/platform/secretbox"
@@ -41,6 +44,9 @@ func main() {
 	command := run
 	if len(os.Args) > 1 && os.Args[1] == "mcp" {
 		command = runMCPBridge
+	}
+	if len(os.Args) > 1 && os.Args[1] == "restore" {
+		command = runRestore
 	}
 	if err := command(); err != nil {
 		fmt.Fprintln(os.Stderr, "pier:", err)
@@ -74,6 +80,11 @@ func run() error {
 	if err := os.MkdirAll(cfg.DataDir, 0o700); err != nil {
 		return fmt.Errorf("create data dir: %w", err)
 	}
+	unlock, err := instance.Lock(cfg.DataDir)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	key, err := secretbox.LoadOrCreateKey(cfg.SecretKey, cfg.SecretKeyPath())
 	if err != nil {
 		return err
@@ -90,6 +101,10 @@ func run() error {
 	if err := restrictDataDir(cfg); err != nil {
 		return err
 	}
+	instanceSettings := settings.NewStore(db)
+	if err := instanceSettings.LoadLanguage(ctx); err != nil {
+		return err
+	}
 
 	// Composition root: every dependency is wired here, explicitly.
 	notifications := notify.NewService(db, box, logger)
@@ -101,15 +116,29 @@ func run() error {
 	if err := servers.EnsureLocal(ctx, cfg.LocalRuntimeDir()); err != nil {
 		return err
 	}
+	if err := configurePanel(ctx, servers, os.Getenv("PIER_DOMAIN")); err != nil {
+		return err
+	}
+	backups := &instance.Service{DB: db, DataDir: cfg.DataDir, Key: key, Box: box}
+	go backups.Run(ctx, logger)
+	alerts := &monitor.State{DB: db}
 	env := envvar.NewStore(db, box)
 	logHub := pubsub.NewHub[application.LogEntry]()
 	appStore := application.NewStore(db, box)
 	deployer := application.NewDeployer(appStore, env, connector, keys, notifications, logHub, logger)
-	dispatcher := application.NewDispatcher(appStore, deployer, logger)
+	deployer.SetArchiveDir(cfg.DataDir + string(os.PathSeparator) + "archives")
+	deployer.SetDomainChecker(servers)
+	dispatcher := application.NewDispatcher(appStore, deployer, logger, cfg.DeployTimeout)
 	applications := application.NewService(appStore, env, connector, dispatcher)
 	databaseStore := database.NewStore(db, box)
 	databases := database.NewService(databaseStore, connector, notifications)
+	env.SetReferenceResolver(application.DatabaseReferences{Databases: databases})
+	application.ConfigureBuild(cfg.Build)
 	stacks := stack.NewService(db, env, connector, oplog.NewRegistry())
+	projects := project.NewService(db)
+	applications.SetDeployGuard(projects)
+	stacks.SetDeployGuard(projects)
+	stacks.SetDomainChecker(servers)
 	clusters := cluster.NewService(db, box, connector, oplog.NewRegistry(), cfg.LocalHost)
 	tasks := schedule.NewTaskService(db, applications, connector, notifications)
 
@@ -133,7 +162,8 @@ func run() error {
 	statusMonitor := &monitor.Monitor{
 		Servers: servers, Connector: connector, Applications: appStore, Databases: databaseStore, Stacks: stacks,
 		Clusters: clusters,
-		Events:   notifications, Interval: cfg.StatusPollInterval, Logger: logger,
+		Alerts:   alerts, Tasks: tasks, BackupService: databases,
+		Events: notifications, Interval: cfg.StatusPollInterval, Logger: logger,
 	}
 	go statusMonitor.Run(ctx)
 
@@ -142,12 +172,13 @@ func run() error {
 		return err
 	}
 	api := httpapi.New(httpapi.Dependencies{
-		Identity: identities,
-		Servers:  servers, Keys: keys, Proxy: server.NewProxyService(connector), Connector: connector,
-		Projects: project.NewService(db), Applications: applications, LogHub: logHub, Env: env,
+		Identity: identities, Instance: backups, Audit: &audit.Store{DB: db}, Monitoring: alerts, CookieSecure: os.Getenv("PIER_COOKIE_SECURE") == "1",
+		Servers: servers, Keys: keys, Proxy: server.NewProxyService(connector), Connector: connector,
+		Projects: projects, Applications: applications, LogHub: logHub, Env: env,
 		Databases: databases, Stacks: stacks, Engine: engine.NewService(connector), Clusters: clusters,
 		Tasks: tasks, Notifications: notifications,
-		Settings: settings.NewStore(db), Logger: logger, WebUI: webui.Files(), SessionTTL: cfg.SessionTTL,
+		Settings: instanceSettings, Logger: logger, WebUI: webui.Files(), SessionTTL: cfg.SessionTTL,
+		TrustedProxies: cfg.TrustedProxies,
 	})
 	return serve(ctx, cfg, api.Handler(), logger, dispatcher)
 }
@@ -160,7 +191,7 @@ func announceSetupCode(ctx context.Context, identities *identity.Service, logger
 	if err != nil || code == "" {
 		return err
 	}
-	logger.Warn("instância sem administrador: crie a conta no painel com este código de configuração",
+	logger.Warn(i18n.Instance().Text("instância sem administrador: crie a conta no painel com este código de configuração"),
 		"setup_code", code)
 	return nil
 }
@@ -194,6 +225,13 @@ func backupJobs(databases *database.Service) schedule.Source {
 				_, _ = databases.StartBackup(context.Background(), item.DatabaseID, database.BackupTriggerScheduled)
 			}}
 		}
+		checks, err := databases.RestoreTestSchedules(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range checks {
+			jobs = append(jobs, schedule.Job{Name: "restore-test:" + item.DatabaseID, Cron: item.Cron, Run: func() { _, _ = databases.StartRestoreTest(context.Background(), item.DatabaseID) }})
+		}
 		return jobs, nil
 	}
 }
@@ -204,6 +242,8 @@ func serve(ctx context.Context, cfg config.Config, handler http.Handler, logger 
 		Addr:              cfg.Addr,
 		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    1 << 20,
 		// Requests inherit the process context so streams end on shutdown.
 		BaseContext: func(net.Listener) context.Context { return ctx },
 		// No write timeout: log streams (SSE) and backup downloads are long-lived.

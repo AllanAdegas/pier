@@ -8,11 +8,13 @@ import (
 	"strings"
 
 	"pier/internal/platform/apperr"
+	"pier/internal/platform/i18n"
 )
 
 const (
 	keyInstanceName = "instance_name"
 	keyPublicURL    = "public_url"
+	keyLanguage     = "language"
 )
 
 // Settings are the preferences of the whole instance.
@@ -21,6 +23,9 @@ type Settings struct {
 	// PublicURL is how the outside world reaches the panel; it is used to
 	// build the webhook URLs shown to the user.
 	PublicURL string `json:"public_url"`
+	// Language is used where no reader asked for one: deployment logs,
+	// notifications and API answers without Accept-Language.
+	Language i18n.Language `json:"language"`
 }
 
 // Store persists settings.
@@ -38,7 +43,7 @@ func (s *Store) Get(ctx context.Context) (Settings, error) {
 		return Settings{}, err
 	}
 	defer rows.Close()
-	current := Settings{InstanceName: "Pier"}
+	current := Settings{InstanceName: "Pier", Language: i18n.Portuguese}
 	for rows.Next() {
 		var key, value string
 		if err := rows.Scan(&key, &value); err != nil {
@@ -49,6 +54,10 @@ func (s *Store) Get(ctx context.Context) (Settings, error) {
 			current.InstanceName = value
 		case keyPublicURL:
 			current.PublicURL = value
+		case keyLanguage:
+			if language, ok := i18n.Parse(value); ok {
+				current.Language = language
+			}
 		}
 	}
 	return current, rows.Err()
@@ -68,14 +77,58 @@ func (s *Store) Update(ctx context.Context, next Settings) (Settings, error) {
 			fields.Add("public_url", "Informe uma URL http(s) válida, ex.: https://pier.exemplo.com.")
 		}
 	}
+	next.Language = s.validLanguage(ctx, next.Language, fields)
 	if err := fields.Err(); err != nil {
 		return Settings{}, err
 	}
-	for key, value := range map[string]string{keyInstanceName: next.InstanceName, keyPublicURL: next.PublicURL} {
-		if _, err := s.db.ExecContext(ctx, `INSERT INTO settings (key, value) VALUES (?, ?)
-			ON CONFLICT (key) DO UPDATE SET value = excluded.value`, key, value); err != nil {
+	values := map[string]string{keyInstanceName: next.InstanceName, keyPublicURL: next.PublicURL, keyLanguage: string(next.Language)}
+	for key, value := range values {
+		if err := s.put(ctx, key, value); err != nil {
 			return Settings{}, err
 		}
 	}
+	i18n.SetInstance(next.Language)
 	return next, nil
+}
+
+// validLanguage keeps the current language when a client sends none.
+func (s *Store) validLanguage(ctx context.Context, requested i18n.Language, fields apperr.Fields) i18n.Language {
+	if requested == "" {
+		current, err := s.Get(ctx)
+		if err != nil {
+			return i18n.Portuguese
+		}
+		return current.Language
+	}
+	language, ok := i18n.Parse(string(requested))
+	if !ok {
+		fields.Add("language", "Idioma não suportado: use pt-BR ou en.")
+	}
+	return language
+}
+
+// LoadLanguage makes the saved language the instance's, at startup.
+func (s *Store) LoadLanguage(ctx context.Context) error {
+	current, err := s.Get(ctx)
+	if err != nil {
+		return err
+	}
+	i18n.SetInstance(current.Language)
+	return nil
+}
+
+// AdoptLanguage saves the language of whoever set the instance up, so the
+// logs and notifications speak it from the start.
+func (s *Store) AdoptLanguage(ctx context.Context, language i18n.Language) error {
+	if err := s.put(ctx, keyLanguage, string(language)); err != nil {
+		return err
+	}
+	i18n.SetInstance(language)
+	return nil
+}
+
+func (s *Store) put(ctx context.Context, key, value string) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO settings (key, value) VALUES (?, ?)
+		ON CONFLICT (key) DO UPDATE SET value = excluded.value`, key, value)
+	return err
 }

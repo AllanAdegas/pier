@@ -2,11 +2,13 @@ package server
 
 import (
 	"context"
-	"encoding/base64"
-	"fmt"
-	"io"
+	"errors"
 	"log/slog"
+	"net"
+	"net/netip"
+	"os"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -14,10 +16,11 @@ import (
 	"pier/internal/docker"
 	"pier/internal/platform/apperr"
 	"pier/internal/platform/executor"
+	"pier/internal/platform/i18n"
 	"pier/internal/platform/shell"
 )
 
-const edgeCandidatePath = "/tmp/pier-Caddyfile.candidate"
+const maxCaddyfileBytes = 1 << 20
 
 // edgeLocks serializes the edits of one server's Caddyfile: two deployments
 // finishing together must not interleave read-modify-write.
@@ -36,9 +39,10 @@ type EdgeSync struct {
 // edgeTarget is where the Caddyfile of the edge proxy lives and how Caddy
 // reaches Pier's proxy.
 type edgeTarget struct {
-	edge     EdgeProxy
-	hostPath string
-	upstream string
+	edge      EdgeProxy
+	hostPath  string
+	upstream  string
+	trustedIP string
 }
 
 // SyncEdge rewrites the Pier block of the edge proxy's Caddyfile with the
@@ -50,20 +54,25 @@ func SyncEdge(ctx context.Context, ex executor.Executor, srv Server) (EdgeSync, 
 	if !edge.Enabled() {
 		return EdgeSync{}, apperr.Invalid("Este servidor não tem um proxy na frente configurado.")
 	}
-	lock, _ := edgeLocks.LoadOrStore(srv.ID, &sync.Mutex{})
-	lock.(*sync.Mutex).Lock()
-	defer lock.(*sync.Mutex).Unlock()
+	lock, _ := edgeLocks.LoadOrStore(srv.ID, make(chan struct{}, 1))
+	gate := lock.(chan struct{})
+	select {
+	case gate <- struct{}{}:
+	case <-ctx.Done():
+		return EdgeSync{}, ctx.Err()
+	}
+	defer func() { <-gate }()
 
 	target, err := locateEdge(ctx, ex, edge, srv.Proxy.HTTPPort)
 	if err != nil {
 		return EdgeSync{}, err
 	}
-	sites, err := publishedEdgeSites(ctx, ex)
+	sites, err := publishedEdgeSites(ctx, ex, srv)
 	if err != nil {
 		return EdgeSync{}, unavailable(err)
 	}
 	result := EdgeSync{Addresses: edgeAddresses(sites), Caddyfile: target.hostPath, Upstream: target.upstream}
-	current, err := readText(ctx, ex, target.hostPath)
+	current, err := readCaddyfile(ctx, ex, target.edge)
 	if err != nil {
 		return EdgeSync{}, unavailable(err)
 	}
@@ -94,10 +103,10 @@ func ReportEdgeSync(ctx context.Context, ex executor.Executor, srv Server, repor
 	result, err := SyncEdge(ctx, ex, srv)
 	switch {
 	case err != nil:
-		report("AVISO: o Caddy na frente deste servidor não foi atualizado, então os domínios podem não responder: " +
-			err.Error())
+		report(i18n.Instance().Sprintf("AVISO: o Caddy na frente deste servidor não foi atualizado, "+
+			"então os domínios podem não responder: %s", err))
 	case result.Changed:
-		report(fmt.Sprintf("Caddy na frente atualizado: %d endereço(s) encaminhados ao Pier.", len(result.Addresses)))
+		report(i18n.Instance().Sprintf("Caddy na frente atualizado: %d endereço(s) encaminhados ao Pier.", len(result.Addresses)))
 	}
 }
 
@@ -158,13 +167,13 @@ func locateEdge(ctx context.Context, ex executor.Executor, edge EdgeProxy, httpP
 	gateways, err := docker.Inspect(ctx, ex, edge.Container,
 		"{{range .NetworkSettings.Networks}}{{.Gateway}}\n{{end}}")
 	gateway := firstLine(gateways)
-	if err != nil || gateway == "" {
+	if _, parseErr := netip.ParseAddr(gateway); err != nil || parseErr != nil {
 		return edgeTarget{}, apperr.Conflict("O container %s não está em uma rede Docker com gateway; "+
 			"o Caddy não teria como alcançar o proxy do Pier.", edge.Container)
 	}
 	// Pier's proxy publishes its HTTP port on every address of the server,
 	// the gateway of the Caddy network included.
-	return edgeTarget{edge: edge, hostPath: hostPath, upstream: fmt.Sprintf("%s:%d", gateway, httpPort)}, nil
+	return edgeTarget{edge: edge, hostPath: hostPath, upstream: net.JoinHostPort(gateway, strconv.Itoa(httpPort)), trustedIP: gateway}, nil
 }
 
 // hostPathOf finds the server file behind a path of the container, given
@@ -192,9 +201,13 @@ func hostPathOf(mounts, containerPath string) (string, bool) {
 // The label of any other container is ignored, and every site is parsed as
 // a route: the values end up in the Caddyfile, so a crafted label must not
 // be able to add Caddy directives.
-func publishedEdgeSites(ctx context.Context, ex executor.Executor) ([]string, error) {
+func publishedEdgeSites(ctx context.Context, ex executor.Executor, srv Server) ([]string, error) {
+	if srv.ProxyToken == "" {
+		return []string{}, nil
+	}
 	output, err := ex.Run(ctx, shell.Join("docker", "ps", "--all",
 		"--filter", "label="+docker.LabelManaged+"=true", "--filter", "label="+compose.EdgeSitesLabel,
+		"--filter", "label="+ProxyLabel+"="+srv.ProxyToken,
 		"--format", `{{.Label "`+compose.EdgeSitesLabel+`"}}`))
 	if err != nil {
 		return nil, err
@@ -220,10 +233,17 @@ func parseEdgeSites(output string) []string {
 // so whoever owns it can always go back.
 func keepOriginal(ctx context.Context, ex executor.Executor, srv Server, content string) error {
 	backup := path.Join(srv.ProxyDir(), "edge", "Caddyfile.before-pier")
-	if _, err := ex.Run(ctx, shell.Join("test", "-e", backup)); err == nil {
+	err := executor.WriteFileExclusive(ctx, ex, backup, []byte(content), 0o600)
+	if errors.Is(err, os.ErrExist) {
 		return nil
 	}
-	return ex.WriteFile(ctx, backup, []byte(content), 0o600)
+	// Remote ln reports an existing file through its exit status.
+	if err != nil {
+		if _, checkErr := ex.Run(ctx, shell.Join("test", "!", "-L", backup)+" && "+shell.Join("test", "-f", backup)); checkErr == nil {
+			return nil
+		}
+	}
+	return err
 }
 
 func applyCaddyfile(ctx context.Context, ex executor.Executor, target edgeTarget, current, next string) error {
@@ -233,11 +253,11 @@ func applyCaddyfile(ctx context.Context, ex executor.Executor, target edgeTarget
 	}
 	// Written in place (same inode): a file bind mount would keep showing the
 	// old content to the container if the file were replaced.
-	if err := ex.WriteFile(ctx, target.hostPath, []byte(next), 0o644); err != nil {
+	if err := writeCaddyfile(ctx, ex, target.edge, next); err != nil {
 		return unavailable(err)
 	}
 	if err := reloadCaddy(ctx, ex, target.edge); err != nil {
-		restoreErr := ex.WriteFile(ctx, target.hostPath, []byte(current), 0o644)
+		restoreErr := writeCaddyfile(ctx, ex, target.edge, current)
 		if restoreErr == nil {
 			restoreErr = reloadCaddy(ctx, ex, target.edge)
 		}
@@ -253,12 +273,31 @@ func applyCaddyfile(ctx context.Context, ex executor.Executor, target edgeTarget
 // validateCaddyfile runs `caddy validate` on the candidate inside the
 // container, where the environment placeholders of the file resolve.
 func validateCaddyfile(ctx context.Context, ex executor.Executor, container, content string) error {
-	encoded := base64.StdEncoding.EncodeToString([]byte(content))
-	script := "base64 -d > " + edgeCandidatePath +
-		" && caddy validate --adapter caddyfile --config " + edgeCandidatePath +
-		"; status=$?; rm -f " + edgeCandidatePath + "; exit $status"
-	_, err := ex.Run(ctx, "printf %s "+shell.Quote(encoded)+" | "+
-		shell.Join("docker", "exec", "-i", container, "sh", "-c", script))
+	if len(content) > maxCaddyfileBytes {
+		return executor.ErrFileTooLarge
+	}
+	_, err := executor.RunInput(ctx, ex, shell.Join("docker", "exec", "-i", container,
+		"caddy", "validate", "--adapter", "caddyfile", "--config", "/dev/stdin"), []byte(content))
+	return err
+}
+
+// All operator-file access stays in the edge container's namespace. A
+// malicious mount or symlink cannot grant Pier additional host access.
+func readCaddyfile(ctx context.Context, ex executor.Executor, edge EdgeProxy) (string, error) {
+	script := "test -f " + shell.Quote(edge.Caddyfile) + " && head -c " + strconv.Itoa(maxCaddyfileBytes+1) + " -- " + shell.Quote(edge.Caddyfile)
+	content, err := executor.RunInput(ctx, ex, shell.Join("docker", "exec", edge.Container, "sh", "-c", script), nil)
+	if len(content) > maxCaddyfileBytes {
+		return "", executor.ErrFileTooLarge
+	}
+	return content, err
+}
+func writeCaddyfile(ctx context.Context, ex executor.Executor, edge EdgeProxy, content string) error {
+	if len(content) > maxCaddyfileBytes {
+		return executor.ErrFileTooLarge
+	}
+	// Preserve the inode for file bind mounts and preserve the operator's mode.
+	script := "test -f " + shell.Quote(edge.Caddyfile) + " && cat > " + shell.Quote(edge.Caddyfile)
+	_, err := executor.RunInput(ctx, ex, shell.Join("docker", "exec", "-i", edge.Container, "sh", "-c", script), []byte(content))
 	return err
 }
 
@@ -266,16 +305,6 @@ func reloadCaddy(ctx context.Context, ex executor.Executor, edge EdgeProxy) erro
 	_, err := ex.Run(ctx, shell.Join("docker", "exec", edge.Container,
 		"caddy", "reload", "--adapter", "caddyfile", "--config", edge.Caddyfile))
 	return err
-}
-
-func readText(ctx context.Context, ex executor.Executor, filePath string) (string, error) {
-	reader, err := ex.ReadFile(ctx, filePath)
-	if err != nil {
-		return "", err
-	}
-	defer reader.Close()
-	content, err := io.ReadAll(reader)
-	return string(content), err
 }
 
 func firstLine(output string) string {

@@ -1,40 +1,19 @@
 name: FileFlows
 description: Processa e comprime arquivos de mídia automaticamente.
+description_en: Processes and compresses media files automatically.
 category: Mídia
 website: https://fileflows.com/docs/
-tags:
-  - media
-  - transcode
-  - convert
-  - h265
-routes:
-  - service: fileflows
+services:
+  fileflows:
+    image: revenz/fileflows:26.10
     port: 5000
-compose: |
-  services:
-    fileflows:
-      image: revenz/fileflows
-      environment:
-        - _APP_URL=$PIER_URL_FILEFLOWS
-        - PUID=1000
-        - PGID=1000
-        - TZ=${TZ:-America/Toronto}
-      volumes:
-        - fileflows_temp:/temp
-        - fileflows_configs:/app/Data
-        - fileflows_logs:/app/Logs
-        - fileflows_common:/app/common
-      healthcheck:
-        interval: 2s
-        retries: 15
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://localhost:5000/api/system/version
-        timeout: 10s
-  volumes:
-    fileflows_common: null
-    fileflows_configs: null
-    fileflows_logs: null
-    fileflows_temp: null
+    volumes:
+    - fileflows_temp:/temp
+    - fileflows_configs:/app/Data
+    - fileflows_logs:/app/Logs
+    - fileflows_common:/app/common
+    env:
+      _APP_URL: $PIER_URL_FILEFLOWS
+      PUID: '1000'
+      PGID: '1000'
+      TZ: ${TZ:-America/Toronto}

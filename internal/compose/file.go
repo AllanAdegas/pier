@@ -33,6 +33,19 @@ type Service struct {
 	ExtraHosts    []string                      `yaml:"extra_hosts,omitempty"`
 	Privileged    bool                          `yaml:"privileged,omitempty"`
 	Tmpfs         []string                      `yaml:"tmpfs,omitempty"`
+	Logging       *Logging                      `yaml:"logging,omitempty"`
+}
+
+// Logging mirrors the compose logging block.
+type Logging struct {
+	Driver  string            `yaml:"driver,omitempty"`
+	Options map[string]string `yaml:"options,omitempty"`
+}
+
+// DefaultLogging rotates container logs so a chatty service cannot fill the
+// server's disk: the "local" driver keeps at most three files of 10 MB.
+func DefaultLogging() *Logging {
+	return &Logging{Driver: "local", Options: map[string]string{"max-size": "10m", "max-file": "3"}}
 }
 
 // NetworkAttachment configures how a service joins a network.
@@ -61,7 +74,8 @@ type Healthcheck struct {
 }
 
 // Marshal renders the YAML. Generated files never rely on compose variable
-// interpolation, so every "$" is escaped to keep values literal.
+// interpolation, so every "$" is escaped to keep values literal. A service
+// without its own logging block gets DefaultLogging.
 func (f *File) Marshal() ([]byte, error) {
 	escaped := File{Services: make(map[string]*Service, len(f.Services)), Networks: f.Networks, Volumes: f.Volumes}
 	for name, service := range f.Services {
@@ -69,6 +83,9 @@ func (f *File) Marshal() ([]byte, error) {
 		clone.Environment = escapeMap(service.Environment)
 		clone.Labels = escapeMap(service.Labels)
 		clone.Command = escapeSlice(service.Command)
+		if clone.Logging == nil {
+			clone.Logging = DefaultLogging()
+		}
 		if service.Healthcheck != nil {
 			healthcheck := *service.Healthcheck
 			healthcheck.Test = escapeSlice(service.Healthcheck.Test)

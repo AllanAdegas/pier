@@ -1,51 +1,19 @@
 name: Easy!Appointments
 description: Agendamento online de compromissos.
+description_en: Online appointment scheduling.
 category: Produtividade
 website: https://easyappointments.org/
-tags:
-  - calendar
-  - scheduling
-  - database
-routes:
-  - service: easyappointments
+services:
+  easyappointments:
+    image: alextselegidis/easyappointments:1.6.1
     port: 80
-compose: |
-  services:
-    easyappointments:
-      image: alextselegidis/easyappointments:latest
-      environment:
-        - BASE_URL=${PIER_URL_EASYAPPOINTMENTS}
-        - DB_HOST=mysql
-        - DB_NAME=easyappointments
-        - DB_USERNAME=root
-        - DB_PASSWORD=${PIER_PASSWORD_EASYAPPOINTMENTS}
-      depends_on:
-        - mysql
-      healthcheck:
-        interval: 2s
-        retries: 30
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1
-        timeout: 10s
-    mysql:
-      image: mysql:8
-      environment:
-        - MYSQL_ROOT_PASSWORD=${PIER_PASSWORD_EASYAPPOINTMENTS}
-        - MYSQL_DATABASE=easyappointments
-      volumes:
-        - easyappointments-mysql-data:/var/lib/mysql
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - mysqladmin
-          - ping
-          - -h
-          - 127.0.0.1
-        timeout: 20s
-  volumes:
-    easyappointments-mysql-data: null
+    env:
+      BASE_URL: ${PIER_URL_EASYAPPOINTMENTS}
+      DB_HOST: mysql
+      DB_NAME: easyappointments
+      DB_USERNAME: root
+      DB_PASSWORD: '{{mysql.root_password}}'
+with:
+  mysql:
+    version: '8.0'
+    database: easyappointments

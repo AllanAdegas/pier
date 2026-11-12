@@ -165,6 +165,9 @@ func renderOverride(stack Stack, doc document, services []string) ([]byte, error
 		if definition != nil && !hasKey(definition, "restart") {
 			entry["restart"] = "unless-stopped"
 		}
+		if !hasKey(definition, "logging") {
+			entry["logging"] = compose.DefaultLogging()
+		}
 		overrides[name] = entry
 	}
 	for _, route := range stack.Routes {

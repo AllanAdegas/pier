@@ -1,58 +1,24 @@
+auth: first-visitor
 name: GLPI
 description: 'Gestão de serviços de TI (ITSM): inventário, help desk e service desk.'
+description_en: 'IT service management (ITSM): inventory, help desk and service desk.'
 category: Atendimento
 website: https://help.glpi-project.org/documentation
-tags:
-  - helpdesk
-  - ticketing
-  - support
-  - open-source
-routes:
-  - service: glpi
+services:
+  glpi:
+    image: glpi/glpi:11
+    private: true
     port: 80
-compose: |
-  services:
-    glpi:
-      image: glpi/glpi:11
-      environment:
-        - GLPI_DB_HOST=glpi-db
-        - GLPI_DB_PORT=3306
-        - GLPI_DB_NAME=${MYSQL_DATABASE:-glpi-db}
-        - GLPI_DB_USER=${PIER_USER_MYSQL}
-        - GLPI_DB_PASSWORD=${PIER_PASSWORD_MYSQL}
-      volumes:
-        - glpi-data:/var/glpi:rw
-      depends_on:
-        glpi-db:
-          condition: service_healthy
-      healthcheck:
-        interval: 30s
-        retries: 3
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://localhost/
-        timeout: 10s
-    glpi-db:
-      image: mysql:8
-      environment:
-        - MYSQL_ROOT_PASSWORD=${PIER_PASSWORD_ROOT}
-        - MYSQL_DATABASE=${MYSQL_DATABASE:-glpi-db}
-        - MYSQL_USER=${PIER_USER_MYSQL}
-        - MYSQL_PASSWORD=${PIER_PASSWORD_MYSQL}
-      volumes:
-        - mysql-data:/var/lib/mysql
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - mysqladmin
-          - ping
-          - -h
-          - 127.0.0.1
-        timeout: 20s
-  volumes:
-    glpi-data: null
-    mysql-data: null
+    volumes:
+    - glpi-data:/var/glpi:rw
+    env:
+      GLPI_DB_HOST: glpi-db
+      GLPI_DB_PORT: '3306'
+      GLPI_DB_NAME: '{{glpi-db.database}}'
+      GLPI_DB_USER: '{{glpi-db.user}}'
+      GLPI_DB_PASSWORD: '{{glpi-db.password}}'
+with:
+  glpi-db:
+    kind: mysql
+    version: '8.0'
+    database: glpi-db

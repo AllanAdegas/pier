@@ -4,7 +4,11 @@
 .gitignore
 .dockerignore
 .env
-.env.example
+.env.*
+*.pem
+*.key
+id_rsa*
+id_ed25519*
 Dockerfile
 compose*.yaml
 Makefile
@@ -22,3 +26,7 @@ internal/webui/dist/*
 
 **/.DS_Store
 install.sh
+
+# The launch site has its own image (site/Dockerfile).
+site/
+/pier

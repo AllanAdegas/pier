@@ -59,12 +59,14 @@ func randomBytes(n int) []byte {
 }
 
 // pick selects one byte of charset without modulo bias.
+// The arithmetic is done in int: with 64 or 128 characters, 256 - 256%n is
+// 256, which does not fit a byte and would loop forever.
 func pick(charset string) byte {
-	limit := byte(256 - 256%len(charset))
+	limit := 256 - 256%len(charset)
 	for {
-		b := randomBytes(1)[0]
+		b := int(randomBytes(1)[0])
 		if b < limit {
-			return charset[int(b)%len(charset)]
+			return charset[b%len(charset)]
 		}
 	}
 }

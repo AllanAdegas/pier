@@ -1,83 +1,46 @@
 name: SearXNG
 description: Metabuscador livre que agrega mais de 70 serviços de busca.
+description_en: Free metasearch engine that aggregates over 70 search services.
 category: Busca
 website: https://docs.searxng.org
-tags:
-  - search
-  - google
-  - engine
-  - images
-  - documents
-  - rss
-  - proxy
-  - news
-routes:
-  - service: searxng
+services:
+  searxng:
+    image: searxng/searxng:2026.11.9-57ff753ad
     port: 8080
-compose: |
-  services:
-    redis:
-      image: redis:7
-      restart: always
-      volumes:
-        - redis-data:/data
-      healthcheck:
-        interval: 5s
-        retries: 3
-        test:
-          - CMD
-          - redis-cli
-          - ping
-        timeout: 5s
-    searxng:
-      image: searxng/searxng
-      environment:
-        - INSTANCE_NAME=${INSTANCE_NAME:-pier}
-        - BASE_URL=${PIER_URL_SEARXNG}
-        - SEARXNG_URL=${PIER_URL_SEARXNG}
-        - SEARXNG_BIND_ADDRESS=${SEARXNG_BIND_ADDRESS:-0.0.0.0}
-        - SEARXNG_SECRET=${PIER_PASSWORD_SEARXNGSECRET}
-        - SEARXNG_REDIS_URL=redis://redis:6379/0
-      volumes:
-        - content: |
-            # see https://docs.searxng.org/admin/settings/settings.html#settings-use-default-settings
-            use_default_settings: true
-            server:
-              limiter: false
-              image_proxy: true
-            search:
-              formats:
-                - html
-                - csv
-                - json
-                - rss
-            ui:
-              static_use_hash: true
-          source: ./settings.yml
-          target: /etc/searxng/settings.yml
-          type: bind
-        - content: |
-            # This configuration file updates the default configuration file
-            # See https://github.com/searxng/searxng/blob/master/searx/botdetection/limiter.toml
+    volumes:
+    - content: |
+        # see https://docs.searxng.org/admin/settings/settings.html#settings-use-default-settings
+        use_default_settings: true
+        server:
+          limiter: false
+          image_proxy: true
+        search:
+          formats:
+            - html
+            - csv
+            - json
+            - rss
+        ui:
+          static_use_hash: true
+      source: ./settings.yml
+      target: /etc/searxng/settings.yml
+      type: bind
+    - content: |
+        # This configuration file updates the default configuration file
+        # See https://github.com/searxng/searxng/blob/master/searx/botdetection/limiter.toml
 
-            [botdetection.ip_limit]
-            # activate link_token method in the ip_limit method
-            link_token = true
-          source: ./limiter.toml
-          target: /etc/searxng/limiter.toml
-          type: bind
-      depends_on:
-        redis:
-          condition: service_healthy
-      healthcheck:
-        interval: 5s
-        retries: 3
-        test:
-          - CMD
-          - wget
-          - -q
-          - --spider
-          - http://127.0.0.1:8080/healthz
-        timeout: 5s
-  volumes:
-    redis-data: null
+        [botdetection.ip_limit]
+        # activate link_token method in the ip_limit method
+        link_token = true
+      source: ./limiter.toml
+      target: /etc/searxng/limiter.toml
+      type: bind
+    env:
+      INSTANCE_NAME: ${INSTANCE_NAME:-pier}
+      BASE_URL: ${PIER_URL_SEARXNG}
+      SEARXNG_URL: ${PIER_URL_SEARXNG}
+      SEARXNG_BIND_ADDRESS: ${SEARXNG_BIND_ADDRESS:-0.0.0.0}
+      SEARXNG_SECRET: ${PIER_PASSWORD_SEARXNGSECRET}
+      SEARXNG_REDIS_URL: redis://redis:6379/0
+with:
+  redis: {}

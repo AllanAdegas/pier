@@ -5,11 +5,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	"pier/internal/platform/httpclient"
 )
 
 // maxBridgeMessage bounds one JSON-RPC message read from stdin.
@@ -28,11 +31,11 @@ type Bridge struct {
 // Run forwards messages until in ends or ctx is cancelled.
 func (b Bridge) Run(ctx context.Context, in io.Reader, out io.Writer) error {
 	if b.URL == "" || b.Token == "" {
-		return fmt.Errorf("defina PIER_URL (ex.: http://127.0.0.1:8700) e PIER_TOKEN (token de API do Pier)")
+		return errors.New("set PIER_URL (e.g. http://127.0.0.1:8700) and PIER_TOKEN (a Pier API token)")
 	}
 	client := b.Client
 	if client == nil {
-		client = &http.Client{Timeout: 2 * time.Minute}
+		client = &http.Client{Timeout: 2 * time.Minute, CheckRedirect: httpclient.SameOrigin}
 	}
 	endpoint := strings.TrimSuffix(b.URL, "/") + Path
 	scanner := bufio.NewScanner(in)
@@ -65,7 +68,7 @@ func (b Bridge) forward(ctx context.Context, client *http.Client, endpoint strin
 	request.Header.Set("Accept", "application/json, text/event-stream")
 	response, err := client.Do(request)
 	if err != nil {
-		return rpcError(message, "Pier inacessível: "+err.Error())
+		return rpcError(message, "Pier is unreachable: "+err.Error())
 	}
 	defer response.Body.Close()
 	body, err := io.ReadAll(io.LimitReader(response.Body, maxBridgeMessage))
@@ -73,7 +76,7 @@ func (b Bridge) forward(ctx context.Context, client *http.Client, endpoint strin
 		return rpcError(message, err.Error())
 	}
 	if response.StatusCode >= http.StatusBadRequest {
-		return rpcError(message, fmt.Sprintf("Pier respondeu HTTP %d: %s", response.StatusCode,
+		return rpcError(message, fmt.Sprintf("Pier answered HTTP %d: %s", response.StatusCode,
 			strings.TrimSpace(string(body))))
 	}
 	return body

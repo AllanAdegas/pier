@@ -143,17 +143,8 @@ func (s *Service) DeleteUser(ctx context.Context, actorID, targetID string) erro
 	if actorID == targetID {
 		return apperr.Conflict("Você não pode remover o próprio usuário.")
 	}
-	count, err := s.store.countUsers(ctx)
-	if err != nil {
-		return err
-	}
-	if count <= 1 {
-		return apperr.Conflict("A instância precisa de pelo menos um usuário.")
-	}
-	if err := s.store.deleteUser(ctx, targetID); err != nil {
-		return notFoundAs(err, "Usuário")
-	}
-	return nil
+	return s.store.deleteUser(ctx, targetID)
+
 }
 
 // UpdateProfile changes the caller's name and e-mail.
@@ -214,7 +205,17 @@ func (s *Service) Login(ctx context.Context, email, password string) (string, Us
 		return "", User{}, apperr.Unauthorized(invalid)
 	}
 	token, err := s.OpenSession(ctx, record.ID)
-	return token, record.User, err
+	if err != nil {
+		return "", User{}, err
+	}
+	// The password may have changed while it was being checked. A password
+	// change updates the hash before it closes the sessions, so either that
+	// deletion already sees this session or the hash read here is the new one.
+	if current, err := s.store.userByID(ctx, record.ID); err != nil || current.PasswordHash != record.PasswordHash {
+		_ = s.Logout(ctx, token)
+		return "", User{}, apperr.Unauthorized(invalid)
+	}
+	return token, record.User, nil
 }
 
 // OpenSession creates a session for an already-verified user.
@@ -260,7 +261,7 @@ func (s *Service) AuthenticateToken(ctx context.Context, bearer string) (Princip
 		return Principal{}, unauthorizedIfMissing(err)
 	}
 	_ = s.store.touchToken(ctx, token.ID, s.now())
-	return Principal{User: record.User, Abilities: token.Abilities, ViaToken: true}, nil
+	return Principal{User: record.User, Abilities: token.Abilities, ViaToken: true, TokenID: token.ID, TokenName: token.Name}, nil
 }
 
 // CreateToken issues an API token and returns the secret, shown only once.
@@ -311,7 +312,7 @@ func validateProfile(fields apperr.Fields, name, email string) {
 	if name == "" {
 		fields.Add("name", "Informe o nome.")
 	}
-	if address, err := mail.ParseAddress(email); err != nil || address.Address != email {
+	if address, err := mail.ParseAddress(email); len(email) > 320 || err != nil || address.Address != email {
 		fields.Add("email", "Informe um e-mail válido.")
 	}
 }

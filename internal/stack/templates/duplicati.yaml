@@ -1,35 +1,18 @@
 name: Duplicati
 description: Backups agendados com criptografia.
+description_en: Scheduled, encrypted backups.
 category: Armazenamento
 website: https://duplicati.readthedocs.io
-tags:
-  - backup
-  - encryption
-routes:
-  - service: duplicati
+services:
+  duplicati:
+    image: lscr.io/linuxserver/duplicati:2.4.1
     port: 8200
-compose: |
-  services:
-    duplicati:
-      image: lscr.io/linuxserver/duplicati:latest
-      environment:
-        - PUID=1000
-        - PGID=1000
-        - TZ=${TZ:-Europe/London}
-        - SETTINGS_ENCRYPTION_KEY=${PIER_PASSWORD_ENCRYPT}
-        - DUPLICATI__WEBSERVICE_PASSWORD=${PIER_PASSWORD_WEB}
-      volumes:
-        - duplicati-config:/config
-        - duplicati-backups:/backups
-      healthcheck:
-        interval: 2s
-        retries: 15
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:8200
-        timeout: 10s
-  volumes:
-    duplicati-backups: null
-    duplicati-config: null
+    volumes:
+    - duplicati-config:/config
+    - duplicati-backups:/backups
+    env:
+      PUID: '1000'
+      PGID: '1000'
+      TZ: ${TZ:-Europe/London}
+      SETTINGS_ENCRYPTION_KEY: ${PIER_PASSWORD_ENCRYPT}
+      DUPLICATI__WEBSERVICE_PASSWORD: ${PIER_PASSWORD_WEB}

@@ -1,29 +1,16 @@
+auth: generated
 name: Firefox
 description: Navegador Firefox rodando no servidor, acessado pelo navegador.
+description_en: Firefox browser running on the server, used from your browser.
 category: Produtividade
 website: https://github.com/jlesage/docker-firefox
-tags:
-  - browser
-  - web
-  - privacy
-routes:
-  - service: firefox
+services:
+  firefox:
+    image: jlesage/firefox:v26.09.1
     port: 5800
-compose: |
-  services:
-    firefox:
-      image: jlesage/firefox
-      volumes:
-        - firefox_config:/config
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - wget
-          - -q
-          - --spider
-          - http://127.0.0.1:5800/
-        timeout: 20s
-  volumes:
-    firefox_config: null
+    data: /config
+    env:
+      WEB_AUTHENTICATION: '1'
+      WEB_AUTHENTICATION_ALLOW_INSECURE: '1'
+      WEB_AUTHENTICATION_USERNAME: ${PIER_USER_FIREFOX}
+      WEB_AUTHENTICATION_PASSWORD: ${PIER_PASSWORD_FIREFOX}

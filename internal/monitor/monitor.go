@@ -12,6 +12,8 @@ import (
 	"pier/internal/docker"
 	"pier/internal/notify"
 	"pier/internal/platform/executor"
+	"pier/internal/platform/i18n"
+	"pier/internal/schedule"
 	"pier/internal/server"
 	"pier/internal/stack"
 )
@@ -30,15 +32,21 @@ type ClusterChecker interface {
 
 // Monitor updates server reachability and resource statuses.
 type Monitor struct {
-	Servers      *server.Service
-	Connector    Connector
-	Applications *application.Store
-	Databases    *database.Store
-	Stacks       *stack.Service
-	Clusters     ClusterChecker
-	Events       notify.Publisher
-	Interval     time.Duration
-	Logger       *slog.Logger
+	Servers          *server.Service
+	Connector        Connector
+	Applications     *application.Store
+	Databases        *database.Store
+	Stacks           *stack.Service
+	Clusters         ClusterChecker
+	Events           notify.Publisher
+	Interval         time.Duration
+	Logger           *slog.Logger
+	Alerts           *State
+	Tasks            *schedule.TaskService
+	BackupService    *database.Service
+	restarts         map[string][]restartSample
+	highSince        map[string]time.Time
+	lastCertificates time.Time
 }
 
 // Run reconciles until ctx is cancelled.
@@ -67,7 +75,15 @@ func (m *Monitor) reconcile(ctx context.Context) {
 		}
 		m.reconcileServer(ctx, target)
 	}
-	m.Clusters.CheckAll(ctx)
+	if m.Clusters != nil {
+		m.Clusters.CheckAll(ctx)
+	}
+	m.checkUptime(ctx)
+	m.checkSchedules(ctx)
+	if time.Since(m.lastCertificates) >= time.Hour {
+		m.checkCertificates(ctx)
+		m.lastCertificates = time.Now()
+	}
 }
 
 func (m *Monitor) reconcileServer(ctx context.Context, target server.Server) {
@@ -77,16 +93,24 @@ func (m *Monitor) reconcileServer(ctx context.Context, target server.Server) {
 	if pingErr := m.Servers.Ping(ctx, target.ID); pingErr != nil {
 		m.Logger.Warn("monitor: record server status", "server", target.Name, "error", pingErr)
 	}
-	if err != nil {
-		if target.Status == server.StatusReachable {
-			m.Events.Publish(notify.Event{
-				Type: notify.ServerUnreachable, Resource: target.Name,
-				Title:   "Servidor inacessível: " + target.Name,
-				Message: "O Pier não conseguiu consultar o Docker do servidor: " + err.Error(),
-			})
+	event := notify.Event{
+		Type: notify.ServerUnreachable, Resource: target.ID,
+		Title:   i18n.Instance().Sprintf("Servidor inacessível: %s", target.Name),
+		Message: i18n.Instance().Sprintf("O Pier não conseguiu consultar o Docker do servidor: %s", err),
+	}
+	if m.Alerts != nil {
+		if stateErr := m.Alerts.Observe(ctx, m.Events, event, err != nil, time.Now()); stateErr != nil {
+			m.Logger.Warn("monitor: server alert", "error", stateErr)
 		}
+	} else if err != nil && target.Status == server.StatusReachable && m.Events != nil {
+		m.Events.Publish(event)
+	}
+	if err != nil {
+		m.resetThresholds(target.ID)
 		return
 	}
+
+	m.runtimeAlerts(ctx, target, containers)
 	groups := docker.GroupByResource(containers)
 	m.syncApplications(ctx, target.ID, groups)
 	m.syncDatabases(ctx, target.ID, groups)

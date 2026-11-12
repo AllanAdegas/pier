@@ -1,32 +1,10 @@
 name: Slash
 description: Encurtador e compartilhador de links open source.
+description_en: Open source link shortener and sharer.
 category: Produtividade
 website: https://github.com/yourselfhosted/slash
-tags:
-  - links
-  - shortener
-  - sharing
-  - url
-  - short
-  - link
-routes:
-  - service: slash
+services:
+  slash:
+    image: yourselfhosted/slash:0.5.3
     port: 5231
-compose: |
-  services:
-    slash:
-      image: yourselfhosted/slash
-      volumes:
-        - slash-data:/var/opt/slash
-      healthcheck:
-        interval: 2s
-        retries: 15
-        test:
-          - CMD
-          - wget
-          - -q
-          - --spider
-          - http://127.0.0.1:5231
-        timeout: 10s
-  volumes:
-    slash-data: null
+    data: /var/opt/slash

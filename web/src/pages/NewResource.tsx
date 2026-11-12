@@ -12,16 +12,17 @@ import { DatabaseForm } from "./new/DatabaseForm";
 import { CatalogStackForm } from "./new/CatalogStackForm";
 import { ComposeStackForm } from "./new/ComposeStackForm";
 import { DirectoryStackForm } from "./new/DirectoryStackForm";
+import { t } from "../i18n";
 
 type Kind = "git" | "image" | "database" | "template" | "compose" | "directory";
 
 const KINDS: { kind: Kind; icon: IconName; title: string; text: string }[] = [
-  { kind: "git", icon: "box", title: "Aplicação do Git", text: "Clona um repositório e constrói com Dockerfile, Nixpacks ou como site estático." },
-  { kind: "image", icon: "box", title: "Imagem Docker", text: "Roda uma imagem pronta de qualquer registry, sem build." },
-  { kind: "database", icon: "database", title: "Banco de dados", text: "PostgreSQL, MySQL, MariaDB, MongoDB, Redis e outros, com credenciais geradas." },
-  { kind: "template", icon: "layers", title: "Serviço do catálogo", text: "Mais de 350 ferramentas prontas em um clique: n8n, Grafana, WordPress, Supabase…" },
-  { kind: "compose", icon: "layers", title: "Compose próprio", text: "Cole um docker-compose.yaml e gerencie a stack pelo Pier." },
-  { kind: "directory", icon: "folder", title: "Pasta do servidor", text: "Suba o compose de uma pasta da máquina. O .env e os arquivos de segredo são usados onde estão, sem cópia." },
+  { kind: "git", icon: "box", title: t("Aplicação do Git"), text: t("Clona um repositório e constrói com Dockerfile, Nixpacks ou como site estático.") },
+  { kind: "image", icon: "box", title: t("Imagem Docker"), text: t("Roda uma imagem pronta de qualquer registry, sem build.") },
+  { kind: "database", icon: "database", title: t("Banco de dados"), text: t("PostgreSQL, MySQL, MariaDB, MongoDB, Redis e outros, com credenciais geradas.") },
+  { kind: "template", icon: "layers", title: t("Serviço do catálogo"), text: t("Mais de 350 ferramentas prontas em um clique: n8n, Grafana, WordPress, Supabase…") },
+  { kind: "compose", icon: "layers", title: t("Compose próprio"), text: t("Cole um docker-compose.yaml e gerencie a stack pelo Pier.") },
+  { kind: "directory", icon: "folder", title: t("Pasta do servidor"), text: t("Suba o compose de uma pasta da máquina. O .env e os arquivos de segredo são usados onde estão, sem cópia.") },
 ];
 
 /** Context every creation form needs: where the resource will live. */
@@ -56,19 +57,18 @@ export function NewResourcePage() {
           <>
             <PageHeader
               crumbs={[
-                { label: "Projetos", href: "/projects" },
+                { label: t("Projetos"), href: "/projects" },
                 { label: data().name, href: `/projects/${data().id}?env=${environment()?.id ?? ""}` },
-                { label: "Novo recurso" },
+                { label: t("Novo recurso") },
               ]}
-              title={selected()?.title ?? "O que você quer implantar?"}
-              description={`Ambiente: ${environment()?.name ?? ""}`}
+              title={selected()?.title ?? t("O que você quer implantar?")}
+              description={t("Ambiente: {name}", { name: environment()?.name ?? "" })}
             />
             <div class="steps" aria-live="polite">
-              <Show when={kind()} fallback={<span>Passo 1 de 2 — escolha o tipo</span>}>
-                <Button small variant="ghost" onClick={() => setKind(null)}>
-                  ← Trocar tipo
+              <Show when={kind()} fallback={<span>{t("Passo 1 de 2 — escolha o tipo")}</span>}>
+                <Button small variant="ghost" onClick={() => setKind(null)}>{t("← Trocar tipo")}
                 </Button>
-                <span>Passo 2 de 2 — configure</span>
+                <span>{t("Passo 2 de 2 — configure")}</span>
               </Show>
             </div>
 

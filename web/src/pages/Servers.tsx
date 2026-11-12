@@ -3,17 +3,21 @@ import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { createStore } from "solid-js/store";
 import { Button } from "../components/Button";
 import { Alert, QueryView, StatusBadge } from "../components/Feedback";
-import { NumberInput, Select, TextArea, TextInput } from "../components/Form";
 import { Icon } from "../components/Icon";
 import { ConfirmDelete, Modal } from "../components/Modal";
 import { PageHeader, Section, Tabs } from "../components/Page";
 import { api } from "../lib/api";
-import { formatBytes, formatRelative, serverStatus } from "../lib/format";
+import { formatRelative, serverStatus } from "../lib/format";
 import { createAction, createQuery } from "../lib/query";
-import type { PrivateKey, ProxyInfo, ProxySettings, Server, ServerInput, ServerMetrics } from "../lib/types";
+import type { PrivateKey, ProxyInfo, ProxySettings, Server, ServerInput } from "../lib/types";
+import { ServerMonitoring } from "../components/ServerMonitoring";
 import { InfrastructureTabs } from "./Clusters";
+import { ServerChecks } from "./server/ServerChecks";
 import { DockerTab } from "./server/DockerTab";
 import { EdgeFields, EdgeSyncCard } from "./server/EdgeProxy";
+import { Trans } from "../i18n/Trans";
+import { t } from "../i18n";
+import { NumberInput, Select, TextArea, TextInput } from "../components/Form";
 
 function toInput(server?: Server): ServerInput {
   return {
@@ -61,7 +65,7 @@ function ConnectionFields(props: {
           error={props.errors.host}
         />
         <NumberInput
-          label="Porta SSH"
+          label={t("Porta SSH")}
           min={1}
           max={65535}
           value={props.input.port}
@@ -71,18 +75,18 @@ function ConnectionFields(props: {
       </div>
       <div class="grid-2">
         <TextInput
-          label="Usuário"
+          label={t("Usuário")}
           required
           mono
-          hint="Precisa ter permissão para usar o Docker."
+          hint={t("Precisa ter permissão para usar o Docker.")}
           value={props.input.user}
           onValue={(value) => props.set("user", value)}
           error={props.errors.user}
         />
         <Select
-          label="Chave privada"
-          placeholder="Selecione uma chave"
-          hint="Cadastre chaves em Segurança e adicione a pública ao authorized_keys do servidor."
+          label={t("Chave privada")}
+          placeholder={t("Selecione uma chave")}
+          hint={t("Cadastre chaves em Segurança e adicione a pública ao authorized_keys do servidor.")}
           value={props.input.private_key_id}
           onValue={(value) => props.set("private_key_id", value)}
           options={props.keys.map((key) => ({
@@ -111,7 +115,7 @@ function NewServerModal(props: { onClose: () => void; onSaved: (server: Server) 
     { onSuccess: props.onSaved },
   );
   return (
-    <Modal title="Adicionar servidor" onClose={props.onClose} wide>
+    <Modal title={t("Adicionar servidor")} onClose={props.onClose} wide>
       <form
         class="stack"
         onSubmit={(event) => {
@@ -120,9 +124,9 @@ function NewServerModal(props: { onClose: () => void; onSaved: (server: Server) 
         }}
       >
         <TextInput
-          label="Nome"
+          label={t("Nome")}
           required
-          placeholder="producao-1"
+          placeholder={t("producao-1")}
           value={input.name}
           onValue={(value) => setInput("name", value)}
           error={create.errors().name}
@@ -130,13 +134,15 @@ function NewServerModal(props: { onClose: () => void; onSaved: (server: Server) 
         <ConnectionFields input={input} set={setInput} errors={create.errors()} keys={keys.data() ?? []} />
         <Show when={keys.data()?.length === 0}>
           <Alert tone="warning">
-            Nenhuma chave cadastrada. <A href="/security">Crie uma chave em Segurança</A> antes de adicionar o servidor.
+            <Trans
+              text="Nenhuma chave cadastrada. {link} antes de adicionar o servidor."
+              values={{ link: <A href="/security">{t("Crie uma chave em Segurança")}</A> }}
+            />
           </Alert>
         </Show>
         <div class="form-actions">
-          <Button onClick={props.onClose}>Cancelar</Button>
-          <Button type="submit" variant="primary" pending={create.pending()}>
-            Adicionar e validar
+          <Button onClick={props.onClose}>{t("Cancelar")}</Button>
+          <Button type="submit" variant="primary" pending={create.pending()}>{t("Adicionar e validar")}
           </Button>
         </div>
       </form>
@@ -156,11 +162,10 @@ export function ServersPage() {
   return (
     <div class="page">
       <PageHeader
-        title="Infraestrutura"
-        description="Máquinas com Docker onde seus recursos rodam. O Pier só precisa de acesso SSH."
+        title={t("Infraestrutura")}
+        description={t("Máquinas com Docker onde seus recursos rodam. O Pier só precisa de acesso SSH.")}
         actions={
-          <Button variant="primary" icon="plus" onClick={() => setAdding(true)}>
-            Adicionar servidor
+          <Button variant="primary" icon="plus" onClick={() => setAdding(true)}>{t("Adicionar servidor")}
           </Button>
         }
       />
@@ -177,9 +182,9 @@ export function ServersPage() {
                   <div class="grow stack-sm" style={{ gap: "0" }}>
                     <strong class="truncate">{server.name}</strong>
                     <span class="small muted truncate">
-                      {server.kind === "local" ? "Máquina local" : `${server.user}@${server.host}:${server.port}`}
+                      {server.kind === "local" ? t("Máquina local") : `${server.user}@${server.host}:${server.port}`}
                       <Show when={server.docker_version}> · Docker {server.docker_version}</Show>
-                      <Show when={server.last_checked_at}> · verificado {formatRelative(server.last_checked_at)}</Show>
+                      <Show when={server.last_checked_at}> · {t("verificado {when}", { when: formatRelative(server.last_checked_at) })}</Show>
                     </span>
                   </div>
                   <StatusBadge status={serverStatus(server.status)} />
@@ -200,11 +205,11 @@ export function ServersPage() {
 }
 
 const TABS = [
-  { id: "general", label: "Geral" },
+  { id: "general", label: t("Geral") },
   { id: "docker", label: "Docker" },
-  { id: "proxy", label: "Proxy" },
-  { id: "usage", label: "Uso de recursos" },
-  { id: "maintenance", label: "Manutenção" },
+  { id: "proxy", label: t("Proxy") },
+  { id: "usage", label: t("Uso de recursos") },
+  { id: "maintenance", label: t("Manutenção") },
 ];
 
 export function ServerDetailPage() {
@@ -219,8 +224,8 @@ export function ServerDetailPage() {
     onSuccess: (updated) => server.set(updated),
     success: (updated) =>
       updated.status === "reachable"
-        ? "Servidor validado: Docker respondeu."
-        : "O servidor não respondeu. Veja o detalhe abaixo.",
+        ? t("Servidor validado: Docker respondeu.")
+        : t("O servidor não respondeu. Veja o detalhe abaixo."),
   });
 
   return (
@@ -229,7 +234,7 @@ export function ServerDetailPage() {
         {(data) => (
           <>
             <PageHeader
-              crumbs={[{ label: "Servidores", href: "/servers" }, { label: data().name }]}
+              crumbs={[{ label: t("Servidores"), href: "/servers" }, { label: data().name }]}
               title={
                 <span class="row">
                   {data().name}
@@ -237,17 +242,17 @@ export function ServerDetailPage() {
                 </span>
               }
               description={
-                data().kind === "local" ? "Máquina onde o Pier está instalado." : `${data().user}@${data().host}:${data().port}`
+                data().kind === "local" ? t("Máquina onde o Pier está instalado.") : `${data().user}@${data().host}:${data().port}`
               }
               actions={
-                <Button variant="primary" icon="check" pending={validate.pending()} onClick={() => void validate.run()}>
-                  Validar conexão
+                <Button variant="primary" icon="check" pending={validate.pending()} onClick={() => void validate.run()}>{t("Validar conexão")}
                 </Button>
               }
             />
             <Show when={data().status === "unreachable" && data().status_message}>
               <Alert tone="danger">{data().status_message}</Alert>
             </Show>
+            <ServerChecks checks={data().checks ?? []} />
             <Tabs tabs={TABS} selected={tab()} onSelect={(id) => setSearch({ tab: id })} />
             <Switch>
               <Match when={tab() === "general"}>
@@ -280,7 +285,7 @@ function GeneralTab(props: { server: Server; onSaved: (server: Server) => void }
     () => api.get<PrivateKey[]>("/keys"),
   );
   const save = createAction(() => api.patch<Server>(`/servers/${props.server.id}`, input), {
-    success: "Servidor salvo.",
+    success: t("Servidor salvo."),
     onSuccess: props.onSaved,
   });
   return (
@@ -292,20 +297,20 @@ function GeneralTab(props: { server: Server; onSaved: (server: Server) => void }
       }}
     >
       <TextInput
-        label="Nome"
+        label={t("Nome")}
         required
         value={input.name}
         onValue={(value) => setInput("name", value)}
         error={save.errors().name}
       />
-      <TextArea label="Descrição" rows={2} value={input.description} onValue={(value) => setInput("description", value)} />
+      <TextArea label={t("Descrição")} rows={2} value={input.description} onValue={(value) => setInput("description", value)} />
       <Show when={props.server.kind === "ssh"}>
         <ConnectionFields input={input} set={setInput} errors={save.errors()} keys={keys.data() ?? []} />
       </Show>
       <TextInput
-        label="Diretório de dados"
+        label={t("Diretório de dados")}
         mono
-        hint="Onde o Pier guarda arquivos compose, builds, backups e certificados neste servidor."
+        hint={t("Onde o Pier guarda arquivos compose, builds, backups e certificados neste servidor.")}
         value={input.data_dir}
         onValue={(value) => setInput("data_dir", value)}
         error={save.errors().data_dir}
@@ -313,12 +318,11 @@ function GeneralTab(props: { server: Server; onSaved: (server: Server) => void }
       <dl class="kv">
         <dt>Docker</dt>
         <dd>{props.server.docker_version || "—"}</dd>
-        <dt>Última verificação</dt>
+        <dt>{t("Última verificação")}</dt>
         <dd>{formatRelative(props.server.last_checked_at)}</dd>
       </dl>
       <div class="form-actions">
-        <Button type="submit" variant="primary" pending={save.pending()}>
-          Salvar
+        <Button type="submit" variant="primary" pending={save.pending()}>{t("Salvar")}
         </Button>
       </div>
     </form>
@@ -337,7 +341,7 @@ function ProxyTab(props: { server: Server; onSaved: (server: Server) => void }) 
   const operate = createAction(
     (action: "start" | "stop" | "restart") => api.post(`/servers/${props.server.id}/proxy/${action}`),
     {
-      success: "Proxy atualizado.",
+      success: t("Proxy atualizado."),
       onSuccess: () => void proxy.refetch(),
     },
   );
@@ -350,13 +354,13 @@ function ProxyTab(props: { server: Server; onSaved: (server: Server) => void }) 
     {
       success: () =>
         settings.edge.container.trim()
-          ? "Configuração salva. Reinicie o proxy e reimplante os recursos com domínio para aplicar."
-          : "Configuração do proxy salva. Reinicie o proxy para aplicar.",
+          ? t("Configuração salva. Reinicie o proxy e reimplante os recursos com domínio para aplicar.")
+          : t("Configuração do proxy salva. Reinicie o proxy para aplicar."),
       onSuccess: props.onSaved,
     },
   );
   const loadLogs = createAction(() => api.get<{ logs: string }>(`/servers/${props.server.id}/proxy/logs`), {
-    onSuccess: (result) => setLogs(result.logs || "(sem linhas)"),
+    onSuccess: (result) => setLogs(result.logs || t("(sem linhas)")),
   });
 
   return (
@@ -365,36 +369,32 @@ function ProxyTab(props: { server: Server; onSaved: (server: Server) => void }) 
         {(info) => (
           <Section
             title="Traefik"
-            description="Recebe o tráfego HTTP/HTTPS e o encaminha para os containers, emitindo certificados Let's Encrypt."
+            description={t("Recebe o tráfego HTTP/HTTPS e o encaminha para os containers, emitindo certificados Let's Encrypt.")}
             actions={
               <StatusBadge
                 status={
-                  info().state.running ? { label: info().state.status, tone: "success" } : { label: "Parado", tone: "neutral" }
+                  info().state.running ? { label: info().state.status, tone: "success" } : { label: t("Parado"), tone: "neutral" }
                 }
               />
             }
           >
             <Show when={!info().state.running}>
-              <Alert tone="warning">Sem o proxy em execução, nenhum domínio deste servidor responde.</Alert>
+              <Alert tone="warning">{t("Sem o proxy em execução, nenhum domínio deste servidor responde.")}</Alert>
             </Show>
             <div class="row">
               <Show
                 when={info().state.running}
                 fallback={
-                  <Button variant="primary" icon="play" pending={operate.pending()} onClick={() => void operate.run("start")}>
-                    Iniciar proxy
+                  <Button variant="primary" icon="play" pending={operate.pending()} onClick={() => void operate.run("start")}>{t("Iniciar proxy")}
                   </Button>
                 }
               >
-                <Button icon="refresh" pending={operate.pending()} onClick={() => void operate.run("restart")}>
-                  Reiniciar
+                <Button icon="refresh" pending={operate.pending()} onClick={() => void operate.run("restart")}>{t("Reiniciar")}
                 </Button>
-                <Button icon="stop" pending={operate.pending()} onClick={() => void operate.run("stop")}>
-                  Parar
+                <Button icon="stop" pending={operate.pending()} onClick={() => void operate.run("stop")}>{t("Parar")}
                 </Button>
               </Show>
-              <Button icon="terminal" pending={loadLogs.pending()} onClick={() => void loadLogs.run()}>
-                Ver logs
+              <Button icon="terminal" pending={loadLogs.pending()} onClick={() => void loadLogs.run()}>{t("Ver logs")}
               </Button>
             </div>
             <Show when={logs() !== null}>
@@ -403,8 +403,7 @@ function ProxyTab(props: { server: Server; onSaved: (server: Server) => void }) 
               </pre>
             </Show>
             <details>
-              <summary class="small muted" style={{ cursor: "pointer" }}>
-                Ver configuração gerada (docker-compose)
+              <summary class="small muted" style={{ cursor: "pointer" }}>{t("Ver configuração gerada (docker-compose)")}
               </summary>
               <pre
                 class="log"
@@ -432,10 +431,10 @@ function ProxyTab(props: { server: Server; onSaved: (server: Server) => void }) 
           void save.run();
         }}
       >
-        <h2>Portas e certificados</h2>
+        <h2>{t("Portas e certificados")}</h2>
         <div class="grid-2">
           <NumberInput
-            label="Porta HTTP"
+            label={t("Porta HTTP")}
             min={1}
             max={65535}
             value={settings.http_port}
@@ -443,7 +442,7 @@ function ProxyTab(props: { server: Server; onSaved: (server: Server) => void }) 
             error={save.errors()["proxy.http_port"]}
           />
           <NumberInput
-            label="Porta HTTPS"
+            label={t("Porta HTTPS")}
             min={1}
             max={65535}
             value={settings.https_port}
@@ -453,9 +452,9 @@ function ProxyTab(props: { server: Server; onSaved: (server: Server) => void }) 
         </div>
         <Show when={!settings.edge.container.trim()}>
           <TextInput
-            label="E-mail para o Let's Encrypt"
+            label={t("E-mail para o Let's Encrypt")}
             type="email"
-            hint="Recebe avisos de expiração. A emissão de certificados exige as portas 80 e 443 acessíveis pela internet."
+            hint={t("Recebe avisos de expiração. A emissão de certificados exige as portas 80 e 443 acessíveis pela internet.")}
             value={settings.acme_email}
             onValue={(value) => setSettings("acme_email", value)}
             error={save.errors()["proxy.acme_email"]}
@@ -468,8 +467,7 @@ function ProxyTab(props: { server: Server; onSaved: (server: Server) => void }) 
           errors={save.errors()}
         />
         <div class="form-actions">
-          <Button type="submit" pending={save.pending()}>
-            Salvar
+          <Button type="submit" pending={save.pending()}>{t("Salvar")}
           </Button>
         </div>
       </form>
@@ -477,89 +475,8 @@ function ProxyTab(props: { server: Server; onSaved: (server: Server) => void }) 
   );
 }
 
-function Meter(props: { label: string; used: number; total: number }) {
-  const percent = () => (props.total > 0 ? Math.min(100, Math.round((props.used / props.total) * 100)) : 0);
-  return (
-    <div class="stack-sm">
-      <div class="row-between small">
-        <span>{props.label}</span>
-        <span class="muted">
-          {formatBytes(props.used)} de {formatBytes(props.total)} ({percent()}%)
-        </span>
-      </div>
-      <div class="meter" role="meter" aria-label={props.label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent()}>
-        <span
-          style={{
-            width: `${percent()}%`,
-            background: percent() >= 90 ? "var(--danger)" : undefined,
-          }}
-        />
-      </div>
-    </div>
-  );
-}
-
 function UsageTab(props: { serverId: string }) {
-  const metrics = createQuery(
-    () => props.serverId,
-    (id) => api.get<ServerMetrics>(`/servers/${id}/metrics`),
-    { pollMs: 15000 },
-  );
-  return (
-    <QueryView query={metrics}>
-      {(data) => (
-        <div class="stack-lg">
-          <Section title="Capacidade">
-            <dl class="kv">
-              <dt>Sistema</dt>
-              <dd>
-                {data().operating_system} ({data().architecture})
-              </dd>
-              <dt>CPUs</dt>
-              <dd>{data().cpus}</dd>
-              <dt>Memória</dt>
-              <dd>{formatBytes(data().memory_total_bytes)}</dd>
-              <dt>Containers em execução</dt>
-              <dd>{data().containers_running}</dd>
-              <dt>Imagens</dt>
-              <dd>{data().images}</dd>
-            </dl>
-            <Meter label="Disco (diretório de dados)" used={data().disk_used_bytes} total={data().disk_total_bytes} />
-          </Section>
-          <Section title="Containers gerenciados" description="Consumo no momento da leitura.">
-            <Show when={data().containers.length > 0} fallback={<p class="muted">Nenhum container gerenciado em execução.</p>}>
-              <div class="table-wrap">
-                <table class="table">
-                  <thead>
-                    <tr>
-                      <th>Container</th>
-                      <th>Tipo</th>
-                      <th>CPU</th>
-                      <th>Memória</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <For each={data().containers}>
-                      {(container) => (
-                        <tr>
-                          <td class="mono">{container.name}</td>
-                          <td>{container.resource_type}</td>
-                          <td>{container.cpu_percent}</td>
-                          <td>
-                            {container.memory_usage} ({container.memory_percent})
-                          </td>
-                        </tr>
-                      )}
-                    </For>
-                  </tbody>
-                </table>
-              </div>
-            </Show>
-          </Section>
-        </div>
-      )}
-    </QueryView>
-  );
+  return <ServerMonitoring serverId={props.serverId} />;
 }
 
 function MaintenanceTab(props: { server: Server }) {
@@ -567,26 +484,25 @@ function MaintenanceTab(props: { server: Server }) {
   const [report, setReport] = createSignal("");
   const [deleting, setDeleting] = createSignal(false);
   const cleanup = createAction(() => api.post<{ report: string }>(`/servers/${props.server.id}/cleanup`), {
-    success: "Limpeza concluída.",
+    success: t("Limpeza concluída."),
     onSuccess: (result) => setReport(result.report),
   });
   const resetHostKey = createAction(() => api.post(`/servers/${props.server.id}/reset-host-key`), {
-    success: "Chave de host redefinida. Valide a conexão para fixar a nova.",
+    success: t("Chave de host redefinida. Valide a conexão para fixar a nova."),
   });
   const remove = createAction(() => api.delete(`/servers/${props.server.id}`), {
-    success: "Servidor removido.",
+    success: t("Servidor removido."),
     onSuccess: () => navigate("/servers"),
   });
 
   return (
     <div class="stack-lg">
       <Section
-        title="Liberar espaço"
-        description="Remove containers parados criados pelo Pier, imagens sem tag, cache de build e diretórios de build antigos. Nada que o Pier não criou é tocado."
+        title={t("Liberar espaço")}
+        description={t("Remove containers parados criados pelo Pier, imagens sem tag, cache de build e diretórios de build antigos. Nada que o Pier não criou é tocado.")}
       >
         <div>
-          <Button icon="trash" pending={cleanup.pending()} onClick={() => void cleanup.run()}>
-            Executar limpeza
+          <Button icon="trash" pending={cleanup.pending()} onClick={() => void cleanup.run()}>{t("Executar limpeza")}
           </Button>
         </div>
         <Show when={report()}>
@@ -597,32 +513,30 @@ function MaintenanceTab(props: { server: Server }) {
       </Section>
       <Show when={props.server.kind === "ssh"}>
         <Section
-          title="Chave de host SSH"
-          description="O Pier fixa a chave do servidor no primeiro acesso e recusa conexões se ela mudar. Redefina apenas se a máquina foi reinstalada."
+          title={t("Chave de host SSH")}
+          description={t("O Pier fixa a chave do servidor no primeiro acesso e recusa conexões se ela mudar. Redefina apenas se a máquina foi reinstalada.")}
         >
           <dl class="kv">
-            <dt>Chave fixada</dt>
-            <dd class="mono">{props.server.host_key || "Ainda não fixada"}</dd>
+            <dt>{t("Chave fixada")}</dt>
+            <dd class="mono">{props.server.host_key || t("Ainda não fixada")}</dd>
           </dl>
           <div>
-            <Button pending={resetHostKey.pending()} onClick={() => void resetHostKey.run()}>
-              Redefinir chave de host
+            <Button pending={resetHostKey.pending()} onClick={() => void resetHostKey.run()}>{t("Redefinir chave de host")}
             </Button>
           </div>
         </Section>
-        <Section title="Zona de perigo" description="Só é possível remover servidores sem recursos.">
+        <Section title={t("Zona de perigo")} description={t("Só é possível remover servidores sem recursos.")}>
           <div>
-            <Button variant="danger" icon="trash" onClick={() => setDeleting(true)}>
-              Remover servidor
+            <Button variant="danger" icon="trash" onClick={() => setDeleting(true)}>{t("Remover servidor")}
             </Button>
           </div>
         </Section>
       </Show>
       <Show when={deleting()}>
         <ConfirmDelete
-          title="Remover servidor"
+          title={t("Remover servidor")}
           resourceName={props.server.name}
-          description="O Pier deixa de gerenciar este servidor. Nada é apagado na máquina."
+          description={t("O Pier deixa de gerenciar este servidor. Nada é apagado na máquina.")}
           pending={remove.pending()}
           onConfirm={() => void remove.run()}
           onClose={() => setDeleting(false)}

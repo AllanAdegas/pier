@@ -1,51 +1,20 @@
 name: Shlink
 description: Encurtador de URLs auto-hospedado.
+description_en: Self-hosted URL shortener.
 category: Produtividade
 website: https://shlink.io/
-tags:
-  - links
-  - shortener
-  - sharing
-  - url
-  - short
-  - link
-routes:
-  - service: shlink
+services:
+  shlink:
+    image: shlinkio/shlink:5.1.8
     port: 8080
-  - service: shlink-web
+    data: /etc/shlink/data
+    env:
+      DEFAULT_DOMAIN: ${PIER_HOST_SHLINK}
+      IS_HTTPS_ENABLED: 'false'
+      INITIAL_API_KEY: ${PIER_PASSWORD_SHLINKAPIKEY}
+  shlink-web:
+    image: shlinkio/shlink-web-client:4.9.0
     port: 8080
-compose: |
-  services:
-    shlink:
-      image: shlinkio/shlink:stable
-      environment:
-        - DEFAULT_DOMAIN=${PIER_HOST_SHLINK}
-        - IS_HTTPS_ENABLED=false
-        - INITIAL_API_KEY=${PIER_PASSWORD_SHLINKAPIKEY}
-      volumes:
-        - shlink-data:/etc/shlink/data
-      healthcheck:
-        interval: 2s
-        retries: 15
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:8080/rest/v3/health
-        timeout: 10s
-    shlink-web:
-      image: shlinkio/shlink-web-client
-      environment:
-        - SHLINK_SERVER_API_KEY=${PIER_PASSWORD_SHLINKAPIKEY}
-        - SHLINK_SERVER_URL=${PIER_URL_SHLINK}
-      healthcheck:
-        interval: 2s
-        retries: 15
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:8080
-        timeout: 10s
-  volumes:
-    shlink-data: null
+    env:
+      SHLINK_SERVER_API_KEY: ${PIER_PASSWORD_SHLINKAPIKEY}
+      SHLINK_SERVER_URL: ${PIER_URL_SHLINK}

@@ -2,8 +2,11 @@ package server
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
+	"net/netip"
 	"path"
+	"strings"
 
 	"pier/internal/compose"
 	"pier/internal/docker"
@@ -16,10 +19,6 @@ const (
 	ProxyImage       = "traefik:v3.6"
 	proxyProjectName = "pier-proxy"
 	proxyLogTail     = 300
-	// edgeTrustedNetworks are the private ranges Docker gives its networks.
-	// Clients from the internet keep their public address (Docker publishes
-	// ports with DNAT), so they cannot pose as the edge proxy.
-	edgeTrustedNetworks = "127.0.0.1/32,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
 )
 
 // ProxyService manages the Traefik reverse proxy of each server.
@@ -42,6 +41,7 @@ func ProxyCompose(server Server) *compose.File {
 		"--entrypoints.https.http3=true",
 		"--providers.docker=true",
 		"--providers.docker.exposedbydefault=false",
+		"--providers.docker.constraints=" + proxyConstraint(server),
 		"--providers.docker.network=" + docker.Network,
 		"--providers.file.directory=/traefik/dynamic/",
 		"--providers.file.watch=true",
@@ -53,11 +53,15 @@ func ProxyCompose(server Server) *compose.File {
 		"--certificatesresolvers.letsencrypt.acme.storage=/traefik/acme.json",
 	}
 	if server.Proxy.Edge.Enabled() {
-		// The edge proxy reaches Traefik from a private Docker address; trust
-		// its X-Forwarded-* headers so applications see the original https
-		// scheme and client address instead of the edge's.
-		command = append(command, "--entrypoints.http.forwardedheaders.trustedips="+edgeTrustedNetworks)
+		if ip, err := netip.ParseAddr(server.EdgeTrustedIP); err == nil {
+			prefix := "/32"
+			if ip.Is6() {
+				prefix = "/128"
+			}
+			command = append(command, "--entrypoints.http.forwardedheaders.trustedips="+ip.String()+prefix)
+		}
 	}
+
 	if server.Proxy.ACMEEmail != "" {
 		command = append(command, "--certificatesresolvers.letsencrypt.acme.email="+server.Proxy.ACMEEmail)
 	}
@@ -78,7 +82,7 @@ func ProxyCompose(server Server) *compose.File {
 					"/var/run/docker.sock:/var/run/docker.sock:ro",
 					server.ProxyDir() + ":/traefik",
 				},
-				Networks:   map[string]*compose.NetworkAttachment{docker.Network: {}},
+				Networks:   map[string]*compose.NetworkAttachment{docker.Network: {}, PanelNetwork: {}},
 				ExtraHosts: []string{"host.docker.internal:host-gateway"},
 				Healthcheck: &compose.Healthcheck{
 					Test:     []string{"CMD", "traefik", "healthcheck", "--ping"},
@@ -86,7 +90,7 @@ func ProxyCompose(server Server) *compose.File {
 				},
 			},
 		},
-		Networks: map[string]*compose.Network{docker.Network: {Name: docker.Network, External: true}},
+		Networks: map[string]*compose.Network{docker.Network: {Name: docker.Network, External: true}, PanelNetwork: {Name: PanelNetwork, External: true}},
 	}
 }
 
@@ -104,6 +108,16 @@ func (p *ProxyService) Start(ctx context.Context, serverID string) error {
 		return err
 	}
 	if err := docker.EnsureNetwork(ctx, ex); err != nil {
+		return unavailable(err)
+	}
+	if server.Proxy.Edge.Enabled() {
+		target, err := locateEdge(ctx, ex, server.Proxy.Edge, server.Proxy.HTTPPort)
+		if err != nil {
+			return err
+		}
+		server.EdgeTrustedIP = target.trustedIP
+	}
+	if _, err := ex.Run(ctx, "docker network inspect "+PanelNetwork+" >/dev/null 2>&1 || docker network create "+PanelNetwork); err != nil {
 		return unavailable(err)
 	}
 	yaml, err := ProxyCompose(server).Marshal()
@@ -157,12 +171,22 @@ func (p *ProxyService) State(ctx context.Context, serverID string) (ProxyState, 
 
 // Configuration returns the compose file the proxy runs with.
 func (p *ProxyService) Configuration(ctx context.Context, serverID string) (string, error) {
-	_, server, err := p.connector.Executor(ctx, serverID)
+	ex, server, err := p.connector.Executor(ctx, serverID)
 	if err != nil {
 		return "", err
 	}
+	if server.Proxy.Edge.Enabled() {
+		target, err := locateEdge(ctx, ex, server.Proxy.Edge, server.Proxy.HTTPPort)
+		if err != nil {
+			return "", err
+		}
+		server.EdgeTrustedIP = target.trustedIP
+	}
 	yaml, err := ProxyCompose(server).Marshal()
-	return string(yaml), err
+	if server.ProxyToken == "" {
+		return string(yaml), err
+	}
+	return strings.ReplaceAll(string(yaml), server.ProxyToken, "[redacted]"), err
 }
 
 // EdgeCandidates lists the Caddy containers running on the server. Detection
@@ -229,3 +253,28 @@ func unavailable(err error) error {
 	}
 	return apperr.Unavailable("Falha ao operar o servidor: %s", describeFailure(err))
 }
+
+// ProxyLabel authenticates route labels added by Pier rather than an image.
+const ProxyLabel = "pier.proxy"
+
+// PanelNetwork isolates the panel backend from ordinary application networks.
+const PanelNetwork = "pier-panel"
+
+// ProxyRouteLabels must be merged into every routed service by its renderer.
+// The server token is internal and must never be returned by read APIs.
+func ProxyRouteLabels(server Server) map[string]string {
+	if server.ProxyToken == "" {
+		return map[string]string{}
+	}
+	return map[string]string{ProxyLabel: server.ProxyToken}
+}
+func proxyConstraint(server Server) string {
+	token := server.ProxyToken
+	if token == "" {
+		token = "!unconfigured!"
+	}
+	return "Label(`" + ProxyLabel + "`, `" + token + "`) && Label(`" + docker.LabelManaged + "`, `true`)"
+}
+
+// NewProxyToken creates a per-server route capability with 256 bits of entropy.
+func NewProxyToken() string { return rand.Text() + rand.Text() }

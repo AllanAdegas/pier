@@ -1,7 +1,6 @@
 import { createSignal, For, Show } from "solid-js";
 import { Button, IconButton } from "../components/Button";
 import { Alert, EmptyState, QueryView } from "../components/Feedback";
-import { Checkbox, TextArea, TextInput } from "../components/Form";
 import { Modal } from "../components/Modal";
 import { CopyField, PageHeader, Section } from "../components/Page";
 import { api } from "../lib/api";
@@ -9,18 +8,22 @@ import { formatDateTime, formatRelative } from "../lib/format";
 import { createAction, createQuery } from "../lib/query";
 import { currentUser } from "../lib/state";
 import type { ApiToken, PrivateKey, User } from "../lib/types";
+import { AuditSection } from "./security/AuditSection";
 import { McpSection } from "./security/McpSection";
 import { TokenForm } from "./security/TokenForm";
+import { t } from "../i18n";
+import { Checkbox, TextArea, TextInput } from "../components/Form";
 
 export function SecurityPage() {
   const [tokensVersion, setTokensVersion] = createSignal(0);
   return (
     <div class="page">
-      <PageHeader title="Segurança" description="Chaves SSH, tokens de API, acesso de IA e quem pode entrar no painel." />
+      <PageHeader title={t("Segurança")} description={t("Chaves SSH, tokens de API, acesso de IA e quem pode entrar no painel.")} />
       <KeysSection />
       <TokensSection version={tokensVersion()} />
       <McpSection onTokenCreated={() => setTokensVersion(tokensVersion() + 1)} />
       <UsersSection />
+      <AuditSection />
     </div>
   );
 }
@@ -33,17 +36,16 @@ function KeysSection() {
   const [adding, setAdding] = createSignal(false);
   const [shown, setShown] = createSignal<PrivateKey | null>(null);
   const remove = createAction((id: string) => api.delete(`/keys/${id}`), {
-    success: "Chave removida.",
+    success: t("Chave removida."),
     onSuccess: () => void keys.refetch(),
   });
 
   return (
     <Section
-      title="Chaves SSH"
-      description="Usadas para acessar servidores e clonar repositórios privados. A chave privada nunca sai do Pier."
+      title={t("Chaves SSH")}
+      description={t("Usadas para acessar servidores e clonar repositórios privados. A chave privada nunca sai do Pier.")}
       actions={
-        <Button small icon="plus" onClick={() => setAdding(true)}>
-          Nova chave
+        <Button small icon="plus" onClick={() => setAdding(true)}>{t("Nova chave")}
         </Button>
       }
     >
@@ -52,8 +54,7 @@ function KeysSection() {
           <Show
             when={list().length > 0}
             fallback={
-              <EmptyState icon="key" title="Nenhuma chave">
-                Gere uma chave e cadastre a parte pública no servidor ou como deploy key do repositório.
+              <EmptyState icon="key" title={t("Nenhuma chave")}>{t("Gere uma chave e cadastre a parte pública no servidor ou como deploy key do repositório.")}
               </EmptyState>
             }
           >
@@ -65,10 +66,9 @@ function KeysSection() {
                       <strong class="truncate">{key.name}</strong>
                       <span class="small muted mono truncate">{key.fingerprint}</span>
                     </div>
-                    <Button small onClick={() => setShown(key)}>
-                      Ver chave pública
+                    <Button small onClick={() => setShown(key)}>{t("Ver chave pública")}
                     </Button>
-                    <IconButton icon="trash" label={`Remover ${key.name}`} onClick={() => void remove.run(key.id)} />
+                    <IconButton icon="trash" label={t("Remover {name}", { name: key.name })} onClick={() => void remove.run(key.id)} />
                   </div>
                 )}
               </For>
@@ -88,16 +88,15 @@ function KeysSection() {
       </Show>
       <Show when={shown()}>
         {(key) => (
-          <Modal title={`Chave pública — ${key().name}`} onClose={() => setShown(null)} wide>
+          <Modal title={t("Chave pública — {name}", { name: key().name })} onClose={() => setShown(null)} wide>
             <div class="stack">
               <CopyField
-                label="Chave pública"
+                label={t("Chave pública")}
                 value={key().public_key}
-                hint="Para servidores: adicione em ~/.ssh/authorized_keys. Para repositórios: cadastre como deploy key (somente leitura)."
+                hint={t("Para servidores: adicione em ~/.ssh/authorized_keys. Para repositórios: cadastre como deploy key (somente leitura).")}
               />
               <div class="form-actions">
-                <Button variant="primary" onClick={() => setShown(null)}>
-                  Concluir
+                <Button variant="primary" onClick={() => setShown(null)}>{t("Concluir")}
                 </Button>
               </div>
             </div>
@@ -114,10 +113,10 @@ function KeyForm(props: { onClose: () => void; onSaved: (key: PrivateKey) => voi
   const [privateKey, setPrivateKey] = createSignal("");
   const save = createAction(
     () => api.post<PrivateKey>("/keys", { name: name(), private_key: importing() ? privateKey() : "" }),
-    { success: "Chave salva.", onSuccess: props.onSaved },
+    { success: t("Chave salva."), onSuccess: props.onSaved },
   );
   return (
-    <Modal title="Nova chave SSH" onClose={props.onClose}>
+    <Modal title={t("Nova chave SSH")} onClose={props.onClose}>
       <form
         class="stack"
         onSubmit={(event) => {
@@ -125,29 +124,29 @@ function KeyForm(props: { onClose: () => void; onSaved: (key: PrivateKey) => voi
           void save.run();
         }}
       >
-        <TextInput label="Nome" required placeholder="deploy-producao" value={name()} onValue={setName} error={save.errors().name} />
+        <TextInput label={t("Nome")} required placeholder={t("deploy-producao")} value={name()} onValue={setName} error={save.errors().name} />
         <Checkbox
-          label="Importar uma chave existente"
-          hint="Desmarcado, o Pier gera um par ed25519 novo."
+          label={t("Importar uma chave existente")}
+          hint={t("Desmarcado, o Pier gera um par ed25519 novo.")}
           checked={importing()}
           onChange={setImporting}
         />
         <Show when={importing()}>
           <TextArea
-            label="Chave privada"
+            label={t("Chave privada")}
             mono
             rows={8}
             placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
-            hint="Chaves protegidas por senha não são suportadas."
+            hint={t("Chaves protegidas por senha não são suportadas.")}
             value={privateKey()}
             onValue={setPrivateKey}
             error={save.errors().private_key}
           />
         </Show>
         <div class="form-actions">
-          <Button onClick={props.onClose}>Cancelar</Button>
+          <Button onClick={props.onClose}>{t("Cancelar")}</Button>
           <Button type="submit" variant="primary" pending={save.pending()}>
-            {importing() ? "Importar chave" : "Gerar chave"}
+            {importing() ? t("Importar chave") : t("Gerar chave")}
           </Button>
         </div>
       </form>
@@ -163,23 +162,22 @@ function TokensSection(props: { version: number }) {
   const [adding, setAdding] = createSignal(false);
   const [created, setCreated] = createSignal<ApiToken | null>(null);
   const remove = createAction((id: string) => api.delete(`/tokens/${id}`), {
-    success: "Token revogado.",
+    success: t("Token revogado."),
     onSuccess: () => void tokens.refetch(),
   });
 
   return (
     <Section
-      title="Tokens de API"
-      description="Para automações e CI. Envie no cabeçalho Authorization: Bearer <token>."
+      title={t("Tokens de API")}
+      description={t("Para automações e CI. Envie no cabeçalho Authorization: Bearer <token>.")}
       actions={
-        <Button small icon="plus" onClick={() => setAdding(true)}>
-          Novo token
+        <Button small icon="plus" onClick={() => setAdding(true)}>{t("Novo token")}
         </Button>
       }
     >
       <QueryView query={tokens}>
         {(list) => (
-          <Show when={list().length > 0} fallback={<p class="muted">Nenhum token criado.</p>}>
+          <Show when={list().length > 0} fallback={<p class="muted">{t("Nenhum token criado.")}</p>}>
             <div class="list">
               <For each={list()}>
                 {(token) => (
@@ -187,12 +185,12 @@ function TokensSection(props: { version: number }) {
                     <div class="grow stack-sm" style={{ gap: "0" }}>
                       <strong class="truncate">{token.name}</strong>
                       <span class="small muted">
-                        {token.last_used_at ? `Usado ${formatRelative(token.last_used_at)}` : "Nunca usado"} · criado em{" "}
+                        {token.last_used_at ? t("Usado {name}", { name: formatRelative(token.last_used_at) }) : t("Nunca usado")} · criado em{" "}
                         {formatDateTime(token.created_at)}
                       </span>
                     </div>
                     <For each={token.abilities}>{(ability) => <span class="tag">{ability}</span>}</For>
-                    <IconButton icon="trash" label={`Revogar ${token.name}`} onClick={() => void remove.run(token.id)} />
+                    <IconButton icon="trash" label={t("Revogar {name}", { name: token.name })} onClick={() => void remove.run(token.id)} />
                   </div>
                 )}
               </For>
@@ -212,13 +210,12 @@ function TokensSection(props: { version: number }) {
       </Show>
       <Show when={created()}>
         {(token) => (
-          <Modal title="Token criado" onClose={() => setCreated(null)} wide>
+          <Modal title={t("Token criado")} onClose={() => setCreated(null)} wide>
             <div class="stack">
-              <Alert tone="warning">Copie o token agora. Por segurança, ele não será exibido novamente.</Alert>
+              <Alert tone="warning">{t("Copie o token agora. Por segurança, ele não será exibido novamente.")}</Alert>
               <CopyField label={token().name} value={token().secret ?? ""} />
               <div class="form-actions">
-                <Button variant="primary" onClick={() => setCreated(null)}>
-                  Já copiei
+                <Button variant="primary" onClick={() => setCreated(null)}>{t("Já copiei")}
                 </Button>
               </div>
             </div>
@@ -236,17 +233,16 @@ function UsersSection() {
   );
   const [adding, setAdding] = createSignal(false);
   const remove = createAction((id: string) => api.delete(`/users/${id}`), {
-    success: "Usuário removido.",
+    success: t("Usuário removido."),
     onSuccess: () => void users.refetch(),
   });
 
   return (
     <Section
-      title="Usuários"
-      description="Todos os usuários têm acesso total ao painel."
+      title={t("Usuários")}
+      description={t("Todos os usuários têm acesso total ao painel.")}
       actions={
-        <Button small icon="plus" onClick={() => setAdding(true)}>
-          Novo usuário
+        <Button small icon="plus" onClick={() => setAdding(true)}>{t("Novo usuário")}
         </Button>
       }
     >
@@ -262,9 +258,9 @@ function UsersSection() {
                   </div>
                   <Show
                     when={user.id !== currentUser()?.id}
-                    fallback={<span class="tag">você</span>}
+                    fallback={<span class="tag">{t("você")}</span>}
                   >
-                    <IconButton icon="trash" label={`Remover ${user.name}`} onClick={() => void remove.run(user.id)} />
+                    <IconButton icon="trash" label={t("Remover {name}", { name: user.name })} onClick={() => void remove.run(user.id)} />
                   </Show>
                 </div>
               )}
@@ -290,11 +286,11 @@ function UserForm(props: { onClose: () => void; onSaved: () => void }) {
   const [email, setEmail] = createSignal("");
   const [password, setPassword] = createSignal("");
   const save = createAction(() => api.post<User>("/users", { name: name(), email: email(), password: password() }), {
-    success: "Usuário criado.",
+    success: t("Usuário criado."),
     onSuccess: props.onSaved,
   });
   return (
-    <Modal title="Novo usuário" onClose={props.onClose}>
+    <Modal title={t("Novo usuário")} onClose={props.onClose}>
       <form
         class="stack"
         onSubmit={(event) => {
@@ -302,22 +298,21 @@ function UserForm(props: { onClose: () => void; onSaved: () => void }) {
           void save.run();
         }}
       >
-        <TextInput label="Nome" required value={name()} onValue={setName} error={save.errors().name} />
+        <TextInput label={t("Nome")} required value={name()} onValue={setName} error={save.errors().name} />
         <TextInput label="E-mail" type="email" required value={email()} onValue={setEmail} error={save.errors().email} />
         <TextInput
-          label="Senha inicial"
+          label={t("Senha inicial")}
           type="password"
           required
           autocomplete="new-password"
-          hint="Mínimo de 10 caracteres. Peça para a pessoa trocar no primeiro acesso."
+          hint={t("Mínimo de 10 caracteres. Peça para a pessoa trocar no primeiro acesso.")}
           value={password()}
           onValue={setPassword}
           error={save.errors().password}
         />
         <div class="form-actions">
-          <Button onClick={props.onClose}>Cancelar</Button>
-          <Button type="submit" variant="primary" pending={save.pending()}>
-            Criar usuário
+          <Button onClick={props.onClose}>{t("Cancelar")}</Button>
+          <Button type="submit" variant="primary" pending={save.pending()}>{t("Criar usuário")}
           </Button>
         </div>
       </form>

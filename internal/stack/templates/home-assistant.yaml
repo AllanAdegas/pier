@@ -1,55 +1,33 @@
+auth: first-visitor
 name: Home Assistant
 description: Automação residencial open source, com controle local e privacidade.
+description_en: Open source home automation, with local control and privacy.
 category: Automação
 website: https://www.home-assistant.io/installation/linux#docker-compose
-tags:
-  - home-automation
-  - iot
-  - smart-home
-  - automation
-  - domotics
-  - mqtt
-  - zigbee
-  - zwave
-routes:
-  - service: homeassistant
+services:
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:2025.10.2
     port: 8123
-compose: |
-  services:
-    homeassistant:
-      image: ghcr.io/home-assistant/home-assistant:2025.10.2
-      environment:
-        - TZ=${TZ:-UTC}
-        - DISABLE_JEMALLOC=${DISABLE_JEMALLOC:-false}
-      volumes:
-        - homeassistant-config:/config
-        - /run/dbus:/run/dbus:ro
-        - content: |-
-            # Loads default set of integrations. Do not remove.
-            default_config:
+    privileged: true
+    volumes:
+    - homeassistant-config:/config
+    - /run/dbus:/run/dbus:ro
+    - content: |-
+        # Loads default set of integrations. Do not remove.
+        default_config:
 
-            # Configuration for reverse proxy support (required behind the proxy)
-            http:
-              use_x_forwarded_for: true
-              trusted_proxies:
-                - 10.0.0.0/8
-                - 172.16.0.0/12
-                - 192.168.0.0/16
-              ip_ban_enabled: true
-              login_attempts_threshold: 5
-          source: ./configuration.yaml
-          target: /config/configuration.yaml
-          type: bind
-      healthcheck:
-        interval: 30s
-        retries: 3
-        start_period: 60s
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://localhost:8123
-        timeout: 10s
-      privileged: true
-  volumes:
-    homeassistant-config: null
+        # Configuration for reverse proxy support (required behind the proxy)
+        http:
+          use_x_forwarded_for: true
+          trusted_proxies:
+            - 10.0.0.0/8
+            - 172.16.0.0/12
+            - 192.168.0.0/16
+          ip_ban_enabled: true
+          login_attempts_threshold: 5
+      source: ./configuration.yaml
+      target: /config/configuration.yaml
+      type: bind
+    env:
+      TZ: ${TZ:-UTC}
+      DISABLE_JEMALLOC: ${DISABLE_JEMALLOC:-false}

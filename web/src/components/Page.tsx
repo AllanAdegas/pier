@@ -3,6 +3,7 @@ import { createSignal, For, Show, type JSX } from "solid-js";
 import { notify } from "../lib/state";
 import { IconButton } from "./Button";
 import { Icon } from "./Icon";
+import { t } from "../i18n";
 
 export interface Crumb {
   label: string;
@@ -19,7 +20,7 @@ export function PageHeader(props: {
   return (
     <header class="stack-sm">
       <Show when={props.crumbs?.length}>
-        <nav class="breadcrumbs" aria-label="Você está em">
+        <nav class="breadcrumbs" aria-label={t("Você está em")}>
           <For each={props.crumbs}>
             {(crumb, index) => (
               <>
@@ -98,9 +99,9 @@ export function CopyField(props: { label: string; value: string; secret?: boolea
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(props.value);
-      notify("Copiado para a área de transferência.");
+      notify(t("Copiado para a área de transferência."));
     } catch {
-      notify("Não foi possível copiar. Selecione o texto manualmente.", "danger");
+      notify(t("Não foi possível copiar. Selecione o texto manualmente."), "danger");
     }
   };
   return (
@@ -118,11 +119,11 @@ export function CopyField(props: { label: string; value: string; secret?: boolea
         <Show when={props.secret}>
           <IconButton
             icon={revealed() ? "eye-off" : "eye"}
-            label={revealed() ? "Ocultar" : "Mostrar"}
+            label={revealed() ? t("Ocultar") : t("Mostrar")}
             onClick={() => setRevealed(!revealed())}
           />
         </Show>
-        <IconButton icon="copy" label="Copiar" onClick={() => void copy()} />
+        <IconButton icon="copy" label={t("Copiar")} onClick={() => void copy()} />
       </div>
       <Show when={props.hint}>
         <span class="field-hint">{props.hint}</span>

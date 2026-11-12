@@ -16,6 +16,7 @@ func (a *API) registerProjectRoutes(mux *http.ServeMux) {
 	a.route(mux, "DELETE /api/v1/projects/{id}", canWrite, a.deleteProject)
 	a.route(mux, "POST /api/v1/projects/{id}/environments", canWrite, a.createEnvironment)
 	a.route(mux, "DELETE /api/v1/environments/{id}", canWrite, a.deleteEnvironment)
+	a.route(mux, "PATCH /api/v1/environments/{id}/protection", canWrite, a.environmentProtection)
 	a.route(mux, "GET /api/v1/environments/{id}/resources", canRead, a.environmentResources)
 }
 
@@ -65,6 +66,15 @@ func (a *API) updateProject(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (a *API) deleteProject(w http.ResponseWriter, r *http.Request) error {
+	item, err := a.Projects.Get(r.Context(), r.PathValue("id"))
+	if err != nil {
+		return err
+	}
+	for _, e := range item.Environments {
+		if err = a.Projects.CheckDestroy(r.Context(), e.ID, r.URL.Query().Get("confirmation")); err != nil {
+			return err
+		}
+	}
 	if err := a.Projects.Delete(r.Context(), r.PathValue("id")); err != nil {
 		return err
 	}
@@ -84,6 +94,9 @@ func (a *API) createEnvironment(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (a *API) deleteEnvironment(w http.ResponseWriter, r *http.Request) error {
+	if err := a.Projects.CheckDestroy(r.Context(), r.PathValue("id"), r.URL.Query().Get("confirmation")); err != nil {
+		return err
+	}
 	if err := a.Projects.DeleteEnvironment(r.Context(), r.PathValue("id")); err != nil {
 		return err
 	}
@@ -118,6 +131,29 @@ func (a *API) resources(r *http.Request, environmentID string) (resourcesRespons
 	if response.Databases, err = a.Databases.List(r.Context(), environmentID); err != nil {
 		return response, err
 	}
-	response.Stacks, err = a.Stacks.List(r.Context(), environmentID)
+	stacks, err := a.Stacks.List(r.Context(), environmentID)
+	response.Applications = allForCaller(r, response.Applications)
+	response.Stacks = allForCaller(r, stacks)
 	return response, err
+}
+
+func (a *API) environmentProtection(w http.ResponseWriter, r *http.Request) error {
+	input, err := decode[struct {
+		Protected bool   `json:"protected"`
+		Frozen    bool   `json:"frozen"`
+		Reason    string `json:"reason"`
+	}](w, r)
+	if err != nil {
+		return err
+	}
+	current, err := a.Projects.GetEnvironment(r.Context(), r.PathValue("id"))
+	if err != nil {
+		return err
+	}
+	auditSummary(r, map[string]any{"protected": input.Protected, "frozen": input.Frozen, "reason": input.Reason})
+	e, err := a.Projects.SetProtection(r.Context(), current.ID, input.Protected, input.Frozen, input.Reason)
+	if err != nil {
+		return err
+	}
+	return ok(w, e)
 }

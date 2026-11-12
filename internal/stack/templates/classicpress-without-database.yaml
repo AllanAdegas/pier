@@ -1,29 +1,10 @@
 name: ClassicPress (sem banco)
 description: CMS leve e estável baseado no WordPress, sem o editor de blocos.
+description_en: Lightweight, stable CMS based on WordPress, without the block editor.
 category: CMS
 website: https://www.classicpress.net/
-tags:
-  - cms
-  - blog
-  - content
-  - management
-routes:
-  - service: classicpress
+services:
+  classicpress:
+    image: classicpress/classicpress@sha256:4f171f959f80420fd6ef1c46ef4031dcc4f87ed1bf1c97c60d13c17bacbaaaec
     port: 80
-compose: |
-  services:
-    classicpress:
-      image: classicpress/classicpress:latest
-      volumes:
-        - classicpress-files:/var/www/html
-      healthcheck:
-        interval: 2s
-        retries: 10
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1
-        timeout: 10s
-  volumes:
-    classicpress-files: null
+    data: /var/www/html

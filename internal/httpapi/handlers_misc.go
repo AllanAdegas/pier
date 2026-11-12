@@ -8,6 +8,7 @@ import (
 
 	"pier/internal/application"
 	"pier/internal/notify"
+	"pier/internal/platform/i18n"
 	"pier/internal/server"
 	"pier/internal/settings"
 )
@@ -171,7 +172,8 @@ func (a *API) webUIHandler() http.Handler {
 			name = "index.html"
 		}
 		if _, err := fs.Stat(a.WebUI, "index.html"); err != nil {
-			http.Error(w, "A interface web não foi compilada. Rode `make web` e reinicie o Pier.", http.StatusServiceUnavailable)
+			http.Error(w, i18n.FromContext(r.Context()).Text("A interface web não foi compilada. Rode `make web` e reinicie o Pier."),
+				http.StatusServiceUnavailable)
 			return
 		}
 		if name == "index.html" {

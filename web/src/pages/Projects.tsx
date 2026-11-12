@@ -2,7 +2,6 @@ import { A, useNavigate, useParams, useSearchParams } from "@solidjs/router";
 import { createSignal, For, Show } from "solid-js";
 import { Button } from "../components/Button";
 import { EmptyState, QueryView } from "../components/Feedback";
-import { TextArea, TextInput } from "../components/Form";
 import { Icon } from "../components/Icon";
 import { ConfirmDelete, Modal } from "../components/Modal";
 import { PageHeader, Tabs } from "../components/Page";
@@ -10,6 +9,9 @@ import { resourceCount, ResourceList } from "../components/Rows";
 import { api } from "../lib/api";
 import { createAction, createQuery } from "../lib/query";
 import type { Environment, Project, Resources } from "../lib/types";
+import { Checkbox } from "../components/Form";
+import { t } from "../i18n";
+import { TextArea, TextInput } from "../components/Form";
 
 function ProjectForm(props: { project?: Project; onClose: () => void; onSaved: (project: Project) => void }) {
   const [name, setName] = createSignal(props.project?.name ?? "");
@@ -19,11 +21,11 @@ function ProjectForm(props: { project?: Project; onClose: () => void; onSaved: (
       const body = { name: name(), description: description() };
       return props.project ? api.patch<Project>(`/projects/${props.project.id}`, body) : api.post<Project>("/projects", body);
     },
-    { success: props.project ? "Projeto atualizado." : "Projeto criado.", onSuccess: props.onSaved },
+    { success: props.project ? t("Projeto atualizado.") : t("Projeto criado."), onSuccess: props.onSaved },
   );
 
   return (
-    <Modal title={props.project ? "Editar projeto" : "Novo projeto"} onClose={props.onClose}>
+    <Modal title={props.project ? t("Editar projeto") : t("Novo projeto")} onClose={props.onClose}>
       <form
         class="stack"
         onSubmit={(event) => {
@@ -31,12 +33,12 @@ function ProjectForm(props: { project?: Project; onClose: () => void; onSaved: (
           void save.run();
         }}
       >
-        <TextInput label="Nome" required value={name()} onValue={setName} error={save.errors().name} placeholder="Loja virtual" />
-        <TextArea label="Descrição" hint="Opcional." rows={3} value={description()} onValue={setDescription} />
+        <TextInput label={t("Nome")} required value={name()} onValue={setName} error={save.errors().name} placeholder={t("Loja virtual")} />
+        <TextArea label={t("Descrição")} hint={t("Opcional.")} rows={3} value={description()} onValue={setDescription} />
         <div class="form-actions">
-          <Button onClick={props.onClose}>Cancelar</Button>
+          <Button onClick={props.onClose}>{t("Cancelar")}</Button>
           <Button type="submit" variant="primary" pending={save.pending()}>
-            {props.project ? "Salvar" : "Criar projeto"}
+            {props.project ? t("Salvar") : t("Criar projeto")}
           </Button>
         </div>
       </form>
@@ -55,11 +57,10 @@ export function ProjectsPage() {
   return (
     <div class="page">
       <PageHeader
-        title="Projetos"
-        description="Cada projeto reúne os ambientes e recursos de um produto."
+        title={t("Projetos")}
+        description={t("Cada projeto reúne os ambientes e recursos de um produto.")}
         actions={
-          <Button variant="primary" icon="plus" onClick={() => setCreating(true)}>
-            Novo projeto
+          <Button variant="primary" icon="plus" onClick={() => setCreating(true)}>{t("Novo projeto")}
           </Button>
         }
       />
@@ -70,14 +71,12 @@ export function ProjectsPage() {
             fallback={
               <EmptyState
                 icon="folder"
-                title="Nenhum projeto"
+                title={t("Nenhum projeto")}
                 action={
-                  <Button variant="primary" icon="plus" onClick={() => setCreating(true)}>
-                    Criar o primeiro projeto
+                  <Button variant="primary" icon="plus" onClick={() => setCreating(true)}>{t("Criar o primeiro projeto")}
                   </Button>
                 }
-              >
-                Comece criando um projeto. Ele já vem com o ambiente “production”.
+              >{t("Comece criando um projeto. Ele já vem com o ambiente “production”.")}
               </EmptyState>
             }
           >
@@ -86,7 +85,7 @@ export function ProjectsPage() {
                 {(project) => (
                   <A href={`/projects/${project.id}`} class="card card-link stack-sm">
                     <span class="card-title truncate">{project.name}</span>
-                    <span class="small muted">{project.description || "Sem descrição."}</span>
+                    <span class="small muted">{project.description || t("Sem descrição.")}</span>
                     <div class="row" style={{ "margin-top": "var(--space-2)" }}>
                       <For each={project.environments}>{(environment) => <span class="tag">{environment.name}</span>}</For>
                     </div>
@@ -107,11 +106,11 @@ export function ProjectsPage() {
 function EnvironmentForm(props: { projectId: string; onClose: () => void; onSaved: (environment: Environment) => void }) {
   const [name, setName] = createSignal("");
   const save = createAction(() => api.post<Environment>(`/projects/${props.projectId}/environments`, { name: name() }), {
-    success: "Ambiente criado.",
+    success: t("Ambiente criado."),
     onSuccess: props.onSaved,
   });
   return (
-    <Modal title="Novo ambiente" onClose={props.onClose}>
+    <Modal title={t("Novo ambiente")} onClose={props.onClose}>
       <form
         class="stack"
         onSubmit={(event) => {
@@ -120,18 +119,17 @@ function EnvironmentForm(props: { projectId: string; onClose: () => void; onSave
         }}
       >
         <TextInput
-          label="Nome"
+          label={t("Nome")}
           required
           placeholder="staging"
-          hint="Letras minúsculas, números e hífens."
+          hint={t("Letras minúsculas, números e hífens.")}
           value={name()}
           onValue={setName}
           error={save.errors().name}
         />
         <div class="form-actions">
-          <Button onClick={props.onClose}>Cancelar</Button>
-          <Button type="submit" variant="primary" pending={save.pending()}>
-            Criar ambiente
+          <Button onClick={props.onClose}>{t("Cancelar")}</Button>
+          <Button type="submit" variant="primary" pending={save.pending()}>{t("Criar ambiente")}
           </Button>
         </div>
       </form>
@@ -153,11 +151,11 @@ export function ProjectDetailPage() {
 
   const [dialog, setDialog] = createSignal<"edit" | "delete" | "environment" | "delete-environment" | null>(null);
   const removeProject = createAction(() => api.delete(`/projects/${params.id}`), {
-    success: "Projeto removido.",
+    success: t("Projeto removido."),
     onSuccess: () => navigate("/projects"),
   });
-  const removeEnvironment = createAction(() => api.delete(`/environments/${environmentId()}`), {
-    success: "Ambiente removido.",
+  const removeEnvironment = createAction(() => api.delete(`/environments/${environmentId()}?confirmation=${encodeURIComponent(environment()?.name ?? "")}`), {
+    success: t("Ambiente removido."),
     onSuccess: () => {
       setDialog(null);
       setSearch({ env: undefined });
@@ -172,18 +170,16 @@ export function ProjectDetailPage() {
         {(data) => (
           <>
             <PageHeader
-              crumbs={[{ label: "Projetos", href: "/projects" }, { label: data().name }]}
+              crumbs={[{ label: t("Projetos"), href: "/projects" }, { label: data().name }]}
               title={data().name}
               description={data().description || undefined}
               actions={
                 <>
-                  <Button onClick={() => setDialog("edit")}>Editar</Button>
-                  <Button icon="trash" onClick={() => setDialog("delete")}>
-                    Remover
+                  <Button onClick={() => setDialog("edit")}>{t("Editar")}</Button>
+                  <Button icon="trash" onClick={() => setDialog("delete")}>{t("Remover")}
                   </Button>
                   <A href={newResourceHref()} class="btn btn-primary">
-                    <Icon name="plus" size={16} />
-                    Novo recurso
+                    <Icon name="plus" size={16} />{t("Novo recurso")}
                   </A>
                 </>
               }
@@ -198,17 +194,16 @@ export function ProjectDetailPage() {
                 />
               </div>
               <div class="row">
-                <Button small icon="plus" onClick={() => setDialog("environment")}>
-                  Ambiente
+                <Button small icon="plus" onClick={() => setDialog("environment")}>{t("Ambiente")}
                 </Button>
                 <Show when={data().environments.length > 1}>
-                  <Button small variant="ghost" icon="trash" onClick={() => setDialog("delete-environment")}>
-                    Remover ambiente
+                  <Button small variant="ghost" icon="trash" onClick={() => setDialog("delete-environment")}>{t("Remover ambiente")}
                   </Button>
                 </Show>
               </div>
             </div>
 
+            <Show when={environment()}>{(env) => <EnvironmentProtection environment={env()} onSaved={() => void project.refetch()} />}</Show>
             <QueryView query={resources}>
               {(items) => (
                 <Show
@@ -216,16 +211,13 @@ export function ProjectDetailPage() {
                   fallback={
                     <EmptyState
                       icon="box"
-                      title={`Nenhum recurso em “${environment()?.name ?? ""}”`}
+                      title={t("Nenhum recurso em “{name}”", { name: environment()?.name ?? "" })}
                       action={
                         <A href={newResourceHref()} class="btn btn-primary">
-                          <Icon name="plus" size={16} />
-                          Adicionar recurso
+                          <Icon name="plus" size={16} />{t("Adicionar recurso")}
                         </A>
                       }
-                    >
-                      Implante uma aplicação a partir de um repositório Git ou imagem Docker, suba um banco de dados ou
-                      escolha um serviço pronto no catálogo.
+                    >{t("Implante uma aplicação a partir de um repositório Git ou imagem Docker, suba um banco de dados ou escolha um serviço pronto no catálogo.")}
                     </EmptyState>
                   }
                 >
@@ -257,9 +249,9 @@ export function ProjectDetailPage() {
             </Show>
             <Show when={dialog() === "delete"}>
               <ConfirmDelete
-                title="Remover projeto"
+                title={t("Remover projeto")}
                 resourceName={data().name}
-                description="O projeto e seus ambientes serão apagados. Só é possível remover projetos sem recursos."
+                description={t("O projeto e seus ambientes serão apagados. Só é possível remover projetos sem recursos.")}
                 pending={removeProject.pending()}
                 onConfirm={() => void removeProject.run()}
                 onClose={() => setDialog(null)}
@@ -267,9 +259,9 @@ export function ProjectDetailPage() {
             </Show>
             <Show when={dialog() === "delete-environment" && environment()}>
               <ConfirmDelete
-                title="Remover ambiente"
+                title={t("Remover ambiente")}
                 resourceName={environment()!.name}
-                description="O ambiente será apagado. Só é possível remover ambientes sem recursos."
+                description={t("O ambiente será apagado. Só é possível remover ambientes sem recursos.")}
                 pending={removeEnvironment.pending()}
                 onConfirm={() => void removeEnvironment.run()}
                 onClose={() => setDialog(null)}
@@ -280,4 +272,15 @@ export function ProjectDetailPage() {
       </QueryView>
     </div>
   );
+}
+
+function EnvironmentProtection(props: {environment: Environment; onSaved: () => void}) {
+ const [reason,setReason]=createSignal("");
+ const save=createAction((protectedFlag:boolean,frozen:boolean)=>api.patch(`/environments/${props.environment.id}/protection`,{protected:protectedFlag,frozen,reason:reason()}),{success:t("Proteções atualizadas."),onSuccess:()=>{setReason("");props.onSaved();}});
+ return <section class="card stack">
+ <h2>{t("Proteções do ambiente")}</h2>
+ <Checkbox label={t("Proteger remoções")} checked={props.environment.protected} onChange={(v)=>void save.run(v,props.environment.frozen)} />
+ <Checkbox label={t("Congelar deploys")} checked={props.environment.frozen} onChange={(v)=>void save.run(props.environment.protected,v)} />
+ <Show when={props.environment.frozen}><TextInput label={t("Justificativa para descongelar")} value={reason()} onValue={setReason} hint={t("Ao descongelar, a justificativa fica registrada na auditoria.")} /></Show>
+ </section>;
 }

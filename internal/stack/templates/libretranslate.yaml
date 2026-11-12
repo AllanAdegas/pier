@@ -1,28 +1,16 @@
 name: LibreTranslate
 description: API de tradução automática livre e auto-hospedada.
+description_en: Free, self-hosted machine translation API.
 category: IA
 website: https://libretranslate.com/docs/
-tags:
-  - translate
-  - api
-routes:
-  - service: libretranslate
+services:
+  libretranslate:
+    image: libretranslate/libretranslate:v1.9.6
     port: 5000
-compose: |
-  services:
-    libretranslate:
-      image: libretranslate/libretranslate:latest
-      environment:
-        - LT_SSL=${LT_SSL:-true}
-        - LT_UPDATE_MODELS=${LT_UPDATE_MODELS:-true}
-        - LT_LOAD_ONLY=${LT_LOAD_ONLY:-en,es,fr,de,ja}
-      volumes:
-        - libretranslate-api-keys:/app/db
-        - libretranslate-models:/home/libretranslate/.local
-      healthcheck:
-        test:
-          - CMD-SHELL
-          - ./venv/bin/python scripts/healthcheck.py
-  volumes:
-    libretranslate-api-keys: null
-    libretranslate-models: null
+    volumes:
+    - libretranslate-api-keys:/app/db
+    - libretranslate-models:/home/libretranslate/.local
+    env:
+      LT_SSL: ${LT_SSL:-true}
+      LT_UPDATE_MODELS: ${LT_UPDATE_MODELS:-true}
+      LT_LOAD_ONLY: ${LT_LOAD_ONLY:-en,es,fr,de,ja}

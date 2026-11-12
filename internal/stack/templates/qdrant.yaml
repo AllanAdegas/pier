@@ -1,32 +1,12 @@
 name: Qdrant
 description: Motor de busca por similaridade vetorial, pronto para produção.
+description_en: Production-ready vector similarity search engine.
 category: Dados
 website: https://qdrant.tech/documentation/
-tags:
-  - ai
-  - vector-database
-  - semantic-search
-  - machine-learning
-  - bm25
-  - embeddings
-  - llm
-routes:
-  - service: qdrant
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.20.0
     port: 6333
-compose: |
-  services:
-    qdrant:
-      image: qdrant/qdrant:latest
-      environment:
-        - QDRANT__SERVICE__API_KEY=${PIER_PASSWORD_QDRANTAPIKEY}
-      volumes:
-        - qdrant-storage:/qdrant/storage
-      healthcheck:
-        interval: 5s
-        retries: 3
-        test:
-          - CMD-SHELL
-          - bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1
-        timeout: 5s
-  volumes:
-    qdrant-storage: null
+    data: /qdrant/storage
+    env:
+      QDRANT__SERVICE__API_KEY: ${PIER_PASSWORD_QDRANTAPIKEY}

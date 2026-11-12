@@ -22,7 +22,7 @@ import (
 type fakeConnector struct{ ex *executor.Fake }
 
 func (f fakeConnector) Executor(context.Context, string) (executor.Executor, server.Server, error) {
-	return f.ex, server.Server{ID: "srv1", Kind: server.KindLocal, DataDir: "/data/pier"}, nil
+	return f.ex, server.Server{ID: "srv1", ProxyToken: "persisted-test-token", Kind: server.KindLocal, DataDir: "/data/pier"}, nil
 }
 
 func newService(t *testing.T) (*Service, *executor.Fake) {
@@ -186,6 +186,8 @@ func TestDeployingADirectoryStackLeavesTheFolderUntouched(t *testing.T) {
 	service, fake := newService(t)
 	fake.Files[folder+"/compose.yaml"] = []byte(folderCompose)
 	fake.On("config --services", "web\nworker\nmetrics", 0)
+	fake.On("config --format json", `{"services":{"web":{"image":"nginx:alpine"}}}`, 0)
+	fake.On("docker image inspect", "null", 0)
 	input := directoryInput()
 	input.Env = map[string]string{"LOG_LEVEL": "debug"}
 	stack, err := service.Create(ctx, input)
@@ -309,14 +311,19 @@ func TestDeployWritesTheFilesATemplateCarriesButKeepsEditedOnes(t *testing.T) {
 	}
 	own := "/data/pier/stacks/" + stack.ID
 	// Nothing exists yet on the first deployment.
-	fake.On("test -e", "", 1)
+	fake.On("test -e", "", 0)
 	if err := service.Deploy(ctx, stack.ID); err != nil {
 		t.Fatalf("Deploy: %v", err)
 	}
 	if snapshot := waitOperation(t, service, stack.ID); snapshot.Error != "" {
 		t.Fatalf("deploy failed: %s", snapshot.Error)
 	}
-	script := string(fake.Files[own+"/etc/entrypoint.sh"])
+	script := ""
+	for command, input := range fake.Inputs {
+		if strings.Contains(command, "entrypoint.sh") {
+			script = string(input)
+		}
+	}
 	if !strings.HasPrefix(script, "#!/usr/bin/env sh") || !strings.Contains(script, `"$USERNAME"`) {
 		t.Errorf("the entrypoint must be written verbatim:\n%s", script)
 	}
@@ -427,6 +434,8 @@ func TestDeployWarnsWhenTheProxyIsStopped(t *testing.T) {
 	ctx := context.Background()
 	for _, running := range []bool{false, true} {
 		service, fake := newService(t)
+		fake.On("config --format json", `{"services":{"whoami":{"image":"traefik/whoami"}}}`, 0)
+		fake.On("docker image inspect", "null", 0)
 		if running {
 			fake.On("docker inspect --format", "true", 0)
 		} else {

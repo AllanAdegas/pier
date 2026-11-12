@@ -1,90 +1,42 @@
 name: Firefly III
 description: Gestor de finanças pessoais.
+description_en: Personal finance manager.
 category: Finanças
 website: https://firefly-iii.org
-tags:
-  - finance
-  - money
-  - personal
-  - manager
-routes:
-  - service: firefly
+services:
+  cron:
+    image: alpine:3.24.4
+    entrypoint:
+    - /entrypoint.sh
+    volumes:
+    - content: |-
+        #!/bin/sh
+        # Substitute the environment variable into the cron command
+        CRON_COMMAND="0 3 * * * wget -qO- http://firefly:8080/api/v1/cron/${STATIC_CRON_TOKEN}"
+        # Add the cron command to the crontab
+        echo "$CRON_COMMAND" | crontab -
+        # Start the cron daemon in the foreground with logging to stdout
+        crond -f -L /dev/stdout
+      source: ./entrypoint.sh
+      target: /entrypoint.sh
+      type: bind
+    env:
+      STATIC_CRON_TOKEN: $PIER_PASSWORD_CRONTOKEN
+  firefly:
+    image: fireflyiii/core:version-6.7.9
     port: 8080
-compose: |
-  services:
-    cron:
-      image: alpine
-      entrypoint:
-        - /entrypoint.sh
-      environment:
-        - STATIC_CRON_TOKEN=$PIER_PASSWORD_CRONTOKEN
-      volumes:
-        - content: |-
-            #!/bin/sh
-            # Substitute the environment variable into the cron command
-            CRON_COMMAND="0 3 * * * wget -qO- http://firefly:8080/api/v1/cron/${STATIC_CRON_TOKEN}"
-            # Add the cron command to the crontab
-            echo "$CRON_COMMAND" | crontab -
-            # Start the cron daemon in the foreground with logging to stdout
-            crond -f -L /dev/stdout
-          source: ./entrypoint.sh
-          target: /entrypoint.sh
-          type: bind
-      healthcheck:
-        interval: 30s
-        retries: 3
-        start_period: 40s
-        test:
-          - CMD-SHELL
-          - ls /entrypoint.sh || exit 1
-        timeout: 10s
-    firefly:
-      image: fireflyiii/core:latest
-      environment:
-        - APP_KEY=$PIER_PASSWORD_APPKEY
-        - DB_HOST=mysql
-        - DB_PORT=3306
-        - DB_CONNECTION=mysql
-        - DB_DATABASE=${MYSQL_DATABASE:-firefly}
-        - DB_USERNAME=$PIER_USER_MYSQL
-        - DB_PASSWORD=$PIER_PASSWORD_MYSQL
-        - STATIC_CRON_TOKEN=$PIER_PASSWORD_CRONTOKEN
-        - TRUSTED_PROXIES=*
-      volumes:
-        - firefly-upload:/var/www/html/storage/upload
-      depends_on:
-        mysql:
-          condition: service_healthy
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:8080/health
-        timeout: 20s
-    mysql:
-      image: mariadb:11
-      environment:
-        - MYSQL_USER=${PIER_USER_MYSQL}
-        - MYSQL_PASSWORD=${PIER_PASSWORD_MYSQL}
-        - MYSQL_DATABASE=${MYSQL_DATABASE:-firefly}
-        - MYSQL_ROOT_PASSWORD=${PIER_PASSWORD_MYSQLROOT}
-      volumes:
-        - firefly-mysql-data:/var/lib/mysql
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - mariadb-admin
-          - ping
-          - -h
-          - 127.0.0.1
-          - -uroot
-          - -p${PIER_PASSWORD_MYSQLROOT}
-        timeout: 20s
-  volumes:
-    firefly-mysql-data: null
-    firefly-upload: null
+    data: /var/www/html/storage/upload
+    env:
+      APP_KEY: $PIER_PASSWORD_APPKEY
+      DB_HOST: mysql
+      DB_PORT: '3306'
+      DB_CONNECTION: mysql
+      DB_DATABASE: '{{mysql.database}}'
+      DB_USERNAME: '{{mysql.user}}'
+      DB_PASSWORD: '{{mysql.password}}'
+      STATIC_CRON_TOKEN: $PIER_PASSWORD_CRONTOKEN
+      TRUSTED_PROXIES: '*'
+with:
+  mysql:
+    kind: mariadb
+    database: firefly

@@ -3,8 +3,10 @@ package schedule
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/robfig/cron/v3"
@@ -14,6 +16,7 @@ import (
 	"pier/internal/notify"
 	"pier/internal/platform/apperr"
 	"pier/internal/platform/executor"
+	"pier/internal/platform/i18n"
 	"pier/internal/platform/idgen"
 	"pier/internal/platform/sqlite"
 	"pier/internal/server"
@@ -57,6 +60,7 @@ type TaskExecution struct {
 // Applications resolves the application a task belongs to.
 type Applications interface {
 	Get(ctx context.Context, id string) (application.Application, error)
+	OutputSecrets(ctx context.Context, id string) ([]string, error)
 }
 
 // Connector reaches the server an application runs on.
@@ -71,11 +75,13 @@ type TaskService struct {
 	connector Connector
 	events    notify.Publisher
 	onChange  func()
+	mu        sync.Mutex
+	running   map[string]bool
 }
 
 // NewTaskService creates the service.
 func NewTaskService(db *sql.DB, apps Applications, connector Connector, events notify.Publisher) *TaskService {
-	return &TaskService{db: db, apps: apps, connector: connector, events: events, onChange: func() {}}
+	return &TaskService{db: db, apps: apps, connector: connector, events: events, onChange: func() {}, running: make(map[string]bool)}
 }
 
 // OnChange registers the callback fired when the set of tasks changes.
@@ -147,8 +153,21 @@ func (s *TaskService) Delete(ctx context.Context, id string) error {
 }
 
 // Executions returns the latest runs of a task.
-func (s *TaskService) Executions(ctx context.Context, taskID string) ([]TaskExecution, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, task_id, status, output, started_at, finished_at
+func (s *TaskService) Executions(ctx context.Context, taskID string, raw ...bool) ([]TaskExecution, error) {
+	allowRaw := len(raw) > 0 && raw[0]
+	var redactor application.OutputRedactor
+	if !allowRaw {
+		task, err := s.get(ctx, taskID)
+		if err != nil {
+			return nil, err
+		}
+		values, err := s.apps.OutputSecrets(ctx, task.ApplicationID)
+		if err != nil {
+			return nil, err
+		}
+		redactor.Redact(values...)
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT id, task_id, status, output, output_masked, started_at, finished_at
 		FROM task_executions WHERE task_id = ? ORDER BY started_at DESC LIMIT ?`, taskID, keptExecutions)
 	if err != nil {
 		return nil, err
@@ -158,11 +177,16 @@ func (s *TaskService) Executions(ctx context.Context, taskID string) ([]TaskExec
 	for rows.Next() {
 		var execution TaskExecution
 		var startedAt string
+		var outputMasked bool
 		var finishedAt sql.NullString
-		if err := rows.Scan(&execution.ID, &execution.TaskID, &execution.Status, &execution.Output,
+		if err := rows.Scan(&execution.ID, &execution.TaskID, &execution.Status, &execution.Output, &outputMasked,
 			&startedAt, &finishedAt); err != nil {
 			return nil, err
 		}
+		if !allowRaw && !outputMasked && execution.Output != "" {
+			execution.Output = "••••••"
+		}
+		execution.Output = redactor.Mask(execution.Output)
 		execution.StartedAt = sqlite.ParseTime(startedAt)
 		execution.FinishedAt = sqlite.ParseOptionalTime(finishedAt)
 		executions = append(executions, execution)
@@ -172,35 +196,52 @@ func (s *TaskService) Executions(ctx context.Context, taskID string) ([]TaskExec
 
 // Run executes a task now and records the outcome.
 func (s *TaskService) Run(ctx context.Context, taskID string) (TaskExecution, error) {
+	s.mu.Lock()
+	if s.running[taskID] {
+		s.mu.Unlock()
+		return TaskExecution{}, apperr.Conflict("Esta tarefa já está em execução. Aguarde a conclusão.")
+	}
+	s.running[taskID] = true
+	s.mu.Unlock()
+	defer func() { s.mu.Lock(); delete(s.running, taskID); s.mu.Unlock() }()
 	task, err := s.get(ctx, taskID)
 	if err != nil {
 		return TaskExecution{}, err
 	}
+	values, err := s.apps.OutputSecrets(ctx, task.ApplicationID)
+	if err != nil {
+		return TaskExecution{}, err
+	}
+	var redactor application.OutputRedactor
+	redactor.Redact(values...)
 	execution := TaskExecution{ID: idgen.New(), TaskID: taskID, Status: "running", StartedAt: time.Now()}
-	if _, err := s.db.ExecContext(ctx, `INSERT INTO task_executions (id, task_id, status, started_at) VALUES (?, ?, ?, ?)`,
+	if _, err := s.db.ExecContext(ctx, `INSERT INTO task_executions (id, task_id, status, started_at, output_masked) VALUES (?, ?, ?, ?, 1)`,
 		execution.ID, taskID, execution.Status, sqlite.FormatTime(execution.StartedAt)); err != nil {
 		return TaskExecution{}, err
 	}
 	runCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), taskTimeout)
 	defer cancel()
-	output, runErr := s.execute(runCtx, task)
+	output, runErr := s.execute(runCtx, task, &redactor)
 	finishedAt := time.Now()
 	execution.Status, execution.Output, execution.FinishedAt = "succeeded", output, &finishedAt
 	if runErr != nil {
 		execution.Status = "failed"
-		execution.Output = strings.TrimSpace(output + "\n" + runErr.Error())
+		execution.Output = redactor.Mask(strings.TrimSpace(output + "\n" + i18n.Localize(runErr, i18n.Instance())))
 		s.events.Publish(notify.Event{
 			Type: notify.TaskFailed, Resource: task.Name,
-			Title: "Tarefa agendada falhou: " + task.Name, Message: tailBytes(execution.Output, 1500),
+			Title:   i18n.Instance().Sprintf("Tarefa agendada falhou: %s", task.Name),
+			Message: tailBytes(execution.Output, 1500),
 		})
 	}
-	_, err = s.db.ExecContext(runCtx, `UPDATE task_executions SET status = ?, output = ?, finished_at = ? WHERE id = ?`,
+	persistCtx, stopPersist := context.WithTimeout(context.WithoutCancel(runCtx), 5*time.Second)
+	defer stopPersist()
+	_, err = s.db.ExecContext(persistCtx, `UPDATE task_executions SET status = ?, output = ?, finished_at = ? WHERE id = ?`,
 		execution.Status, execution.Output, sqlite.FormatTime(finishedAt), execution.ID)
-	s.trimHistory(runCtx, taskID)
+	s.trimHistory(persistCtx, taskID)
 	return execution, err
 }
 
-func (s *TaskService) execute(ctx context.Context, task Task) (string, error) {
+func (s *TaskService) execute(ctx context.Context, task Task, redactor *application.OutputRedactor) (string, error) {
 	app, err := s.apps.Get(ctx, task.ApplicationID)
 	if err != nil {
 		return "", err
@@ -217,15 +258,33 @@ func (s *TaskService) execute(ctx context.Context, task Task) (string, error) {
 		if container.State != "running" {
 			continue
 		}
+		values, err := docker.Inspect(ctx, ex, container.ID, "{{json .Config.Env}}")
+		if err != nil {
+			return "", err
+		}
+		var environment []string
+		if err := json.Unmarshal([]byte(values), &environment); err != nil {
+			return "", i18n.Errorf("não foi possível ler o ambiente do container para mascarar a saída da tarefa")
+		}
+		for _, entry := range environment {
+			if _, value, ok := strings.Cut(entry, "="); ok {
+				redactor.Redact(value)
+			}
+		}
 		var output strings.Builder
-		err := ex.Stream(ctx, docker.Exec(container.ID, task.Command), func(line string) {
-			if output.Len() < maxTaskOutputBytes {
-				output.WriteString(line + "\n")
+		err = ex.Stream(ctx, docker.Exec(container.ID, task.Command), func(line string) {
+			line = redactor.Mask(line) + "\n"
+			remaining := maxTaskOutputBytes - output.Len()
+			if remaining > 0 {
+				if len(line) > remaining {
+					line = line[:remaining]
+				}
+				output.WriteString(line)
 			}
 		})
 		return strings.TrimSpace(output.String()), err
 	}
-	return "", errors.New("a aplicação não tem container em execução")
+	return "", i18n.Errorf("a aplicação não tem container em execução")
 }
 
 func (s *TaskService) trimHistory(ctx context.Context, taskID string) {

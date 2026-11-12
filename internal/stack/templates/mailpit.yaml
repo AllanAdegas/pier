@@ -1,18 +1,13 @@
 name: Mailpit
 description: Caixa de e-mail de testes — captura mensagens SMTP (porta 1025) e as exibe na web.
+description_en: 'Testing mailbox: captures SMTP messages (port 1025) and shows them on the web.'
 category: Desenvolvimento
 website: https://mailpit.axllent.org
 verified: true
-routes:
-  - service: mailpit
+services:
+  mailpit:
+    image: axllent/mailpit:v1.33.1
     port: 8025
-compose: |
-  services:
-    mailpit:
-      image: axllent/mailpit:latest
-      volumes:
-        - data:/data
-      environment:
-        MP_DATABASE: /data/mailpit.db
-  volumes:
-    data:
+    data: /data
+    env:
+      MP_DATABASE: /data/mailpit.db

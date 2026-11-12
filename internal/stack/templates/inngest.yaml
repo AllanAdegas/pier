@@ -1,74 +1,20 @@
 name: Inngest
 description: Motor de workflows duráveis para jobs, filas e tarefas agendadas.
+description_en: Durable workflow engine for jobs, queues and scheduled tasks.
 category: Automação
 website: https://www.inngest.com/docs/self-hosting
-tags:
-  - queue
-  - workflow
-  - jobs
-  - events
-  - background
-  - automation
-routes:
-  - service: inngest
+services:
+  inngest:
+    image: inngest/inngest:v1.27.0
     port: 8288
-compose: |
-  services:
-    inngest:
-      image: inngest/inngest:v1.27.0
-      command: inngest start --host 0.0.0.0
-      restart: unless-stopped
-      environment:
-        - INNGEST_EVENT_KEY=${PIER_HEX_32_EVENTKEY}
-        - INNGEST_SIGNING_KEY=${PIER_HEX_32_SIGNINGKEY}
-        - INNGEST_POSTGRES_URI=postgres://inngest:${PIER_PASSWORD_POSTGRES}@postgres:5432/inngest
-        - INNGEST_REDIS_URI=redis://redis:6379
-      depends_on:
-        postgres:
-          condition: service_healthy
-        redis:
-          condition: service_healthy
-      healthcheck:
-        interval: 30s
-        retries: 3
-        start_period: 40s
-        test:
-          - CMD
-          - inngest
-          - alpha
-          - doctor
-          - healthcheck
-        timeout: 10s
-    postgres:
-      image: postgres:17
-      restart: unless-stopped
-      environment:
-        - POSTGRES_DB=inngest
-        - POSTGRES_USER=inngest
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
-      volumes:
-        - postgres-data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 5s
-        retries: 5
-        test:
-          - CMD-SHELL
-          - pg_isready -U inngest -d inngest
-        timeout: 5s
-    redis:
-      image: redis:7-alpine
-      command: redis-server --appendonly yes
-      restart: unless-stopped
-      volumes:
-        - redis-data:/data
-      healthcheck:
-        interval: 5s
-        retries: 5
-        test:
-          - CMD
-          - redis-cli
-          - ping
-        timeout: 3s
-  volumes:
-    postgres-data: null
-    redis-data: null
+    command: inngest start --host 0.0.0.0
+    env:
+      INNGEST_EVENT_KEY: ${PIER_HEX_32_EVENTKEY}
+      INNGEST_SIGNING_KEY: ${PIER_HEX_32_SIGNINGKEY}
+      INNGEST_POSTGRES_URI: postgres://inngest:{{postgres.password}}@postgres:5432/inngest
+      INNGEST_REDIS_URI: redis://redis:6379
+with:
+  postgres:
+    user: inngest
+    database: inngest
+  redis: {}

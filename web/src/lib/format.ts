@@ -1,4 +1,6 @@
-// Presentation helpers: dates, sizes and the Portuguese labels of statuses.
+import { locale, t } from "../i18n";
+// Presentation helpers: dates, sizes and the labels of statuses.
+
 
 export type Tone = "neutral" | "success" | "warning" | "danger" | "info";
 
@@ -9,39 +11,39 @@ export interface StatusView {
 }
 
 const RESOURCE_STATUS: Record<string, StatusView> = {
-  running: { label: "Em execução", tone: "success" },
-  starting: { label: "Iniciando", tone: "info", pulse: true },
-  unhealthy: { label: "Não saudável", tone: "danger" },
-  restarting: { label: "Reiniciando em loop", tone: "danger", pulse: true },
-  degraded: { label: "Parcialmente no ar", tone: "warning" },
-  stopped: { label: "Parado", tone: "neutral" },
+  running: { label: t("Em execução"), tone: "success" },
+  starting: { label: t("Iniciando"), tone: "info", pulse: true },
+  unhealthy: { label: t("Não saudável"), tone: "danger" },
+  restarting: { label: t("Reiniciando em loop"), tone: "danger", pulse: true },
+  degraded: { label: t("Parcialmente no ar"), tone: "warning" },
+  stopped: { label: t("Parado"), tone: "neutral" },
 };
 
 const DEPLOYMENT_STATUS: Record<string, StatusView> = {
-  queued: { label: "Na fila", tone: "info", pulse: true },
-  in_progress: { label: "Em andamento", tone: "info", pulse: true },
-  finished: { label: "Concluído", tone: "success" },
-  failed: { label: "Falhou", tone: "danger" },
-  cancelled: { label: "Cancelado", tone: "neutral" },
+  queued: { label: t("Na fila"), tone: "info", pulse: true },
+  in_progress: { label: t("Em andamento"), tone: "info", pulse: true },
+  finished: { label: t("Concluído"), tone: "success" },
+  failed: { label: t("Falhou"), tone: "danger" },
+  cancelled: { label: t("Cancelado"), tone: "neutral" },
 };
 
 const SERVER_STATUS: Record<string, StatusView> = {
-  reachable: { label: "Acessível", tone: "success" },
-  unreachable: { label: "Inacessível", tone: "danger" },
-  unknown: { label: "Não verificado", tone: "neutral" },
+  reachable: { label: t("Acessível"), tone: "success" },
+  unreachable: { label: t("Inacessível"), tone: "danger" },
+  unknown: { label: t("Não verificado"), tone: "neutral" },
 };
 
 const BACKUP_STATUS: Record<string, StatusView> = {
-  running: { label: "Em andamento", tone: "info", pulse: true },
-  succeeded: { label: "Concluído", tone: "success" },
-  failed: { label: "Falhou", tone: "danger" },
+  running: { label: t("Em andamento"), tone: "info", pulse: true },
+  succeeded: { label: t("Concluído"), tone: "success" },
+  failed: { label: t("Falhou"), tone: "danger" },
 };
 
 const CLUSTER_STATUS: Record<string, StatusView> = {
-  ready: { label: "Pronto", tone: "success" },
-  provisioning: { label: "Criando", tone: "info", pulse: true },
-  unreachable: { label: "Inacessível", tone: "danger" },
-  unknown: { label: "Não verificado", tone: "neutral" },
+  ready: { label: t("Pronto"), tone: "success" },
+  provisioning: { label: t("Criando"), tone: "info", pulse: true },
+  unreachable: { label: t("Inacessível"), tone: "danger" },
+  unknown: { label: t("Não verificado"), tone: "neutral" },
 };
 
 const KUBE_HEALTH: Record<string, Tone> = { ok: "success", progressing: "info", error: "danger" };
@@ -64,7 +66,7 @@ export function containerStatus(container: { state: string; status: string }): S
   return { label: container.status, tone: "success" };
 }
 
-const unknownStatus = (status: string): StatusView => ({ label: status || "Desconhecido", tone: "neutral" });
+const unknownStatus = (status: string): StatusView => ({ label: status || t("Desconhecido"), tone: "neutral" });
 
 export const resourceStatus = (status: string) => RESOURCE_STATUS[status] ?? unknownStatus(status);
 export const deploymentStatus = (status: string) => DEPLOYMENT_STATUS[status] ?? unknownStatus(status);
@@ -77,18 +79,20 @@ export const TRIGGER_LABEL: Record<string, string> = {
   webhook: "Webhook",
   api: "API",
   rollback: "Rollback",
-  scheduled: "Agendado",
+  scheduled: t("Agendado"),
+  archive: t("Pasta local (pierctl up)"),
+  promotion: t("Promoção"),
 };
 
 export const BUILD_PACK_LABEL: Record<string, string> = {
   dockerfile: "Dockerfile",
   nixpacks: "Nixpacks",
-  static: "Site estático",
-  image: "Imagem Docker",
+  static: t("Site estático"),
+  image: t("Imagem Docker"),
 };
 
-const dateTime = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
-const relative = new Intl.RelativeTimeFormat("pt-BR", { numeric: "auto" });
+const dateTime = new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short" });
+const relative = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
 
 export function formatDateTime(value: string | null | undefined): string {
   if (!value) {

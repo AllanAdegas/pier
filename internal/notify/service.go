@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"pier/internal/platform/apperr"
+	"pier/internal/platform/httpclient"
+	"pier/internal/platform/i18n"
 	"pier/internal/platform/idgen"
 	"pier/internal/platform/secretbox"
 	"pier/internal/platform/sqlite"
@@ -30,7 +32,7 @@ type Service struct {
 
 // NewService creates the service.
 func NewService(db *sql.DB, box *secretbox.Box, logger *slog.Logger) *Service {
-	client := &http.Client{Timeout: deliveryTimeout}
+	client := &http.Client{Timeout: deliveryTimeout, CheckRedirect: httpclient.SameOrigin}
 	return &Service{db: db, box: box, senders: defaultSenders(client), logger: logger}
 }
 
@@ -66,8 +68,8 @@ func (s *Service) Test(ctx context.Context, id string) error {
 		return err
 	}
 	event := Event{
-		Type: TestMessage, Title: "Pier — teste de notificação",
-		Message:    "Se você está lendo isto, o canal \"" + channel.Name + "\" está funcionando.",
+		Type: TestMessage, Title: i18n.Instance().Text("Pier — teste de notificação"),
+		Message:    i18n.Instance().Sprintf("Se você está lendo isto, o canal %q está funcionando.", channel.Name),
 		OccurredAt: time.Now(),
 	}
 	if err := s.deliver(ctx, channel, event); err != nil {

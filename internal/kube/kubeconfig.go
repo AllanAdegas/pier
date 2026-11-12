@@ -9,12 +9,12 @@ package kube
 
 import (
 	"encoding/base64"
-	"errors"
-	"fmt"
 	"net/url"
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"pier/internal/platform/i18n"
 )
 
 // Config is everything needed to reach and authenticate to one cluster.
@@ -33,7 +33,7 @@ type Config struct {
 
 // ErrUnsupportedAuth means the kubeconfig authenticates in a way Pier cannot
 // reproduce on its own (an external command or files on someone's disk).
-var ErrUnsupportedAuth = errors.New("autenticação do kubeconfig não suportada")
+var ErrUnsupportedAuth = i18n.Errorf("autenticação do kubeconfig não suportada")
 
 type kubeconfigFile struct {
 	CurrentContext string `yaml:"current-context"`
@@ -80,7 +80,7 @@ type kubeconfigFile struct {
 func ParseKubeconfig(data []byte, contextName string) (Config, error) {
 	var file kubeconfigFile
 	if err := yaml.Unmarshal(data, &file); err != nil {
-		return Config{}, fmt.Errorf("o kubeconfig não é um YAML válido: %w", err)
+		return Config{}, i18n.Errorf("o kubeconfig não é um YAML válido: %w", err)
 	}
 	if contextName == "" {
 		contextName = file.CurrentContext
@@ -95,7 +95,7 @@ func ParseKubeconfig(data []byte, contextName string) (Config, error) {
 		}
 	}
 	if clusterName == "" {
-		return Config{}, fmt.Errorf("contexto %q não encontrado no kubeconfig", contextName)
+		return Config{}, i18n.Errorf("contexto %q não encontrado no kubeconfig", contextName)
 	}
 
 	var config Config
@@ -104,7 +104,7 @@ func ParseKubeconfig(data []byte, contextName string) (Config, error) {
 			continue
 		}
 		if entry.Cluster.CertificateAuthority != "" && entry.Cluster.CertificateAuthorityData == "" {
-			return Config{}, fmt.Errorf("%w: o certificado da CA aponta para um arquivo local; "+
+			return Config{}, i18n.Errorf("%w: o certificado da CA aponta para um arquivo local; "+
 				"gere o kubeconfig com os dados embutidos (kubectl config view --flatten --minify)", ErrUnsupportedAuth)
 		}
 		caData, err := decode(entry.Cluster.CertificateAuthorityData, "certificate-authority-data")
@@ -116,7 +116,7 @@ func ParseKubeconfig(data []byte, contextName string) (Config, error) {
 		config.Insecure = entry.Cluster.InsecureSkipTLSVerify
 	}
 	if parsed, err := url.Parse(config.Server); err != nil || parsed.Host == "" || (parsed.Scheme != "https" && parsed.Scheme != "http") {
-		return Config{}, fmt.Errorf("endereço do cluster ausente ou inválido no kubeconfig")
+		return Config{}, i18n.Errorf("endereço do cluster ausente ou inválido no kubeconfig")
 	}
 
 	for _, entry := range file.Users {
@@ -125,12 +125,12 @@ func ParseKubeconfig(data []byte, contextName string) (Config, error) {
 		}
 		user := entry.User
 		if user.Exec != nil || user.AuthProvider != nil {
-			return Config{}, fmt.Errorf("%w: o usuário autentica por um comando externo (exec/auth-provider), "+
+			return Config{}, i18n.Errorf("%w: o usuário autentica por um comando externo (exec/auth-provider), "+
 				"comum em GKE, EKS e AKS. Crie uma ServiceAccount com token e use um kubeconfig com esse token", ErrUnsupportedAuth)
 		}
 		if user.TokenFile != "" || (user.ClientCertificate != "" && user.ClientCertificateData == "") ||
 			(user.ClientKey != "" && user.ClientKeyData == "") {
-			return Config{}, fmt.Errorf("%w: as credenciais apontam para arquivos locais; "+
+			return Config{}, i18n.Errorf("%w: as credenciais apontam para arquivos locais; "+
 				"gere o kubeconfig com os dados embutidos (kubectl config view --flatten --minify)", ErrUnsupportedAuth)
 		}
 		cert, err := decode(user.ClientCertificateData, "client-certificate-data")
@@ -145,7 +145,7 @@ func ParseKubeconfig(data []byte, contextName string) (Config, error) {
 		config.Token, config.Username, config.Password = user.Token, user.Username, user.Password
 	}
 	if len(config.ClientCert) == 0 && config.Token == "" && config.Username == "" {
-		return Config{}, fmt.Errorf("o kubeconfig não traz credenciais (certificado de cliente, token ou usuário e senha)")
+		return Config{}, i18n.Errorf("o kubeconfig não traz credenciais (certificado de cliente, token ou usuário e senha)")
 	}
 	return config, nil
 }
@@ -154,7 +154,7 @@ func ParseKubeconfig(data []byte, contextName string) (Config, error) {
 func Contexts(data []byte) (names []string, current string, err error) {
 	var file kubeconfigFile
 	if err := yaml.Unmarshal(data, &file); err != nil {
-		return nil, "", fmt.Errorf("o kubeconfig não é um YAML válido: %w", err)
+		return nil, "", i18n.Errorf("o kubeconfig não é um YAML válido: %w", err)
 	}
 	for _, context := range file.Contexts {
 		names = append(names, context.Name)
@@ -167,7 +167,7 @@ func Contexts(data []byte) (names []string, current string, err error) {
 func RewriteServer(data []byte, server string) ([]byte, error) {
 	var document map[string]any
 	if err := yaml.Unmarshal(data, &document); err != nil {
-		return nil, fmt.Errorf("o kubeconfig não é um YAML válido: %w", err)
+		return nil, i18n.Errorf("o kubeconfig não é um YAML válido: %w", err)
 	}
 	clusters, _ := document["clusters"].([]any)
 	for _, entry := range clusters {
@@ -185,7 +185,7 @@ func decode(encoded, field string) ([]byte, error) {
 	}
 	decoded, err := base64.StdEncoding.DecodeString(strings.TrimSpace(encoded))
 	if err != nil {
-		return nil, fmt.Errorf("o campo %s do kubeconfig não é base64 válido", field)
+		return nil, i18n.Errorf("o campo %s do kubeconfig não é base64 válido", field)
 	}
 	return decoded, nil
 }

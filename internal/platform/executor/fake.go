@@ -16,6 +16,7 @@ type Fake struct {
 	responses []fakeResponse
 	Commands  []string
 	Files     map[string][]byte
+	Inputs    map[string][]byte
 }
 
 type fakeResponse struct {
@@ -25,7 +26,7 @@ type fakeResponse struct {
 }
 
 // NewFake creates a fake where every unmatched command succeeds silently.
-func NewFake() *Fake { return &Fake{Files: make(map[string][]byte)} }
+func NewFake() *Fake { return &Fake{Files: make(map[string][]byte), Inputs: make(map[string][]byte)} }
 
 // On registers the output and exit code for commands containing match.
 // Later registrations win, so tests can override defaults.
@@ -84,7 +85,10 @@ func (f *Fake) find(command string) fakeResponse {
 }
 
 // WriteFile implements Executor.
-func (f *Fake) WriteFile(_ context.Context, path string, content []byte, _ os.FileMode) error {
+func (f *Fake) WriteFile(ctx context.Context, path string, content []byte, _ os.FileMode) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.Files[path] = bytes.Clone(content)
@@ -92,12 +96,42 @@ func (f *Fake) WriteFile(_ context.Context, path string, content []byte, _ os.Fi
 }
 
 // ReadFile implements Executor.
-func (f *Fake) ReadFile(_ context.Context, path string) (io.ReadCloser, error) {
+func (f *Fake) ReadFile(ctx context.Context, path string) (io.ReadCloser, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	content, ok := f.Files[path]
 	if !ok {
 		return nil, fmt.Errorf("open %s: %w", path, os.ErrNotExist)
 	}
-	return io.NopCloser(bytes.NewReader(content)), nil
+	if len(content) > MaxFileBytes {
+		return nil, ErrFileTooLarge
+	}
+	return newFileReader(ctx, io.NopCloser(bytes.NewReader(content)), MaxFileBytes), nil
+}
+
+// RunInput captures stdin separately from command arguments.
+func (f *Fake) RunInput(ctx context.Context, command string, content []byte) (string, error) {
+	f.mu.Lock()
+	f.Inputs[command] = bytes.Clone(content)
+	f.mu.Unlock()
+	_, err := f.Run(ctx, command)
+	f.mu.Lock()
+	output := f.find(command).output
+	f.mu.Unlock()
+	return output, err
+}
+func (f *Fake) WriteFileExclusive(ctx context.Context, path string, content []byte, mode os.FileMode) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if _, exists := f.Files[path]; exists {
+		return os.ErrExist
+	}
+	f.Files[path] = bytes.Clone(content)
+	return nil
 }

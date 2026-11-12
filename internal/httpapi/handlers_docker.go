@@ -9,9 +9,10 @@ import (
 
 // registerDockerRoutes exposes the plain Docker objects of a server.
 //
-// Listings need "read". Anything that reveals what runs inside a container
-// (inspect shows its environment; logs show its output) is sensitive, since
-// here the container may belong to something Pier knows nothing about.
+// Listings need "read" and leave out command lines, which often carry
+// passwords. Anything that reveals what runs inside a container (inspect
+// shows its environment; logs show its output) is sensitive, since here the
+// container may belong to something Pier knows nothing about.
 func (a *API) registerDockerRoutes(mux *http.ServeMux) {
 	const base = "/api/v1/servers/{id}/docker"
 	a.route(mux, "GET "+base+"/containers", canRead, a.dockerContainers)
@@ -38,7 +39,7 @@ func (a *API) dockerContainers(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return ok(w, containers)
+	return ok(w, allForCaller(r, containers))
 }
 
 func (a *API) dockerRun(w http.ResponseWriter, r *http.Request) error {

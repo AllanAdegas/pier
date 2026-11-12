@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"pier/internal/platform/i18n"
 )
 
 // The block of the Caddyfile that Pier owns. Everything outside the markers
@@ -70,7 +72,7 @@ func replaceEdgeBlock(caddyfile, block string) (string, error) {
 		after := caddyfile[end+len(edgeBlockEnd):]
 		outside = strings.TrimRight(caddyfile[:start], "\n") + "\n" + strings.TrimLeft(after, "\n")
 	default:
-		return "", fmt.Errorf("o Caddyfile tem as marcações do Pier incompletas ou fora de ordem; " +
+		return "", i18n.Errorf("o Caddyfile tem as marcações do Pier incompletas ou fora de ordem; " +
 			"corrija ou apague o bloco “# >>> pier … # <<< pier” à mão")
 	}
 	outside = strings.TrimRight(outside, "\n") + "\n"

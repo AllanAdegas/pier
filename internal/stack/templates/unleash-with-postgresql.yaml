@@ -1,56 +1,21 @@
 name: Unleash com PostgreSQL
 description: Gestão de feature flags open source.
+description_en: Open source feature flag management.
 category: Desenvolvimento
 website: https://docs.getunleash.io
-tags:
-  - unleash
-  - feature flags
-  - feature toggles
-  - ab testing
-  - open source
-routes:
-  - service: unleash
+services:
+  unleash:
+    image: unleashorg/unleash-server:8.3.1
     port: 4242
-compose: |
-  services:
-    postgres:
-      image: postgres:15
-      environment:
-        - POSTGRES_USER=$PIER_USER_POSTGRES
-        - POSTGRES_PASSWORD=$PIER_PASSWORD_POSTGRES
-        - POSTGRES_DB=db
-      volumes:
-        - postgresql-data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 2s
-        retries: 5
-        start_period: 10s
-        test:
-          - CMD
-          - pg_isready
-          - --username=$PIER_USER_POSTGRES
-          - --host=127.0.0.1
-          - --port=5432
-          - --dbname=db
-        timeout: 1m
-    unleash:
-      image: unleashorg/unleash-server:latest
-      environment:
-        - UNLEASH_URL=${PIER_URL_UNLEASH}
-        - UNLEASH_DEFAULT_ADMIN_PASSWORD=${PIER_PASSWORD_UNLEASH}
-        - DATABASE_URL=postgres://$PIER_USER_POSTGRES:$PIER_PASSWORD_POSTGRES@postgres/db
-        - DATABASE_SSL=false
-        - LOG_LEVEL=warn
-        - INIT_FRONTEND_API_TOKENS=default:default:development.unleash-insecure-frontend-api-token
-        - INIT_CLIENT_API_TOKENS=default:development.unleash-insecure-api-token
-      depends_on:
-        postgres:
-          condition: service_healthy
-      healthcheck:
-        interval: 1s
-        retries: 5
-        start_period: 15s
-        test: wget --no-verbose --tries=1 --spider http://127.0.0.1:4242/health || exit 1
-        timeout: 1m
-  volumes:
-    postgresql-data: null
+    env:
+      UNLEASH_URL: ${PIER_URL_UNLEASH}
+      UNLEASH_DEFAULT_ADMIN_PASSWORD: ${PIER_PASSWORD_UNLEASH}
+      DATABASE_URL: postgres://{{postgres.user}}:{{postgres.password}}@postgres/db
+      DATABASE_SSL: 'false'
+      LOG_LEVEL: warn
+      INIT_FRONTEND_API_TOKENS: default:default:development.${PIER_HEX_FRONTENDTOKEN}
+      INIT_CLIENT_API_TOKENS: default:development.${PIER_HEX_CLIENTTOKEN}
+with:
+  postgres:
+    version: '15'
+    database: db

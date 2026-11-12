@@ -1,30 +1,19 @@
 name: GoWA
 description: API de WhatsApp em Go, com baixo uso de memória.
+description_en: WhatsApp API in Go, with low memory use.
 category: Mensageria
 website: https://github.com/aldinokemal/go-whatsapp-web-multidevice
-tags:
-  - whatsapp
-  - golang
-  - multidevice
-  - api
-  - go-whatsapp
-routes:
-  - service: gowa
+services:
+  gowa:
+    image: aldinokemal2104/go-whatsapp-web-multidevice:v9.9.0
     port: 3000
-compose: |
-  services:
-    gowa:
-      image: aldinokemal2104/go-whatsapp-web-multidevice:latest
-      environment:
-        - PIER_USER_GOWA
-        - PIER_PASSWORD_GOWA
-        - APP_BASIC_AUTH=${PIER_USER_GOWA}:${PIER_PASSWORD_GOWA}
-        - APP_PORT=3000
-        - APP_DEBUG=${APP_DEBUG:-false}
-        - APP_ACCOUNT_VALIDATION=${APP_ACCOUNT_VALIDATION:-false}
-        - WHATSAPP_WEBHOOK=${WHATSAPP_WEBHOOK}
-        - WHATSAPP_WEBHOOK_SECRET=${WHATSAPP_WEBHOOK_SECRET}
-      volumes:
-        - gowa_data:/app/storages
-  volumes:
-    gowa_data: null
+    data: /app/storages
+    env:
+      PIER_USER_GOWA: ''
+      PIER_PASSWORD_GOWA: ''
+      APP_BASIC_AUTH: ${PIER_USER_GOWA}:${PIER_PASSWORD_GOWA}
+      APP_PORT: '3000'
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_ACCOUNT_VALIDATION: ${APP_ACCOUNT_VALIDATION:-false}
+      WHATSAPP_WEBHOOK: ${WHATSAPP_WEBHOOK}
+      WHATSAPP_WEBHOOK_SECRET: ${WHATSAPP_WEBHOOK_SECRET}

@@ -1,26 +1,10 @@
 name: GoatCounter
 description: Analytics web leve.
+description_en: Lightweight web analytics.
 category: Analytics
 website: https://www.goatcounter.com/help
-tags:
-  - analytics
-  - insights
-  - privacy
-routes:
-  - service: goatcounter
+services:
+  goatcounter:
+    image: arp242/goatcounter:2.7
     port: 8080
-compose: |
-  services:
-    goatcounter:
-      image: arp242/goatcounter:2.7
-      volumes:
-        - goatcounter-data:/home/goatcounter/goatcounter-data
-      healthcheck:
-        interval: 10s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - wget -qO- http://127.0.0.1:8080/status >/dev/null 2>&1 || exit 1
-        timeout: 5s
-  volumes:
-    goatcounter-data: null
+    data: /home/goatcounter/goatcounter-data

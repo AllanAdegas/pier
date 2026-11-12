@@ -1,32 +1,12 @@
 name: TriliumNext Notes
 description: Construa a sua base de conhecimento pessoal.
+description_en: Build your personal knowledge base.
 category: Produtividade
 website: https://github.com/TriliumNext/Trilium
-tags:
-  - self-hosted
-  - notes
-  - todo
-  - organize
-  - markdown
-  - wiki
-routes:
-  - service: triliumnext
+services:
+  triliumnext:
+    image: ghcr.io/triliumnext/trilium:v0.107.0
     port: 8080
-compose: |
-  services:
-    triliumnext:
-      image: ghcr.io/triliumnext/trilium:stable
-      environment:
-        - TZ=${TZ:-Europe/Berlin}
-      volumes:
-        - triliumnext_data:/home/node/trilium-data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD
-          - node
-          - /usr/src/app/docker_healthcheck.cjs
-        timeout: 20s
-  volumes:
-    triliumnext_data: null
+    data: /home/node/trilium-data
+    env:
+      TZ: ${TZ:-Europe/Berlin}

@@ -1,35 +1,15 @@
+auth: none
 name: Chroma
 description: Banco open source de busca e recuperação para aplicações de IA.
+description_en: Open source search and retrieval database for AI applications.
 category: IA
 website: https://cookbook.chromadb.dev/
-tags:
-  - ai
-  - vector-database
-  - semantic-search
-  - machine-learning
-  - bm25
-  - embeddings
-  - llm
-routes:
-  - service: chromadb
+services:
+  chromadb:
+    image: chromadb/chroma:1.0.15
+    private: true
     port: 8000
-compose: |
-  services:
-    chromadb:
-      image: chromadb/chroma:1.0.15
-      environment:
-        - IS_PERSISTENT=TRUE
-        - PERSIST_DIRECTORY=/data
-      volumes:
-        - chroma-data:/data
-      healthcheck:
-        interval: 30s
-        retries: 3
-        test:
-          - CMD
-          - /bin/bash
-          - -c
-          - cat < /dev/null > /dev/tcp/localhost/8000
-        timeout: 10s
-  volumes:
-    chroma-data: null
+    data: /data
+    env:
+      IS_PERSISTENT: 'TRUE'
+      PERSIST_DIRECTORY: /data

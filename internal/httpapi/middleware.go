@@ -1,8 +1,8 @@
 package httpapi
 
 import (
+	"container/list"
 	"context"
-	"net"
 	"net/http"
 	"runtime/debug"
 	"strings"
@@ -37,16 +37,17 @@ func (a *API) authenticate(required access, next http.Handler) http.Handler {
 			a.writeError(w, r, err)
 			return
 		}
+		auditActor(r, principal)
 		if required.sessionOnly && principal.ViaToken {
 			a.writeError(w, r, apperr.Forbidden("Esta operação exige login no painel."))
 			return
 		}
 		if !principal.Can(required.ability) {
-			a.writeError(w, r, apperr.Forbidden("O token não tem a permissão \""+string(required.ability)+"\"."))
+			a.writeError(w, r, apperr.Forbidden("O token não tem a permissão %q.", string(required.ability)))
 			return
 		}
 		if !principal.ViaToken && r.Method != http.MethodGet && r.Header.Get(clientHeader) == "" {
-			a.writeError(w, r, apperr.Forbidden("Cabeçalho "+clientHeader+" ausente."))
+			a.writeError(w, r, apperr.Forbidden("Cabeçalho %s ausente.", clientHeader))
 			return
 		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), contextKey{}, principal)))
@@ -67,25 +68,26 @@ func (a *API) resolvePrincipal(r *http.Request) (identity.Principal, error) {
 func (a *API) setSessionCookie(w http.ResponseWriter, r *http.Request, token string) {
 	http.SetCookie(w, &http.Cookie{
 		Name: sessionCookie, Value: token, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode,
-		Secure: isHTTPS(r), MaxAge: int(a.SessionTTL.Seconds()),
+		Secure: a.CookieSecure || a.proxies.isHTTPS(r), MaxAge: int(a.SessionTTL.Seconds()),
 	})
 }
 
-func clearSessionCookie(w http.ResponseWriter, r *http.Request) {
+func (a *API) clearSessionCookie(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name: sessionCookie, Value: "", Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode,
-		Secure: isHTTPS(r), MaxAge: -1,
+		Secure: a.CookieSecure || a.proxies.isHTTPS(r), MaxAge: -1,
 	})
-}
-
-func isHTTPS(r *http.Request) bool {
-	return r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")
 }
 
 func (a *API) securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		header := w.Header()
 		header.Set("X-Content-Type-Options", "nosniff")
+		if a.Settings != nil {
+			if current, err := a.Settings.Get(r.Context()); err == nil && strings.HasPrefix(current.PublicURL, "https://") {
+				header.Set("Strict-Transport-Security", "max-age=31536000")
+			}
+		}
 		header.Set("X-Frame-Options", "DENY")
 		header.Set("Referrer-Policy", "same-origin")
 		header.Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; "+
@@ -102,9 +104,7 @@ func (a *API) recoverPanics(next http.Handler) http.Handler {
 					panic(recovered)
 				}
 				a.Logger.Error("panic in handler", "path", r.URL.Path, "panic", recovered, "stack", string(debug.Stack()))
-				writeJSON(w, http.StatusInternalServerError, errorBody{Error: errorDetail{
-					Code: "internal_error", Message: "Erro interno. Consulte os logs do Pier.",
-				}})
+				writeInternalError(w, r)
 			}
 		}()
 		next.ServeHTTP(w, r)
@@ -113,12 +113,24 @@ func (a *API) recoverPanics(next http.Handler) http.Handler {
 
 type statusRecorder struct {
 	http.ResponseWriter
-	status int
+	status    int
+	committed bool
 }
 
 func (s *statusRecorder) WriteHeader(status int) {
+	if s.committed {
+		return
+	}
+	s.committed = true
 	s.status = status
 	s.ResponseWriter.WriteHeader(status)
+}
+
+func (s *statusRecorder) Write(p []byte) (int, error) {
+	if !s.committed {
+		s.WriteHeader(http.StatusOK)
+	}
+	return s.ResponseWriter.Write(p)
 }
 
 // Unwrap lets http.ResponseController reach Flush on the real writer (SSE).
@@ -142,54 +154,70 @@ func (a *API) logRequests(next http.Handler) http.Handler {
 	})
 }
 
-// rateLimiter is a fixed-window counter per client address.
+// rateLimiter bounds memory and does constant work per request. The FIFO order
+// is also reset-time order: windows never move on access. Eviction removes the
+// oldest window when full; expiration is checked lazily, without a map sweep.
+const maxLimiterKeys = 4096
+
 type rateLimiter struct {
 	limit  int
 	window time.Duration
 	mu     sync.Mutex
 	hits   map[string]*windowCount
+	order  *list.List
+	now    func() time.Time
 }
-
 type windowCount struct {
 	count   int
 	resetAt time.Time
+	element *list.Element
 }
 
 func newRateLimiter(limit int, window time.Duration) *rateLimiter {
-	return &rateLimiter{limit: limit, window: window, hits: make(map[string]*windowCount)}
+	return &rateLimiter{limit: limit, window: window, hits: make(map[string]*windowCount), order: list.New(), now: time.Now}
 }
-
+func (l *rateLimiter) remove(key string) {
+	if entry := l.hits[key]; entry != nil {
+		l.order.Remove(entry.element)
+		delete(l.hits, key)
+	}
+}
+func (l *rateLimiter) reset(key string) { l.mu.Lock(); defer l.mu.Unlock(); l.remove(key) }
 func (l *rateLimiter) allow(key string) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	now := time.Now()
-	for candidate, entry := range l.hits {
-		if now.After(entry.resetAt) {
-			delete(l.hits, candidate)
-		}
+	now := l.now()
+	entry := l.hits[key]
+	if entry != nil && !now.Before(entry.resetAt) {
+		l.remove(key)
+		entry = nil
 	}
-	entry, exists := l.hits[key]
-	if !exists {
-		l.hits[key] = &windowCount{count: 1, resetAt: now.Add(l.window)}
-		return true
+	if entry == nil {
+		if len(l.hits) >= maxLimiterKeys {
+			l.remove(l.order.Front().Value.(string))
+		}
+		entry = &windowCount{resetAt: now.Add(l.window), element: l.order.PushBack(key)}
+		l.hits[key] = entry
+	}
+	if entry.count >= l.limit {
+		return false
 	}
 	entry.count++
-	return entry.count <= l.limit
+	return true
 }
 
-// clientAddress returns the caller's IP. Forwarding headers are only trusted
-// when the direct peer is a local proxy.
-func clientAddress(r *http.Request) string {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		host = r.RemoteAddr
-	}
-	peer := net.ParseIP(host)
-	if peer != nil && (peer.IsLoopback() || peer.IsPrivate()) {
-		if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-			first, _, _ := strings.Cut(forwarded, ",")
-			return strings.TrimSpace(first)
+// requestReadDeadline limits body reads without a write timeout on streams.
+func requestReadDeadline(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			budget := 30 * time.Second
+			if strings.HasSuffix(r.URL.Path, "/deploy-archive") {
+				budget = 10 * time.Minute
+			}
+			controller := http.NewResponseController(w)
+			_ = controller.SetReadDeadline(time.Now().Add(budget))
+			defer controller.SetReadDeadline(time.Time{})
 		}
-	}
-	return host
+		next.ServeHTTP(w, r)
+	})
 }

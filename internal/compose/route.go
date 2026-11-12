@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"pier/internal/platform/i18n"
 )
 
 var pathPattern = regexp.MustCompile(`^(/[A-Za-z0-9._~-]+)+$`)
@@ -26,30 +28,30 @@ type Route struct {
 func ParseRoute(raw string) (Route, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		return Route{}, fmt.Errorf("domínio vazio")
+		return Route{}, i18n.Errorf("domínio vazio")
 	}
 	if !strings.Contains(raw, "://") {
 		raw = "https://" + raw
 	}
 	parsed, err := url.Parse(raw)
 	if err != nil {
-		return Route{}, fmt.Errorf("URL inválida")
+		return Route{}, i18n.Errorf("URL inválida")
 	}
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return Route{}, fmt.Errorf("use http:// ou https://")
+		return Route{}, i18n.Errorf("use http:// ou https://")
 	}
 	if parsed.Port() != "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
-		return Route{}, fmt.Errorf("informe apenas esquema, host e caminho (sem porta ou query)")
+		return Route{}, i18n.Errorf("informe apenas esquema, host e caminho (sem porta ou query)")
 	}
 	host := strings.ToLower(parsed.Hostname())
 	if len(host) > 253 || !hostnamePattern.MatchString(host) {
-		return Route{}, fmt.Errorf("host inválido")
+		return Route{}, i18n.Errorf("host inválido")
 	}
 	// The decoded path is validated against an allowlist: it is interpolated
 	// into a Traefik rule, so nothing outside plain URL segments may pass.
 	path := strings.TrimSuffix(parsed.Path, "/")
 	if path != "" && !pathPattern.MatchString(path) {
-		return Route{}, fmt.Errorf("caminho inválido: use apenas letras, números, '-', '_', '.' e '/'")
+		return Route{}, i18n.Errorf("caminho inválido: use apenas letras, números, '-', '_', '.' e '/'")
 	}
 	return Route{Scheme: parsed.Scheme, Host: host, Path: path}, nil
 }

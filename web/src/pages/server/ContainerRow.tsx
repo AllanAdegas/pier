@@ -5,12 +5,13 @@ import { StatusBadge } from "../../components/Feedback";
 import { containerStatus } from "../../lib/format";
 import type { Action } from "../../lib/query";
 import type { DockerContainer } from "../../lib/types";
+import { t } from "../../i18n";
 
 export type ContainerDialog = { kind: "run" } | { kind: "logs" | "inspect" | "exec" | "remove"; container: DockerContainer };
 
 const OWNER_LABEL: Record<string, string> = {
-  application: "aplicação",
-  database: "banco",
+  application: t("aplicação"),
+  database: t("banco"),
   stack: "stack",
   proxy: "proxy",
   cluster: "cluster",
@@ -68,7 +69,7 @@ function ContainerRow(props: {
           fallback={
             <IconButton
               icon="play"
-              label={`Iniciar ${props.container.name}`}
+              label={t("Iniciar {name}", { name: props.container.name })}
               pending={props.act.pending()}
               onClick={() => void props.act.run(props.container, "start")}
             />
@@ -76,35 +77,35 @@ function ContainerRow(props: {
         >
           <IconButton
             icon="refresh"
-            label={`Reiniciar ${props.container.name}`}
+            label={t("Reiniciar {name}", { name: props.container.name })}
             pending={props.act.pending()}
             onClick={() => void props.act.run(props.container, "restart")}
           />
           <IconButton
             icon="stop"
-            label={`Parar ${props.container.name}`}
+            label={t("Parar {name}", { name: props.container.name })}
             pending={props.act.pending()}
             onClick={() => void props.act.run(props.container, "stop")}
           />
         </Show>
         <IconButton
           icon="lines"
-          label={`Logs de ${props.container.name}`}
+          label={t("Logs de {name}", { name: props.container.name })}
           onClick={() => props.onDialog({ kind: "logs", container: props.container })}
         />
         <IconButton
           icon="eye"
-          label={`Inspecionar ${props.container.name}`}
+          label={t("Inspecionar {name}", { name: props.container.name })}
           onClick={() => props.onDialog({ kind: "inspect", container: props.container })}
         />
         <IconButton
           icon="terminal"
-          label={`Executar comando em ${props.container.name}`}
+          label={t("Executar comando em {name}", { name: props.container.name })}
           onClick={() => props.onDialog({ kind: "exec", container: props.container })}
         />
         <IconButton
           icon="trash"
-          label={props.container.managed ? "Gerenciado pelo Pier: remova pelo recurso" : `Remover ${props.container.name}`}
+          label={props.container.managed ? t("Gerenciado pelo Pier: remova pelo recurso") : t("Remover {name}", { name: props.container.name })}
           disabled={props.container.managed}
           onClick={() => props.onDialog({ kind: "remove", container: props.container })}
         />

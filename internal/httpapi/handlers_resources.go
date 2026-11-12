@@ -9,12 +9,57 @@ import (
 	"pier/internal/database"
 	"pier/internal/envvar"
 	"pier/internal/platform/apperr"
+	"pier/internal/platform/i18n"
+	"pier/internal/settings"
 	"pier/internal/stack"
 )
 
 func (a *API) registerDatabaseRoutes(mux *http.ServeMux) {
-	a.route(mux, "GET /api/v1/database-engines", canRead, func(w http.ResponseWriter, _ *http.Request) error {
-		return ok(w, database.Engines())
+	a.route(mux, "GET /api/v1/settings/backup-s3", canWrite, func(w http.ResponseWriter, r *http.Request) error {
+		value, err := a.Databases.S3Settings(r.Context())
+		if err != nil {
+			return err
+		}
+		return ok(w, value)
+	})
+	a.route(mux, "PATCH /api/v1/settings/backup-s3", canWrite, func(w http.ResponseWriter, r *http.Request) error {
+		value, err := decode[settings.S3Settings](w, r)
+		if err != nil {
+			return err
+		}
+		if err := a.Databases.UpdateS3Settings(r.Context(), value); err != nil {
+			return err
+		}
+		return noContent(w)
+	})
+	a.route(mux, "POST /api/v1/backups/{id}/restore", canWrite, func(w http.ResponseWriter, r *http.Request) error {
+		input, err := decode[database.RestoreInput](w, r)
+		if err != nil {
+			return err
+		}
+		op, err := a.Databases.StartRestore(r.Context(), r.PathValue("id"), input)
+		if err != nil {
+			return err
+		}
+		return accepted(w, op)
+	})
+	a.route(mux, "POST /api/v1/databases/{id}/restore-tests", canWrite, func(w http.ResponseWriter, r *http.Request) error {
+		op, err := a.Databases.StartRestoreTest(r.Context(), r.PathValue("id"))
+		if err != nil {
+			return err
+		}
+		return accepted(w, op)
+	})
+	a.route(mux, "GET /api/v1/databases/{id}/operations", canRead, func(w http.ResponseWriter, r *http.Request) error {
+		ops, err := a.Databases.ListOperations(r.Context(), r.PathValue("id"))
+		if err != nil {
+			return err
+		}
+		return ok(w, ops)
+	})
+
+	a.route(mux, "GET /api/v1/database-engines", canRead, func(w http.ResponseWriter, r *http.Request) error {
+		return ok(w, database.Engines(i18n.FromContext(r.Context())))
 	})
 	a.route(mux, "GET /api/v1/databases", canRead, a.listDatabases)
 	a.route(mux, "POST /api/v1/databases", canWrite, a.createDatabase)
@@ -89,7 +134,14 @@ func (a *API) updateDatabase(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (a *API) deleteDatabase(w http.ResponseWriter, r *http.Request) error {
-	err := a.Databases.Delete(r.Context(), r.PathValue("id"), queryFlag(r, "volumes"), queryFlag(r, "force"))
+	database, err := a.Databases.Get(r.Context(), r.PathValue("id"))
+	if err != nil {
+		return err
+	}
+	if err := a.checkDestroy(r, database.EnvironmentID); err != nil {
+		return err
+	}
+	err = a.Databases.Delete(r.Context(), r.PathValue("id"), queryFlag(r, "volumes"), queryFlag(r, "force"))
 	if err != nil {
 		return err
 	}
@@ -194,14 +246,15 @@ func (a *API) registerStackRoutes(mux *http.ServeMux) {
 
 // listStackTemplates returns the catalog without the compose files: with
 // hundreds of templates the full payload would be megabytes.
-func (a *API) listStackTemplates(w http.ResponseWriter, _ *http.Request) error {
+func (a *API) listStackTemplates(w http.ResponseWriter, r *http.Request) error {
 	templates, err := stack.Templates()
 	if err != nil {
 		return err
 	}
+	language := i18n.FromContext(r.Context())
 	summaries := make([]stack.Template, len(templates))
 	for index, template := range templates {
-		summaries[index] = template.Summary()
+		summaries[index] = template.Localized(language).Summary()
 	}
 	return ok(w, summaries)
 }
@@ -211,7 +264,7 @@ func (a *API) getStackTemplate(w http.ResponseWriter, r *http.Request) error {
 	if !found {
 		return apperr.NotFound("Template")
 	}
-	return ok(w, template)
+	return ok(w, template.Localized(i18n.FromContext(r.Context())))
 }
 
 func (a *API) listStacks(w http.ResponseWriter, r *http.Request) error {
@@ -219,7 +272,7 @@ func (a *API) listStacks(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return ok(w, stacks)
+	return ok(w, allForCaller(r, stacks))
 }
 
 func (a *API) getStack(w http.ResponseWriter, r *http.Request) error {
@@ -227,7 +280,7 @@ func (a *API) getStack(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return ok(w, item)
+	return ok(w, forCaller(r, item))
 }
 
 func (a *API) createStack(w http.ResponseWriter, r *http.Request) error {
@@ -258,7 +311,14 @@ func (a *API) updateStack(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (a *API) deleteStack(w http.ResponseWriter, r *http.Request) error {
-	err := a.Stacks.Delete(r.Context(), r.PathValue("id"), queryFlag(r, "volumes"), queryFlag(r, "force"))
+	stack, err := a.Stacks.Get(r.Context(), r.PathValue("id"))
+	if err != nil {
+		return err
+	}
+	if err := a.checkDestroy(r, stack.EnvironmentID); err != nil {
+		return err
+	}
+	err = a.Stacks.Delete(r.Context(), r.PathValue("id"), queryFlag(r, "volumes"), queryFlag(r, "force"))
 	if err != nil {
 		return err
 	}
@@ -320,11 +380,12 @@ func (a *API) stackSource(w http.ResponseWriter, r *http.Request) error {
 	return ok(w, source)
 }
 
-// stackVariables lists names and defaults only, never stored values.
+// stackVariables lists names and defaults only, never stored values. The
+// defaults are left out for callers without access to secrets.
 func (a *API) stackVariables(w http.ResponseWriter, r *http.Request) error {
 	variables, err := a.Stacks.Variables(r.Context(), r.PathValue("id"))
 	if err != nil {
 		return err
 	}
-	return ok(w, variables)
+	return ok(w, allForCaller(r, variables))
 }

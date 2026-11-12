@@ -18,6 +18,8 @@ import { ServerDetailPage, ServersPage } from "./pages/Servers";
 import { SettingsPage } from "./pages/Settings";
 import { StackPage } from "./pages/StackPage";
 import { NotFoundPage } from "./pages/NotFound";
+import { MonitoringPage } from "./pages/Monitoring";
+import { t } from "./i18n";
 
 export function App() {
   onMount(() => {
@@ -28,7 +30,7 @@ export function App() {
 
   return (
     <>
-      <Switch fallback={<div class="splash">Carregando o Pier…</div>}>
+      <Switch fallback={<div class="splash">{t("Carregando o Pier…")}</div>}>
         <Match when={phase() === "setup"}>
           <SetupPage />
         </Match>
@@ -47,6 +49,7 @@ export function App() {
             <Route path="/deployments" component={DeploymentsPage} />
             <Route path="/deployments/:id" component={DeploymentPage} />
             <Route path="/servers" component={ServersPage} />
+            <Route path="/monitoring" component={MonitoringPage} />
             <Route path="/servers/:id" component={ServerDetailPage} />
             <Route path="/clusters" component={ClustersPage} />
             <Route path="/clusters/:id" component={ClusterPage} />

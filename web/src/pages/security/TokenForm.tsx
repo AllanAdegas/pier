@@ -1,15 +1,16 @@
 import { createSignal, For, Show } from "solid-js";
 import { Button } from "../../components/Button";
-import { Checkbox, TextInput } from "../../components/Form";
 import { Modal } from "../../components/Modal";
 import { api } from "../../lib/api";
 import { createAction } from "../../lib/query";
 import type { Ability, ApiToken } from "../../lib/types";
+import { t } from "../../i18n";
+import { Checkbox, TextInput } from "../../components/Form";
 
 const ABILITIES: { value: Ability; label: string; hint: string }[] = [
-  { value: "read", label: "Leitura", hint: "Consultar recursos, deploys e logs. Não lê variáveis, credenciais nem backups." },
-  { value: "deploy", label: "Deploy", hint: "Implantar, reiniciar, parar e disparar backups." },
-  { value: "write", label: "Escrita", hint: "Tudo: criar, alterar e remover recursos, e ler segredos." },
+  { value: "read", label: t("Leitura"), hint: t("Consultar recursos, deploys e logs. Não lê variáveis, credenciais nem backups.") },
+  { value: "deploy", label: "Deploy", hint: t("Implantar, reiniciar, parar e disparar backups.") },
+  { value: "write", label: t("Escrita"), hint: t("Tudo: criar, alterar e remover recursos, e ler segredos.") },
 ];
 
 /** Creates an API token; the secret comes back once, in onSaved. */
@@ -27,7 +28,7 @@ export function TokenForm(props: {
     onSuccess: props.onSaved,
   });
   return (
-    <Modal title="Novo token de API" onClose={props.onClose}>
+    <Modal title={t("Novo token de API")} onClose={props.onClose}>
       <form
         class="stack"
         onSubmit={(event) => {
@@ -35,10 +36,9 @@ export function TokenForm(props: {
           void save.run();
         }}
       >
-        <TextInput label="Nome" required placeholder="github-actions" value={name()} onValue={setName} error={save.errors().name} />
+        <TextInput label={t("Nome")} required placeholder="github-actions" value={name()} onValue={setName} error={save.errors().name} />
         <fieldset class="stack" style={{ border: "0", padding: "0", margin: "0" }}>
-          <legend class="field-label" style={{ "margin-bottom": "var(--space-2)" }}>
-            Permissões
+          <legend class="field-label" style={{ "margin-bottom": "var(--space-2)" }}>{t("Permissões")}
           </legend>
           <For each={ABILITIES}>
             {(ability) => (
@@ -55,9 +55,8 @@ export function TokenForm(props: {
           </Show>
         </fieldset>
         <div class="form-actions">
-          <Button onClick={props.onClose}>Cancelar</Button>
-          <Button type="submit" variant="primary" pending={save.pending()}>
-            Criar token
+          <Button onClick={props.onClose}>{t("Cancelar")}</Button>
+          <Button type="submit" variant="primary" pending={save.pending()}>{t("Criar token")}
           </Button>
         </div>
       </form>

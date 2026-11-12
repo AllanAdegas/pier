@@ -1,19 +1,16 @@
+auth: first-visitor
 name: Gitea
 description: Hospedagem de repositórios Git leve e autogerenciada.
+description_en: Lightweight, self-managed Git repository hosting.
 category: Desenvolvimento
 website: https://about.gitea.com
 verified: true
-routes:
-  - service: gitea
+services:
+  gitea:
+    image: gitea/gitea:1
+    private: true
     port: 3000
-compose: |
-  services:
-    gitea:
-      image: gitea/gitea:1
-      environment:
-        GITEA__server__ROOT_URL: ${PIER_URL_GITEA:-http://localhost:3000}
-        GITEA__security__SECRET_KEY: ${PIER_SECRET_GITEA}
-      volumes:
-        - data:/data
-  volumes:
-    data:
+    data: /data
+    env:
+      GITEA__server__ROOT_URL: ${PIER_URL_GITEA:-http://localhost:3000}
+      GITEA__security__SECRET_KEY: ${PIER_SECRET_GITEA}

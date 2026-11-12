@@ -1,25 +1,24 @@
+auth: generated
 name: n8n
 description: Automação de fluxos de trabalho com centenas de integrações.
+description_en: Workflow automation with hundreds of integrations.
 category: Automação
 website: https://n8n.io
 verified: true
-routes:
-  - service: n8n
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:2.47.3
     port: 5678
-compose: |
-  services:
-    n8n:
-      image: docker.n8n.io/n8nio/n8n:latest
-      environment:
-        N8N_HOST: ${PIER_HOST_N8N:-localhost}
-        WEBHOOK_URL: ${PIER_URL_N8N:-http://localhost:5678}/
-        N8N_ENCRYPTION_KEY: ${PIER_SECRET_ENCRYPTION}
-        GENERIC_TIMEZONE: America/Sao_Paulo
-        # n8n refuses to log in over plain HTTP unless this is false. Keep it
-        # true with an https:// domain; set it to false in Variables only for
-        # an http:// address (a test, or a proxy on another port).
-        N8N_SECURE_COOKIE: ${N8N_SECURE_COOKIE:-true}
-      volumes:
-        - data:/home/node/.n8n
-  volumes:
-    data:
+    data: /home/node/.n8n
+    env:
+      N8N_INSTANCE_OWNER_MANAGED_BY_ENV: 'true'
+      N8N_INSTANCE_OWNER_EMAIL: ${OWNER_EMAIL:?}
+      N8N_INSTANCE_OWNER_PASSWORD_HASH: ${PIER_BCRYPT_N8NOWNER}
+      N8N_HOST: ${PIER_HOST_N8N:-localhost}
+      WEBHOOK_URL: ${PIER_URL_N8N:-http://localhost:5678}/
+      N8N_ENCRYPTION_KEY: ${PIER_SECRET_ENCRYPTION}
+      GENERIC_TIMEZONE: America/Sao_Paulo
+      # n8n refuses to log in over plain HTTP unless this is false. Keep it
+      # true with an https:// domain; set it to false in Variables only for
+      # an http:// address (a test, or a proxy on another port).
+      N8N_SECURE_COOKIE: ${N8N_SECURE_COOKIE:-true}

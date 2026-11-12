@@ -1,51 +1,21 @@
 name: Joplin Server
 description: Servidor de sincronização do Joplin.
+description_en: Joplin sync server.
 category: Produtividade
 website: https://github.com/laurent22/joplin/blob/dev/packages/server/README.md
-tags:
-  - joplin
-routes:
-  - service: joplin
+services:
+  joplin:
+    image: joplin/server:3.7.4
     port: 22300
-compose: |
-  services:
-    joplin:
-      image: joplin/server:latest
-      environment:
-        - APP_BASE_URL=${PIER_URL_JOPLIN}
-        - DB_CLIENT=pg
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_64_POSTGRES}
-        - POSTGRES_DATABASE=joplin
-        - POSTGRES_USER=${PIER_USER_POSTGRES}
-        - POSTGRES_PORT=5432
-        - POSTGRES_HOST=postgres
-      depends_on:
-        postgres:
-          condition: service_healthy
-      healthcheck:
-        interval: 5s
-        retries: 3
-        test:
-          - CMD-SHELL
-          - bash -c ':> /dev/tcp/127.0.0.1/22300' || exit 1
-        timeout: 20s
-      platform: linux/amd64
-    postgres:
-      image: postgres:16
-      environment:
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_64_POSTGRES}
-        - POSTGRES_USER=${PIER_USER_POSTGRES}
-        - POSTGRES_DB=joplin
-      volumes:
-        - joplin-postgresql-data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 10s
-        retries: 5
-        test:
-          - CMD
-          - pg_isready
-          - -d
-          - joplin
-        timeout: 5s
-  volumes:
-    joplin-postgresql-data: null
+    env:
+      APP_BASE_URL: ${PIER_URL_JOPLIN}
+      DB_CLIENT: pg
+      POSTGRES_PASSWORD: '{{postgres.password}}'
+      POSTGRES_DATABASE: joplin
+      POSTGRES_USER: '{{postgres.user}}'
+      POSTGRES_PORT: '5432'
+      POSTGRES_HOST: postgres
+with:
+  postgres:
+    version: '16'
+    database: joplin

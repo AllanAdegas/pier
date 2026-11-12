@@ -32,7 +32,7 @@ type Scheduler struct {
 
 // NewScheduler creates a scheduler fed by the given sources.
 func NewScheduler(logger *slog.Logger, sources ...Source) *Scheduler {
-	return &Scheduler{logger: logger, sources: sources, engine: cron.New()}
+	return &Scheduler{logger: logger, sources: sources, engine: cron.New(cron.WithChain(cron.SkipIfStillRunning(cron.DefaultLogger)))}
 }
 
 // AddSource registers another source; call Reload afterwards.

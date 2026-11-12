@@ -1,140 +1,102 @@
 name: Matrix Synapse com PostgreSQL
 description: Servidor Matrix para conversas seguras e descentralizadas.
+description_en: Matrix server for secure, decentralized conversations.
 category: Mensageria
 website: https://element-hq.github.io/synapse/latest/welcome_and_overview.html
-tags:
-  - chat
-  - slack
-  - discord
-  - voip
-  - video
-  - call
-  - matrix
-  - synapse
-routes:
-  - service: synapse
+services:
+  synapse:
+    image: matrixdotorg/synapse:v1.164.2
     port: 8008
-compose: |
-  services:
-    postgres:
-      image: postgres:16-alpine
-      environment:
-        - POSTGRES_USER=${PIER_USER_POSTGRESQL}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRESQL}
-        - POSTGRES_DB=${POSTGRES_DB:-synapse-db}
-        - POSTGRES_INITDB_ARGS=--encoding=UTF8 --lc-collate=C --lc-ctype=C
-      volumes:
-        - postgres-data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB:-synapse-db}
-        timeout: 5s
-    synapse:
-      image: matrixdotorg/synapse:latest
-      entrypoint:
-        - /bin/bash
-        - -c
-        - |
-          ! test -f /data/homeserver.yaml && /start.py generate
+    data: /data
+    entrypoint:
+    - /bin/bash
+    - -c
+    - |
+      ! test -f /data/homeserver.yaml && /start.py generate
 
-          # Extract secrets from generated config
-          grep "registration_shared_secret" /data/homeserver.yaml \
-          | awk '{print $2}' > ./registration_shared_secret
+      # Extract secrets from generated config
+      grep "registration_shared_secret" /data/homeserver.yaml \
+      | awk '{print $2}' > ./registration_shared_secret
 
-          grep "macaroon_secret_key" /data/homeserver.yaml \
-          | awk '{print $2}' > ./macaroon_secret_key
+      grep "macaroon_secret_key" /data/homeserver.yaml \
+      | awk '{print $2}' > ./macaroon_secret_key
 
-          grep "form_secret" /data/homeserver.yaml \
-          | awk '{print $2}' > ./form_secret
+      grep "form_secret" /data/homeserver.yaml \
+      | awk '{print $2}' > ./form_secret
 
-          # Create homeserver.yaml with PostgreSQL
-          cat <<EOF > /data/homeserver.yaml
-          server_name: "${SYNAPSE_SERVER_NAME}"
-          pid_file: /data/homeserver.pid
-          public_baseurl: "${PIER_URL_SYNAPSE}/"
+      # Create homeserver.yaml with PostgreSQL
+      cat <<EOF > /data/homeserver.yaml
+      server_name: "${SYNAPSE_SERVER_NAME}"
+      pid_file: /data/homeserver.pid
+      public_baseurl: "${PIER_URL_SYNAPSE}/"
 
-          listeners:
-            - port: 8008
-              tls: false
-              type: http
-              x_forwarded: true
-              bind_addresses: ['0.0.0.0']
-              resources:
-                - names: [client, federation]
-                  compress: false
+      listeners:
+        - port: 8008
+          tls: false
+          type: http
+          x_forwarded: true
+          bind_addresses: ['0.0.0.0']
+          resources:
+            - names: [client, federation]
+              compress: false
 
-          database:
-            name: psycopg2
-            args:
-              user: ${PIER_USER_POSTGRESQL}
-              password: ${PIER_PASSWORD_POSTGRESQL}
-              database: ${POSTGRES_DB:-synapse-db}
-              host: postgres
-              port: 5432
-              cp_min: 5
-              cp_max: 10
+      database:
+        name: psycopg2
+        args:
+          user: {{postgres.user}}
+          password: {{postgres.password}}
+          database: {{postgres.database}}
+          host: postgres
+          port: 5432
+          cp_min: 5
+          cp_max: 10
 
-          log_config: "/data/${SYNAPSE_SERVER_NAME}.log.config"
-          media_store_path: /data/media_store
-          report_stats: ${SYNAPSE_REPORT_STATS}
+      log_config: "/data/${SYNAPSE_SERVER_NAME}.log.config"
+      media_store_path: /data/media_store
+      report_stats: ${SYNAPSE_REPORT_STATS}
 
-          registration_shared_secret: $(<./registration_shared_secret)
-          macaroon_secret_key: $(<./macaroon_secret_key)
-          form_secret: $(<./form_secret)
-          signing_key_path: "/data/${SYNAPSE_SERVER_NAME}.signing.key"
+      registration_shared_secret: $(<./registration_shared_secret)
+      macaroon_secret_key: $(<./macaroon_secret_key)
+      form_secret: $(<./form_secret)
+      signing_key_path: "/data/${SYNAPSE_SERVER_NAME}.signing.key"
 
-          trusted_key_servers:
-            - server_name: "matrix.org"
-          EOF
+      trusted_key_servers:
+        - server_name: "matrix.org"
+      EOF
 
-          [ "${ENABLE_REGISTRATION}" = "true" ] && ! grep "#registration" /data/homeserver.yaml &>/dev/null \
-          && echo >> /data/homeserver.yaml \
-          && cat <<EOF >> /data/homeserver.yaml
-          enable_registration: true
-          EOF
+      [ "${ENABLE_REGISTRATION}" = "true" ] && ! grep "#registration" /data/homeserver.yaml &>/dev/null \
+      && echo >> /data/homeserver.yaml \
+      && cat <<EOF >> /data/homeserver.yaml
+      enable_registration: true
+      EOF
 
-          # Register admin user if provided
-          register_admin(){
-            while ! curl -sf http://localhost:8008/health > /dev/null; do
-              sleep 2
-            done
-            register_new_matrix_user \
-              -a \
-              -u ${PIER_USER_ADMIN} \
-              -p ${PIER_PASSWORD_ADMIN} \
-              -c /data/homeserver.yaml \
-              http://localhost:8008 &>/dev/null
-          }
-          [ -n "${PIER_USER_ADMIN}" ] && register_admin &
+      # Register admin user if provided
+      register_admin(){
+        while ! curl -sf http://localhost:8008/health > /dev/null; do
+          sleep 2
+        done
+        register_new_matrix_user \
+          -a \
+          -u ${PIER_USER_ADMIN} \
+          -p ${PIER_PASSWORD_ADMIN} \
+          -c /data/homeserver.yaml \
+          http://localhost:8008 &>/dev/null
+      }
+      [ -n "${PIER_USER_ADMIN}" ] && register_admin &
 
-          /start.py
-      environment:
-        - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME:?}
-        - SYNAPSE_REPORT_STATS=${SYNAPSE_REPORT_STATS:-no}
-        - ENABLE_REGISTRATION=${ENABLE_REGISTRATION:-false}
-        - PIER_USER_ADMIN=${PIER_USER_ADMIN}
-        - PIER_PASSWORD_ADMIN=${PIER_PASSWORD_ADMIN}
-        - PIER_USER_POSTGRESQL=${PIER_USER_POSTGRESQL}
-        - PIER_PASSWORD_POSTGRESQL=${PIER_PASSWORD_POSTGRESQL}
-        - POSTGRES_DB=${POSTGRES_DB:-synapse-db}
-      volumes:
-        - synapse-data:/data
-      depends_on:
-        postgres:
-          condition: service_healthy
-      healthcheck:
-        interval: 10s
-        retries: 10
-        start_period: 10s
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://localhost:8008/health
-        timeout: 5s
-  volumes:
-    postgres-data: null
-    synapse-data: null
+      /start.py
+    env:
+      SYNAPSE_SERVER_NAME: ${SYNAPSE_SERVER_NAME:?}
+      SYNAPSE_REPORT_STATS: ${SYNAPSE_REPORT_STATS:-no}
+      ENABLE_REGISTRATION: ${ENABLE_REGISTRATION:-false}
+      PIER_USER_ADMIN: ${PIER_USER_ADMIN}
+      PIER_PASSWORD_ADMIN: ${PIER_PASSWORD_ADMIN}
+      PIER_USER_POSTGRESQL: '{{postgres.user}}'
+      PIER_PASSWORD_POSTGRESQL: '{{postgres.password}}'
+      POSTGRES_DB: '{{postgres.database}}'
+with:
+  postgres:
+    version: '16'
+    env:
+      POSTGRES_INITDB_ARGS: --encoding=UTF8 --lc-collate=C --lc-ctype=C
+    database: synapse-db

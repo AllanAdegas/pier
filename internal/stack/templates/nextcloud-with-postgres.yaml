@@ -1,76 +1,29 @@
+auth: first-visitor
 name: Nextcloud com PostgreSQL
 description: Arquivos, colaboração e comunicação em uma plataforma própria.
+description_en: Files, collaboration and communication on your own platform.
 category: Armazenamento
 website: https://docs.nextcloud.com
-tags:
-  - cloud
-  - collaboration
-  - communication
-  - filestorage
-  - data
-routes:
-  - service: nextcloud
+services:
+  nextcloud:
+    image: lscr.io/linuxserver/nextcloud:35.0.2
     port: 80
-compose: |
-  services:
-    nextcloud:
-      image: lscr.io/linuxserver/nextcloud:latest
-      environment:
-        - PUID=1000
-        - PGID=1000
-        - TZ=${TZ:-Europe/Paris}
-        - POSTGRES_DB=${POSTGRES_DB:-nextcloud}
-        - POSTGRES_USER=${PIER_USER_POSTGRES}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
-        - POSTGRES_HOST=nextcloud-db
-        - REDIS_HOST=redis
-        - REDIS_PORT=6379
-      volumes:
-        - nextcloud-config:/config
-        - nextcloud-data:/data
-      depends_on:
-        nextcloud-db:
-          condition: service_healthy
-        redis:
-          condition: service_healthy
-      healthcheck:
-        interval: 30s
-        retries: 15
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:80/status.php
-        timeout: 10s
-    nextcloud-db:
-      image: postgres:16-alpine
-      environment:
-        - POSTGRES_USER=${PIER_USER_POSTGRES}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_POSTGRES}
-        - POSTGRES_DB=${POSTGRES_DB:-nextcloud}
-      volumes:
-        - nextcloud-postgresql-data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 5s
-        retries: 10
-        test:
-          - CMD-SHELL
-          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
-        timeout: 20s
-    redis:
-      image: redis:7.4-alpine
-      volumes:
-        - nextcloud-redis-data:/data
-      healthcheck:
-        interval: 5s
-        retries: 20
-        test:
-          - CMD
-          - redis-cli
-          - PING
-        timeout: 10s
-  volumes:
-    nextcloud-config: null
-    nextcloud-data: null
-    nextcloud-postgresql-data: null
-    nextcloud-redis-data: null
+    volumes:
+    - nextcloud-config:/config
+    - nextcloud-data:/data
+    env:
+      PUID: '1000'
+      PGID: '1000'
+      TZ: ${TZ:-Europe/Paris}
+      POSTGRES_DB: '{{nextcloud-db.database}}'
+      POSTGRES_USER: '{{nextcloud-db.user}}'
+      POSTGRES_PASSWORD: '{{nextcloud-db.password}}'
+      POSTGRES_HOST: nextcloud-db
+      REDIS_HOST: redis
+      REDIS_PORT: '6379'
+with:
+  nextcloud-db:
+    kind: postgres
+    version: '16'
+    database: nextcloud
+  redis: {}

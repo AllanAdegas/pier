@@ -1,36 +1,17 @@
 name: code-server
 description: Editor de código no navegador, para programar de qualquer dispositivo.
+description_en: Code editor in the browser, to program from any device.
 category: Desenvolvimento
 website: https://coder.com/docs/code-server/latest
-tags:
-  - code
-  - editor
-  - remote
-  - collaboration
-routes:
-  - service: code-server
+services:
+  code-server:
+    image: lscr.io/linuxserver/code-server:4.145.2
     port: 8443
-compose: |
-  services:
-    code-server:
-      image: lscr.io/linuxserver/code-server:latest
-      environment:
-        - PUID=1000
-        - PGID=1000
-        - TZ=Europe/Madrid
-        - PASSWORD=$PIER_PASSWORD_64_PASSWORDCODESERVER
-        - SUDO_PASSWORD=$PIER_PASSWORD_SUDOCODESERVER
-        - DEFAULT_WORKSPACE=/config/workspace
-      volumes:
-        - code-server-config:/config
-      healthcheck:
-        interval: 2s
-        retries: 15
-        test:
-          - CMD
-          - curl
-          - -f
-          - http://127.0.0.1:8443
-        timeout: 10s
-  volumes:
-    code-server-config: null
+    data: /config
+    env:
+      PUID: '1000'
+      PGID: '1000'
+      TZ: Europe/Madrid
+      PASSWORD: $PIER_PASSWORD_64_PASSWORDCODESERVER
+      SUDO_PASSWORD: $PIER_PASSWORD_SUDOCODESERVER
+      DEFAULT_WORKSPACE: /config/workspace

@@ -1,41 +1,22 @@
 name: Beszel Agent
 description: Agente de monitoramento do Beszel.
+description_en: Beszel monitoring agent.
 category: Monitoramento
 website: https://www.beszel.dev/guide/agent-installation
-tags:
-  - beszel
-  - monitoring
-  - server
-  - stats
-  - alerts
-routes: []
-compose: |
-  services:
-    beszel-agent:
-      image: henrygd/beszel-agent:0.19.0
-      environment:
-        - LISTEN=${LISTEN:-/beszel_socket/beszel.sock}
-        - HUB_URL=${HUB_URL:?Informe o endereço do hub do Beszel}
-        - TOKEN=${TOKEN}
-        - KEY=${KEY}
-        - DISABLE_SSH=${DISABLE_SSH:-false}
-        - LOG_LEVEL=${LOG_LEVEL:-warn}
-        - SKIP_GPU=${SKIP_GPU:-false}
-        - SYSTEM_NAME=${SYSTEM_NAME}
-      volumes:
-        - beszel_agent_data:/var/lib/beszel-agent
-        - beszel_socket:/beszel_socket
-        - /var/run/docker.sock:/var/run/docker.sock:ro
-      network_mode: host
-      healthcheck:
-        interval: 60s
-        retries: 10
-        start_period: 5s
-        test:
-          - CMD
-          - /agent
-          - health
-        timeout: 20s
-  volumes:
-    beszel_agent_data: null
-    beszel_socket: null
+services:
+  beszel-agent:
+    image: henrygd/beszel-agent:0.19.0
+    network_mode: host
+    volumes:
+    - beszel_agent_data:/var/lib/beszel-agent
+    - beszel_socket:/beszel_socket
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    env:
+      LISTEN: ${LISTEN:-/beszel_socket/beszel.sock}
+      HUB_URL: ${HUB_URL:?Informe o endereço do hub do Beszel}
+      TOKEN: ${TOKEN}
+      KEY: ${KEY}
+      DISABLE_SSH: ${DISABLE_SSH:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-warn}
+      SKIP_GPU: ${SKIP_GPU:-false}
+      SYSTEM_NAME: ${SYSTEM_NAME}

@@ -1,0 +1,23 @@
+export const englishData: Record<string, string> = {
+  "Restauração iniciada.": "Restore started.",
+  "Teste de restauração iniciado.": "Restore test started.",
+  "Enviar cópia para S3": "Upload a copy to S3",
+  "Testar restauração automaticamente": "Test restore automatically",
+  "Agenda do teste de restauração": "Restore test schedule",
+  "Restaurar backup": "Restore backup",
+  "Restaurações e testes": "Restores and tests",
+  "Testar restauração agora": "Test restore now",
+  "Teste de restauração": "Restore test",
+  "Restauração": "Restore",
+  "A restauração sobrescreve os dados e interrompe as conexões durante a operação. Pause as escritas das aplicações dependentes.": "Restore overwrites data and interrupts connections during the operation. Pause writes from dependent applications.",
+  "Nome do novo banco (vazio para sobrescrever o atual)": "New database name (leave blank to overwrite the current database)",
+  "Destino S3 dos backups": "Backup S3 destination",
+  "Destino S3 salvo.": "S3 destination saved.",
+  "Endpoint S3 (HTTPS)": "S3 endpoint (HTTPS)",
+  "Região S3": "S3 region",
+  "Prefixo S3": "S3 prefix",
+  "Chave de acesso S3": "S3 access key",
+  "Chave secreta S3": "S3 secret key",
+  "Deixe as chaves vazias para manter as credenciais salvas.": "Leave keys blank to keep saved credentials.",
+  "Salvar destino S3": "Save S3 destination"
+};

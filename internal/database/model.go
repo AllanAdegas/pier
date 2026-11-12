@@ -29,9 +29,12 @@ var (
 
 // BackupPolicy schedules automatic dumps.
 type BackupPolicy struct {
-	Enabled   bool   `json:"enabled"`
-	Cron      string `json:"cron"`
-	Retention int    `json:"retention"`
+	S3              bool   `json:"s3"`
+	RestoreTest     bool   `json:"restore_test"`
+	RestoreTestCron string `json:"restore_test_cron"`
+	Enabled         bool   `json:"enabled"`
+	Cron            string `json:"cron"`
+	Retention       int    `json:"retention"`
 }
 
 // Config is the user-editable definition of a database.
@@ -134,6 +137,17 @@ func (c *Config) validateBackup(spec engineSpec, fields apperr.Fields) {
 	}
 	if c.Backup.Retention > maxRetention {
 		fields.Add("config.backup.retention", "Mantenha no máximo %d backups.", maxRetention)
+	}
+	if c.Backup.RestoreTest {
+		if c.Backup.RestoreTestCron == "" {
+			c.Backup.RestoreTestCron = "0 4 * * 0"
+		}
+		if spec.Dump == nil {
+			fields.Add("config.backup.restore_test", "Esta engine não suporta teste de restauração.")
+		}
+		if _, err := cron.ParseStandard(c.Backup.RestoreTestCron); err != nil {
+			fields.Add("config.backup.restore_test_cron", "Expressão cron inválida (use 5 campos, ex.: 0 3 * * *).")
+		}
 	}
 	if !c.Backup.Enabled {
 		return

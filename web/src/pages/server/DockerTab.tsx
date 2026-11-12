@@ -1,7 +1,6 @@
 import { createMemo, createSignal, For, Match, Show, Switch } from "solid-js";
 import { Button } from "../../components/Button";
 import { Alert, EmptyState, QueryView } from "../../components/Feedback";
-import { Checkbox, LinesInput, Select, TextInput } from "../../components/Form";
 import { LogStream } from "../../components/LogViewer";
 import { ConfirmDelete, Modal } from "../../components/Modal";
 import { Tabs } from "../../components/Page";
@@ -11,12 +10,15 @@ import { Images, Networks, Volumes } from "./DockerObjects";
 import type { DockerContainer, Project, Resources } from "../../lib/types";
 import { type ContainerDialog, ContainerRow } from "./ContainerRow";
 import { groupContainers, placementLabel, placements } from "./containerGroups";
+import { Trans } from "../../i18n/Trans";
+import { t } from "../../i18n";
+import { Checkbox, LinesInput, Select, TextInput } from "../../components/Form";
 
 const SECTIONS = [
-  { id: "containers", label: "Containers" },
-  { id: "images", label: "Imagens" },
-  { id: "volumes", label: "Volumes" },
-  { id: "networks", label: "Redes" },
+  { id: "containers", label: t("Containers") },
+  { id: "images", label: t("Imagens") },
+  { id: "volumes", label: t("Volumes") },
+  { id: "networks", label: t("Redes") },
 ];
 
 /**
@@ -100,10 +102,10 @@ function Containers(props: { base: string }) {
   const groups = createMemo(() => groupContainers(visible(), index()));
   const act = createAction(
     (container: DockerContainer, action: string) => api.post(`${props.base}/containers/${container.id}/actions/${action}`),
-    { success: "Operação concluída.", onSuccess: () => void containers.refetch() },
+    { success: t("Operação concluída."), onSuccess: () => void containers.refetch() },
   );
   const remove = createAction((container: DockerContainer) => api.delete(`${props.base}/containers/${container.id}?force=1`), {
-    success: "Container removido.",
+    success: t("Container removido."),
     onSuccess: () => {
       setDialog(null);
       void containers.refetch();
@@ -120,28 +122,27 @@ function Containers(props: { base: string }) {
         <div class="row grow">
           <div class="grow" style={{ "max-width": "360px" }}>
             <TextInput
-              label="Filtrar"
+              label={t("Filtrar")}
               type="search"
-              placeholder="nome, imagem ou projeto compose"
+              placeholder={t("nome, imagem ou projeto compose")}
               value={filter()}
               onValue={setFilter}
             />
           </div>
-          <Checkbox label="Mostrar parados" checked={showStopped()} onChange={setShowStopped} />
+          <Checkbox label={t("Mostrar parados")} checked={showStopped()} onChange={setShowStopped} />
           <div style={{ "min-width": "160px" }}>
             <Select
-              label="Agrupar"
+              label={t("Agrupar")}
               value={grouping()}
               onValue={chooseGrouping}
               options={[
-                { value: "project", label: "Por projeto" },
-                { value: "list", label: "Lista única" },
+                { value: "project", label: t("Por projeto") },
+                { value: "list", label: t("Lista única") },
               ]}
             />
           </div>
         </div>
-        <Button variant="primary" icon="play" onClick={() => setDialog({ kind: "run" })}>
-          Executar container
+        <Button variant="primary" icon="play" onClick={() => setDialog({ kind: "run" })}>{t("Executar container")}
         </Button>
       </div>
       <QueryView query={containers}>
@@ -149,8 +150,7 @@ function Containers(props: { base: string }) {
           <Show
             when={visible().length > 0}
             fallback={
-              <EmptyState icon="box" title="Nenhum container">
-                Nada corresponde ao filtro, ou o servidor ainda não tem containers.
+              <EmptyState icon="box" title={t("Nenhum container")}>{t("Nada corresponde ao filtro, ou o servidor ainda não tem containers.")}
               </EmptyState>
             }
           >
@@ -181,7 +181,7 @@ function Containers(props: { base: string }) {
                           <span class="small muted">{group.kind}</span>
                         </span>
                         <span class="small muted">
-                          {group.running} de {group.containers.length} rodando
+                          {t("{running} de {count} rodando", { running: group.running, count: group.containers.length })}
                         </span>
                       </summary>
                       <div class="list">
@@ -217,7 +217,7 @@ function Containers(props: { base: string }) {
       </Show>
       <Show when={selected("logs")}>
         {(container) => (
-          <Modal title={`Logs — ${container().name}`} onClose={() => setDialog(null)} wide>
+          <Modal title={t("Logs — {name}", { name: container().name })} onClose={() => setDialog(null)} wide>
             <LogStream path={`${props.base}/containers/${container().id}/logs?tail=300`} />
           </Modal>
         )}
@@ -231,9 +231,9 @@ function Containers(props: { base: string }) {
       <Show when={selected("remove")}>
         {(container) => (
           <ConfirmDelete
-            title="Remover container"
+            title={t("Remover container")}
             resourceName={container().name}
-            description="O container é parado e removido. Volumes nomeados são mantidos; dados gravados só no container são perdidos."
+            description={t("O container é parado e removido. Volumes nomeados são mantidos; dados gravados só no container são perdidos.")}
             pending={remove.pending()}
             onConfirm={() => void remove.run(container())}
             onClose={() => setDialog(null)}
@@ -265,12 +265,12 @@ function RunForm(props: { base: string; onClose: () => void; onStarted: () => vo
         network: network(),
         restart: restart(),
       }),
-    { success: "Container iniciado.", onSuccess: props.onStarted },
+    { success: t("Container iniciado."), onSuccess: props.onStarted },
   );
   const errors = run.errors;
 
   return (
-    <Modal title="Executar container" onClose={props.onClose} wide>
+    <Modal title={t("Executar container")} onClose={props.onClose} wide>
       <form
         class="stack"
         onSubmit={(event) => {
@@ -279,12 +279,14 @@ function RunForm(props: { base: string; onClose: () => void; onStarted: () => vo
         }}
       >
         <Alert tone="info">
-          Equivale a <code>docker run -d</code>. O container não vira um recurso do Pier: sem domínio, deploy ou backup
-          automáticos. Para isso, crie uma aplicação em um projeto.
+          <Trans
+            text="Equivale a {command}. O container não vira um recurso do Pier: sem domínio, deploy ou backup automáticos. Para isso, crie uma aplicação em um projeto."
+            values={{ command: <code>docker run -d</code> }}
+          />
         </Alert>
         <div class="grid-2">
           <TextInput
-            label="Nome"
+            label={t("Nome")}
             required
             mono
             placeholder="redis-cache"
@@ -293,7 +295,7 @@ function RunForm(props: { base: string; onClose: () => void; onStarted: () => vo
             error={errors().name}
           />
           <TextInput
-            label="Imagem"
+            label={t("Imagem")}
             required
             mono
             placeholder="redis:7.4-alpine"
@@ -303,64 +305,63 @@ function RunForm(props: { base: string; onClose: () => void; onStarted: () => vo
           />
         </div>
         <TextInput
-          label="Comando"
+          label={t("Comando")}
           mono
-          placeholder="padrão da imagem"
-          hint="Opcional. Separado por espaços; cada palavra vira um argumento."
+          placeholder={t("padrão da imagem")}
+          hint={t("Opcional. Separado por espaços; cada palavra vira um argumento.")}
           value={command()}
           onValue={setCommand}
         />
         <div class="grid-2">
           <LinesInput
-            label="Portas"
-            hint="host:container, uma por linha."
+            label={t("Portas")}
+            hint={t("host:container, uma por linha.")}
             placeholder="8080:80"
             value={ports()}
             onValue={setPorts}
             error={errors().ports}
           />
           <LinesInput
-            label="Volumes"
-            hint="volume:/caminho ou /host:/caminho[:ro]."
-            placeholder="dados:/data"
+            label={t("Volumes")}
+            hint={t("volume:/caminho ou /host:/caminho[:ro].")}
+            placeholder={t("dados:/data")}
             value={volumes()}
             onValue={setVolumes}
             error={errors().volumes}
           />
         </div>
         <LinesInput
-          label="Variáveis de ambiente"
-          hint="CHAVE=valor, uma por linha."
-          placeholder="TZ=America/Sao_Paulo"
+          label={t("Variáveis de ambiente")}
+          hint={t("CHAVE=valor, uma por linha.")}
+          placeholder={t("TZ=America/Sao_Paulo")}
           value={env()}
           onValue={setEnv}
           error={errors().env}
         />
         <div class="grid-2">
           <TextInput
-            label="Rede"
+            label={t("Rede")}
             mono
-            placeholder="bridge (padrão)"
+            placeholder={t("bridge (padrão)")}
             value={network()}
             onValue={setNetwork}
             error={errors().network}
           />
           <Select
-            label="Reinício"
+            label={t("Reinício")}
             value={restart()}
             onValue={setRestart}
             options={[
-              { value: "unless-stopped", label: "Sempre, exceto se parado manualmente" },
-              { value: "always", label: "Sempre" },
-              { value: "on-failure", label: "Só em falha" },
-              { value: "no", label: "Nunca" },
+              { value: "unless-stopped", label: t("Sempre, exceto se parado manualmente") },
+              { value: "always", label: t("Sempre") },
+              { value: "on-failure", label: t("Só em falha") },
+              { value: "no", label: t("Nunca") },
             ]}
           />
         </div>
         <div class="form-actions">
-          <Button onClick={props.onClose}>Cancelar</Button>
-          <Button type="submit" variant="primary" icon="play" pending={run.pending()}>
-            Executar
+          <Button onClick={props.onClose}>{t("Cancelar")}</Button>
+          <Button type="submit" variant="primary" icon="play" pending={run.pending()}>{t("Executar")}
           </Button>
         </div>
       </form>
@@ -374,7 +375,7 @@ function InspectModal(props: { base: string; container: DockerContainer; onClose
     (id) => api.get<unknown>(`${props.base}/containers/${id}`),
   );
   return (
-    <Modal title={`Inspecionar — ${props.container.name}`} onClose={props.onClose} wide>
+    <Modal title={t("Inspecionar — {name}", { name: props.container.name })} onClose={props.onClose} wide>
       <QueryView query={document}>
         {(data) => (
           <pre class="log" style={{ margin: "0" }}>
@@ -391,10 +392,10 @@ function ExecModal(props: { base: string; container: DockerContainer; onClose: (
   const [output, setOutput] = createSignal<string | null>(null);
   const exec = createAction(
     () => api.post<{ output: string }>(`${props.base}/containers/${props.container.id}/exec`, { command: command() }),
-    { onSuccess: (result) => setOutput(result.output || "(sem saída)") },
+    { onSuccess: (result) => setOutput(result.output || t("(sem saída)")) },
   );
   return (
-    <Modal title={`Executar comando — ${props.container.name}`} onClose={props.onClose} wide>
+    <Modal title={t("Executar comando — {name}", { name: props.container.name })} onClose={props.onClose} wide>
       <form
         class="stack"
         onSubmit={(event) => {
@@ -403,17 +404,16 @@ function ExecModal(props: { base: string; container: DockerContainer; onClose: (
         }}
       >
         <TextInput
-          label="Comando"
+          label={t("Comando")}
           mono
           required
           placeholder="ls -la /app"
-          hint="Roda com sh -c dentro do container e devolve a saída (limite de 60 s). Não é um terminal interativo."
+          hint={t("Roda com sh -c dentro do container e devolve a saída (limite de 60 s). Não é um terminal interativo.")}
           value={command()}
           onValue={setCommand}
         />
         <div class="form-actions">
-          <Button type="submit" variant="primary" icon="terminal" pending={exec.pending()}>
-            Executar
+          <Button type="submit" variant="primary" icon="terminal" pending={exec.pending()}>{t("Executar")}
           </Button>
         </div>
         <Show when={output() !== null}>

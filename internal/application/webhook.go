@@ -28,7 +28,23 @@ type WebhookResult struct {
 
 // pushEvent is the part of a push payload every provider shares.
 type pushEvent struct {
-	Ref string `json:"ref"`
+	Ref     string `json:"ref"`
+	Deleted bool   `json:"deleted"`
+	After   string `json:"after"`
+}
+
+// removesRef reports a push that deletes the branch or tag (GitHub and Gitea
+// say so; GitLab sends an all-zero "after").
+func (e pushEvent) removesRef() bool {
+	return e.Deleted || (e.After != "" && strings.Trim(e.After, "0") == "")
+}
+
+func parsePush(body []byte) (pushEvent, bool) {
+	var event pushEvent
+	if err := json.Unmarshal(body, &event); err != nil {
+		return pushEvent{}, false
+	}
+	return event, true
 }
 
 // verifyWebhook authenticates the request using the application secret.
@@ -53,15 +69,16 @@ func isPushEvent(provider GitProvider, header http.Header) bool {
 	case ProviderGitea:
 		return header.Get("X-Gitea-Event") == "push"
 	case ProviderGitLab:
-		return header.Get("X-Gitlab-Event") == "Push Hook"
+		event := header.Get("X-Gitlab-Event")
+		return event == "Push Hook" || event == "Tag Push Hook"
 	}
 	return false
 }
 
 // pushedBranch extracts the branch name from "refs/heads/<branch>".
 func pushedBranch(body []byte) (string, bool) {
-	var event pushEvent
-	if err := json.Unmarshal(body, &event); err != nil {
+	event, ok := parsePush(body)
+	if !ok {
 		return "", false
 	}
 	return strings.CutPrefix(event.Ref, "refs/heads/")
@@ -69,7 +86,7 @@ func pushedBranch(body []byte) (string, bool) {
 
 func validHMAC(secret string, body []byte, signatureHex string) bool {
 	signature, err := hex.DecodeString(signatureHex)
-	if err != nil || len(signature) == 0 {
+	if secret == "" || err != nil || len(signature) == 0 {
 		return false
 	}
 	mac := hmac.New(sha256.New, []byte(secret))

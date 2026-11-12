@@ -33,11 +33,12 @@ func ValidKey(key string) bool { return keyPattern.MatchString(key) }
 
 // Variable is one KEY=value pair of a resource.
 type Variable struct {
-	ID        string    `json:"id"`
-	Key       string    `json:"key"`
-	Value     string    `json:"value"`
-	BuildTime bool      `json:"build_time"`
-	CreatedAt time.Time `json:"created_at"`
+	ID          string    `json:"id"`
+	Key         string    `json:"key"`
+	Value       string    `json:"value"`
+	BuildTime   bool      `json:"build_time"`
+	SecretBuild bool      `json:"secret_build"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 // Owner points to the resource a set of variables belongs to.
@@ -48,8 +49,9 @@ type Owner struct {
 
 // Store persists variables.
 type Store struct {
-	db  *sql.DB
-	box *secretbox.Box
+	db       *sql.DB
+	box      *secretbox.Box
+	resolver ReferenceResolver
 }
 
 // NewStore creates the store.
@@ -57,7 +59,7 @@ func NewStore(db *sql.DB, box *secretbox.Box) *Store { return &Store{db: db, box
 
 // List returns the variables of a resource sorted by key.
 func (s *Store) List(ctx context.Context, owner Owner) ([]Variable, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, key, value, build_time, created_at FROM env_vars
+	rows, err := s.db.QueryContext(ctx, `SELECT id, key, value, build_time, secret_build, created_at FROM env_vars
 		WHERE owner_type = ? AND owner_id = ? ORDER BY key`, owner.Type, owner.ID)
 	if err != nil {
 		return nil, err
@@ -67,7 +69,7 @@ func (s *Store) List(ctx context.Context, owner Owner) ([]Variable, error) {
 	for rows.Next() {
 		var variable Variable
 		var sealed, createdAt string
-		if err := rows.Scan(&variable.ID, &variable.Key, &sealed, &variable.BuildTime, &createdAt); err != nil {
+		if err := rows.Scan(&variable.ID, &variable.Key, &sealed, &variable.BuildTime, &variable.SecretBuild, &createdAt); err != nil {
 			return nil, err
 		}
 		if variable.Value, err = s.box.Open(sealed); err != nil {
@@ -93,14 +95,14 @@ func (s *Store) Map(ctx context.Context, owner Owner) (map[string]string, error)
 }
 
 // Set creates or replaces one variable.
-func (s *Store) Set(ctx context.Context, owner Owner, key, value string, buildTime bool) error {
+func (s *Store) Set(ctx context.Context, owner Owner, key, value string, buildTime bool, secretBuild ...bool) error {
 	key = strings.TrimSpace(key)
 	if !keyPattern.MatchString(key) {
 		fields := apperr.Fields{}
 		fields.Add("key", "Use letras, números e _ (não pode começar com número).")
 		return fields.Err()
 	}
-	return s.upsert(ctx, s.db, owner, key, value, buildTime)
+	return s.upsert(ctx, s.db, owner, key, value, buildTime, len(secretBuild) > 0 && secretBuild[0])
 }
 
 // ReplaceAll makes the stored set equal to the given variables (bulk edit).
@@ -125,7 +127,7 @@ func (s *Store) ReplaceAll(ctx context.Context, owner Owner, variables []Variabl
 		return err
 	}
 	for _, variable := range variables {
-		if err := s.upsert(ctx, tx, owner, variable.Key, variable.Value, variable.BuildTime); err != nil {
+		if err := s.upsert(ctx, tx, owner, variable.Key, variable.Value, variable.BuildTime, variable.SecretBuild); err != nil {
 			return err
 		}
 	}
@@ -175,15 +177,15 @@ type execer interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 }
 
-func (s *Store) upsert(ctx context.Context, db execer, owner Owner, key, value string, buildTime bool) error {
+func (s *Store) upsert(ctx context.Context, db execer, owner Owner, key, value string, buildTime, secretBuild bool) error {
 	sealed, err := s.box.Seal(value)
 	if err != nil {
 		return err
 	}
-	_, err = db.ExecContext(ctx, `INSERT INTO env_vars (id, owner_type, owner_id, key, value, build_time, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
-		ON CONFLICT (owner_type, owner_id, key) DO UPDATE SET value = excluded.value, build_time = excluded.build_time`,
-		idgen.New(), owner.Type, owner.ID, key, sealed, buildTime, sqlite.FormatTime(time.Now()))
+	_, err = db.ExecContext(ctx, `INSERT INTO env_vars (id, owner_type, owner_id, key, value, build_time, secret_build, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT (owner_type, owner_id, key) DO UPDATE SET value = excluded.value, build_time = excluded.build_time, secret_build = excluded.secret_build`,
+		idgen.New(), owner.Type, owner.ID, key, sealed, buildTime, secretBuild, sqlite.FormatTime(time.Now()))
 	return err
 }
 

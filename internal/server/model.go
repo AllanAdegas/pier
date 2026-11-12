@@ -47,7 +47,7 @@ type EdgeProxy struct {
 	// Container is the name of the Caddy container.
 	Container string `json:"container"`
 	// Caddyfile is the path of the Caddyfile inside the container; it must be
-	// bind-mounted from a file of the server, which is what Pier edits.
+	// bind-mounted for durable edits. Pier accesses it inside the container.
 	Caddyfile string `json:"caddyfile"`
 }
 
@@ -65,6 +65,8 @@ func DefaultProxySettings() ProxySettings {
 // Server is a machine with Docker where resources run.
 type Server struct {
 	ID            string        `json:"id"`
+	ProxyToken    string        `json:"-"`
+	EdgeTrustedIP string        `json:"-"`
 	Name          string        `json:"name"`
 	Description   string        `json:"description"`
 	Kind          Kind          `json:"kind"`
@@ -76,6 +78,7 @@ type Server struct {
 	DataDir       string        `json:"data_dir"`
 	Proxy         ProxySettings `json:"proxy"`
 	Status        Status        `json:"status"`
+	Checks        []Check       `json:"checks"`
 	StatusMessage string        `json:"status_message"`
 	DockerVersion string        `json:"docker_version"`
 	LastCheckedAt *time.Time    `json:"last_checked_at"`
@@ -125,19 +128,35 @@ type Input struct {
 
 // Metrics is a point-in-time snapshot of a server's capacity and usage.
 type Metrics struct {
-	OperatingSystem   string           `json:"operating_system"`
-	Architecture      string           `json:"architecture"`
-	CPUs              int              `json:"cpus"`
-	MemoryTotalBytes  int64            `json:"memory_total_bytes"`
-	DiskTotalBytes    int64            `json:"disk_total_bytes"`
-	DiskUsedBytes     int64            `json:"disk_used_bytes"`
-	ContainersRunning int              `json:"containers_running"`
-	Images            int              `json:"images"`
-	Containers        []ContainerUsage `json:"containers"`
+	CollectedAt          time.Time        `json:"collected_at"`
+	CPUPercent           *float64         `json:"cpu_percent"`
+	MemoryUsedBytes      *int64           `json:"memory_used_bytes"`
+	MemoryAvailableBytes *int64           `json:"memory_available_bytes"`
+	SwapTotalBytes       *int64           `json:"swap_total_bytes"`
+	SwapUsedBytes        *int64           `json:"swap_used_bytes"`
+	UptimeSeconds        *float64         `json:"uptime_seconds"`
+	LoadAverage          []float64        `json:"load_average"`
+	DiskAvailableBytes   *int64           `json:"disk_available_bytes"`
+	ContainersTotal      int              `json:"containers_total"`
+	ContainersStopped    int              `json:"containers_stopped"`
+	ContainersPaused     int              `json:"containers_paused"`
+	HostError            string           `json:"host_error"`
+	DiskError            string           `json:"disk_error"`
+	OperatingSystem      string           `json:"operating_system"`
+	Architecture         string           `json:"architecture"`
+	CPUs                 int              `json:"cpus"`
+	MemoryTotalBytes     int64            `json:"memory_total_bytes"`
+	DiskTotalBytes       int64            `json:"disk_total_bytes"`
+	DiskUsedBytes        int64            `json:"disk_used_bytes"`
+	ContainersRunning    int              `json:"containers_running"`
+	Images               int              `json:"images"`
+	Containers           []ContainerUsage `json:"containers"`
 }
 
 // ContainerUsage is the live resource usage of one managed container.
 type ContainerUsage struct {
+	State         string `json:"state"`
+	Status        string `json:"status"`
 	Name          string `json:"name"`
 	ResourceType  string `json:"resource_type"`
 	ResourceID    string `json:"resource_id"`

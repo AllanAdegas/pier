@@ -1,57 +1,25 @@
 name: Redmine
 description: Aplicação web flexível de gestão de projetos.
+description_en: Flexible project management web application.
 category: Produtividade
 website: https://www.redmine.org/
-tags:
-  - redmine
-  - project management
-routes:
-  - service: redmine
+services:
+  redmine:
+    image: redmine:6-alpine
     port: 3000
-compose: |
-  services:
-    postgresql:
-      image: postgres:17-alpine
-      environment:
-        - POSTGRES_USER=${PIER_USER_POSTGRES}
-        - POSTGRES_PASSWORD=${PIER_PASSWORD_64_POSTGRES}
-        - POSTGRES_DB=${POSTGRES_DATABASE:-redmine-db}
-      volumes:
-        - postgresql-data:/var/lib/postgresql/data
-      healthcheck:
-        interval: 5s
-        retries: 5
-        test:
-          - CMD-SHELL
-          - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
-        timeout: 5s
-    redmine:
-      image: redmine:6-alpine
-      environment:
-        - SECRET_KEY_BASE=${PIER_PASSWORD_64_REDMINE}
-        - REDMINE_DB_POSTGRES=postgresql
-        - REDMINE_DB_PORT=5432
-        - REDMINE_DB_USERNAME=${PIER_USER_POSTGRES}
-        - REDMINE_DB_PASSWORD=${PIER_PASSWORD_64_POSTGRES}
-        - REDMINE_DB_DATABASE=${POSTGRES_DATABASE:-redmine-db}
-      volumes:
-        - redmine-config:/usr/src/redmine/config
-        - redmine-files:/usr/src/redmine/files
-        - redmine-themes:/usr/src/redmine/themes
-        - redmine-plugins:/usr/src/redmine/plugins
-      depends_on:
-        postgresql:
-          condition: service_healthy
-      healthcheck:
-        interval: 5s
-        retries: 5
-        test:
-          - CMD-SHELL
-          - wget -qO- http://127.0.0.1:3000/
-        timeout: 5s
-  volumes:
-    postgresql-data: null
-    redmine-config: null
-    redmine-files: null
-    redmine-plugins: null
-    redmine-themes: null
+    volumes:
+    - redmine-config:/usr/src/redmine/config
+    - redmine-files:/usr/src/redmine/files
+    - redmine-themes:/usr/src/redmine/themes
+    - redmine-plugins:/usr/src/redmine/plugins
+    env:
+      SECRET_KEY_BASE: ${PIER_PASSWORD_64_REDMINE}
+      REDMINE_DB_POSTGRES: postgresql
+      REDMINE_DB_PORT: '5432'
+      REDMINE_DB_USERNAME: '{{postgresql.user}}'
+      REDMINE_DB_PASSWORD: '{{postgresql.password}}'
+      REDMINE_DB_DATABASE: '{{postgresql.database}}'
+with:
+  postgresql:
+    kind: postgres
+    database: redmine-db

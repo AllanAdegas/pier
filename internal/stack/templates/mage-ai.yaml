@@ -1,38 +1,17 @@
+auth: none
 name: Mage AI
 description: Construa, execute e gerencie pipelines de dados.
+description_en: Build, run and manage data pipelines.
 category: Automação
 website: https://docs.mage.ai
-tags:
-  - data
-  - dbt
-  - etl
-  - pipelines
-routes:
-  - service: mage-ai
+services:
+  mage-ai:
+    image: mageai/mageai:0.9.78
+    private: true
     port: 6789
-compose: |
-  services:
-    mage-ai:
-      image: mageai/mageai:0.9.78
-      command: mage start default_project
-      restart: unless-stopped
-      environment:
-        - PROJECT_NAME=default_project
-        - USER_CODE_PATH=/home/src/default_project
-        - ENV=production
-      volumes:
-        - mageai_data:/home/src/
-      healthcheck:
-        interval: 30s
-        retries: 5
-        test:
-          - CMD
-          - curl
-          - -s
-          - -f
-          - -o
-          - /dev/null
-          - http://127.0.0.1:6789
-        timeout: 10s
-  volumes:
-    mageai_data: null
+    data: /home/src/
+    command: mage start default_project
+    env:
+      PROJECT_NAME: default_project
+      USER_CODE_PATH: /home/src/default_project
+      ENV: production

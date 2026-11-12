@@ -5,6 +5,7 @@ import type { Query } from "../lib/query";
 import { dismissToast, toasts } from "../lib/state";
 import { Button, IconButton } from "./Button";
 import { Icon, type IconName } from "./Icon";
+import { t } from "../i18n";
 
 /** Status as dot + text, so color is never the only carrier of meaning. */
 export function StatusBadge(props: { status: StatusView }) {
@@ -42,7 +43,7 @@ export function EmptyState(props: { icon: IconName; title: string; children?: JS
 
 export function Skeleton(props: { height?: number; lines?: number }) {
   return (
-    <div class="stack-sm" aria-busy="true" aria-label="Carregando">
+    <div class="stack-sm" aria-busy="true" aria-label={t("Carregando")}>
       <For each={Array.from({ length: props.lines ?? 1 })}>
         {() => <div class="skeleton" style={{ height: `${props.height ?? 56}px` }} />}
       </For>
@@ -67,8 +68,7 @@ export function QueryView<T>(props: {
         <Alert tone="danger">
           <div class="row-between">
             <span>{errorMessage(props.query.error())}</span>
-            <Button small icon="refresh" onClick={() => void props.query.refetch()}>
-              Tentar novamente
+            <Button small icon="refresh" onClick={() => void props.query.refetch()}>{t("Tentar novamente")}
             </Button>
           </div>
         </Alert>
@@ -84,7 +84,7 @@ export function Toasts() {
         {(toast) => (
           <div class="toast" data-tone={toast.tone} role={toast.tone === "danger" ? "alert" : "status"}>
             <span class="grow">{toast.message}</span>
-            <IconButton icon="close" label="Dispensar" onClick={() => dismissToast(toast.id)} />
+            <IconButton icon="close" label={t("Dispensar")} onClick={() => dismissToast(toast.id)} />
           </div>
         )}
       </For>
