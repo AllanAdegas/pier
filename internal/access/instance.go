@@ -113,3 +113,27 @@ func keepInstanceOwner(ctx context.Context, q querier, user string, next Role) e
 func (s *Service) GuardAccountRemoval(ctx context.Context, user string) error {
 	return keepInstanceOwner(ctx, s.db, user, "")
 }
+
+// Assign sets an instance role without an acting user. It is for trusted
+// callers only (operator tooling, fixtures), never for request handlers.
+func (s *Service) Assign(ctx context.Context, user string, role Role) error {
+	if role != "" && !role.Valid() {
+		return denied()
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := requireUser(ctx, tx, user); err != nil {
+		return err
+	}
+	if err := writeInstanceRole(ctx, tx, user, role); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	s.changes.notify(user)
+	return nil
+}

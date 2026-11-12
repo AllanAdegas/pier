@@ -65,7 +65,7 @@ func engineHTTPFixture(t *testing.T) (*API, *executor.Fake, *http.ServeMux, stri
 	if err != nil {
 		t.Fatal(err)
 	}
-	a := New(Dependencies{Access: testAccess(t,db), Identity: auth, Env: env, Applications: apps, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	a := New(Dependencies{Access: testAccess(t, db), Identity: auth, Env: env, Applications: apps, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
 	mux := http.NewServeMux()
 	a.registerApplicationRoutes(mux)
 	return a, ex, mux, writeToken, app.ID

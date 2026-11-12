@@ -14,8 +14,12 @@ import { Checkbox, LinesInput, NumberInput, Select, TextArea, TextInput } from "
 import { createDomainDnsCheck } from "./DomainDnsStatus";
 import { EngineExtras } from "./EngineExtras";
 import { ProcessesEditor } from "./ProcessesEditor";
+import { AutoDomainNotice } from "./AutoDomainNotice";
+import { DockerOptionsEditor } from "./DockerOptionsEditor";
+import { RedeployNotice } from "./RedeployNotice";
+import { CloneResource } from "../../components/CloneResource";
 
-const GIT_PACKS: BuildPack[] = ["dockerfile", "nixpacks", "static"];
+const GIT_PACKS: BuildPack[] = ["dockerfile", "railpack", "nixpacks", "static"];
 
 /**
  * Full definition of the application. The form keeps its own copy of the
@@ -57,6 +61,7 @@ export function ConfigTab(props: { application: Application; onSaved: (applicati
 
   return (
     <div class="stack-lg">
+    <RedeployNotice applicationId={initial.id} />
     <form
       class="stack-lg"
       onSubmit={(event) => {
@@ -190,7 +195,7 @@ export function ConfigTab(props: { application: Application; onSaved: (applicati
               onChange={(checked) => setConfig("build", "spa", checked)}
             />
           </Show>
-          <Show when={config.build.pack === "nixpacks"}>
+          <Show when={config.build.pack === "nixpacks" || config.build.pack === "railpack"}>
             <div class="grid-2">
               <TextInput
                 label={t("Comando de instalação")}
@@ -237,6 +242,7 @@ export function ConfigTab(props: { application: Application; onSaved: (applicati
           />
         </div>
         <dns.View />
+        <AutoDomainNotice applicationId={initial.id} onDomains={(domains) => setConfig("network", "domains", domains)} />
         <div class="grid-2">
           <Show when={config.build.pack !== "static"}>
             <NumberInput
@@ -371,6 +377,7 @@ export function ConfigTab(props: { application: Application; onSaved: (applicati
         onChange={(processes) => setConfig("processes", processes)}
         error={errors().processes}
       />
+      <DockerOptionsEditor options={config.docker_options} errors={errors()} onChange={(options) => setConfig("docker_options", options)} />
 
       <Section title={t("Limites e comandos de deploy")}>
         <div class="grid-2">
@@ -440,6 +447,7 @@ export function ConfigTab(props: { application: Application; onSaved: (applicati
       </Show>
     </form>
     <VolumeBackups kind="applications" id={initial.id} name={initial.name} />
+    <CloneResource kind="applications" id={initial.id} name={initial.name} environmentId={initial.environment_id} />
     </div>
   );
 }

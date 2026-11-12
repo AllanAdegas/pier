@@ -122,7 +122,7 @@ Na aba **Automação**:
 
 **Promover** leva a imagem exata, identificada pelo digest, que está rodando numa aplicação, por exemplo `api-staging`, para outra, como `api`. A imagem não é reconstruída: produção recebe o mesmo artefato testado, com as **variáveis da aplicação de destino**.
 
-A promoção funciona entre aplicações do mesmo servidor e respeita o congelamento do ambiente de destino.
+A promoção funciona no mesmo servidor e, quando há digest publicado acessível, entre servidores. Respeita o congelamento do ambiente de destino. Veja [múltiplos servidores](/docs/multisservidor/).
 
 ```sh
 pierctl promote api-staging --to api --wait
@@ -131,3 +131,8 @@ pierctl promote api-staging --to api --wait
 ## Configuração no repositório
 
 Um arquivo `pier.yaml` na raiz do código pode definir porta, build, health check, comando de release, limites e processos. Ele vale para cada deploy. Veja [pier.yaml e apply](/docs/pier-yaml/).
+
+
+## Configuração avançada e destinos
+
+Para Railpack, estágio do Dockerfile, reinício, encerramento gracioso, variáveis compartilhadas e clonagem, siga [Build e configuração](/docs/build-e-configuracao/). Para servidor de build separado, registry privado e uma aplicação em vários destinos, veja [Registry e múltiplos servidores](/docs/multisservidor/).

@@ -287,6 +287,7 @@ func (s *OIDCService) exchange(ctx context.Context, state, browser, code string)
 	}
 	return user, claims, c, nil
 }
+
 // Disable removes credentials and invalidates pending logins atomically.
 func (s *OIDCService) Disable(ctx context.Context, actor string) error {
 	if err := s.owner(ctx, actor); err != nil {

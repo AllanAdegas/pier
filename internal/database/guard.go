@@ -17,7 +17,7 @@ func (s *Service) acquire(id string) (func(), error) {
 
 func (s *Service) ensureIdle(ctx context.Context, id string) error {
 	var count int
-	err := s.store.db.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM backup_executions WHERE database_id=? AND status='running') + (SELECT COUNT(*) FROM database_operations WHERE database_id=? AND status='running')`, id, id).Scan(&count)
+	err := s.store.db.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM backup_executions WHERE database_id=? AND status='running') + (SELECT COUNT(*) FROM database_operations WHERE database_id=? AND (status='running' OR resume_containers!='[]'))`, id, id).Scan(&count)
 	if err != nil {
 		return err
 	}

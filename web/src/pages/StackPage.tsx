@@ -1,4 +1,5 @@
 import { TerminalButton } from "../components/Terminal";
+import { CloneResource } from "../components/CloneResource";
 import { useNavigate, useParams, useSearchParams } from "@solidjs/router";
 import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { createStore } from "solid-js/store";
@@ -108,6 +109,7 @@ export function StackPage() {
               </Match>
               <Match when={tab() === "compose"}>
                 <ComposeTab stack={data()} onSaved={(saved) => stack.set(saved)} />
+                <CloneResource kind="stacks" id={data().id} name={data().name} environmentId={data().environment_id} />
               </Match>
               <Match when={tab() === "env"}>
                 <div class="stack-lg">

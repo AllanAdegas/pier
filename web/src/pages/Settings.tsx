@@ -1,4 +1,5 @@
 import { GitProviders } from "./settings/GitProviders";
+import { EngineSettings } from "./settings/EngineSettings";
 import { createSignal } from "solid-js";
 import { S3Settings } from "./settings/S3Settings";
 import { Button } from "../components/Button";
@@ -23,6 +24,7 @@ export function SettingsPage() {
       <InstanceBackup />
       <S3Settings />
       <GitProviders />
+      <EngineSettings />
       <InterfaceLanguage />
       <ProfileForm />
       <PasswordForm />

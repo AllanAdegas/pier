@@ -50,6 +50,8 @@ func isPullRequestEvent(provider GitProvider, header http.Header) bool {
 		return event == "pull_request" || event == "pull_request_sync"
 	case ProviderGitLab:
 		return header.Get("X-Gitlab-Event") == "Merge Request Hook"
+	case ProviderBitbucket:
+		return isBitbucketPullRequest(header)
 	}
 	return false
 }

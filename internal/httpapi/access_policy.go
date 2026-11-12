@@ -103,6 +103,8 @@ var exactPolicies = map[string]routePolicy{
 	"POST /api/v1/instance/backups":                     ownerPolicy,
 	"GET /api/v1/instance/backups/config":               ownerPolicy,
 	"PATCH /api/v1/instance/backups/config":             ownerPolicy,
+	"POST /api/v1/cloud/credentials":                    ownerPolicy,
+	"DELETE /api/v1/cloud/credentials/{id}":             ownerPolicy,
 	"GET /api/v1/access/oidc/start":                     publicPolicy,
 	"GET /api/v1/access/oidc/callback":                  publicPolicy,
 	"POST /api/v1/access/accept":                        selfPolicy,
@@ -145,6 +147,10 @@ var prefixRules = []prefixRule{
 	{"/api/v1/updates", instancePolicy},
 	{"/api/v1/audit", instancePolicy},
 	{"/api/v1/users", instancePolicy},
+	// Log drains forward logs to any URL, even when scoped to one project:
+	// instance-level, like the cloud accounts that bill the operator.
+	{"/api/v1/log-drains", instancePolicy},
+	{"/api/v1/cloud", instancePolicy},
 }
 
 // kindAliases maps the kind wildcards (singular or plural) to resource kinds.

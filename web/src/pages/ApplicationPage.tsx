@@ -20,11 +20,11 @@ import { withProcessNames } from "./application/processes";
 import { t } from "../i18n";
 
 const TABS = [
- { id: "placement", label: t("Destinos") },
   { id: "overview", label: t("Visão geral") },
   { id: "deploys", label: "Deploys" },
   { id: "logs", label: "Logs" },
   { id: "config", label: t("Configuração") },
+  { id: "placement", label: t("Destinos") },
   { id: "env", label: t("Variáveis") },
   { id: "previews", label: "Previews" },
   { id: "automation", label: t("Automação") },
@@ -112,7 +112,7 @@ export function ApplicationPage() {
             />
             <Tabs tabs={TABS} selected={tab()} onSelect={(id) => setSearch({ tab: id })} />
             <Switch>
- <Match when={tab() === "placement"}><PlacementTab applicationId={app().id} /></Match>
+ <Match when={tab() === "placement"}><PlacementTab application={app()} /></Match>
               <Match when={tab() === "previews"}><PreviewsTab applicationId={app().id} /></Match>
               <Match when={tab() === "overview"}>
                 <OverviewTab application={app()} containers={containers.data() ?? []} deployments={deployments.data() ?? []} />

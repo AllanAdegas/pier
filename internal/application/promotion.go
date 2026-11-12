@@ -34,6 +34,9 @@ func (s *Service) Promote(ctx context.Context, sourceID, targetID string) (Deplo
 	if source.CurrentImage == "" {
 		return Deployment{}, apperr.Conflict("A aplicação de origem ainda não tem uma versão implantada para promover.")
 	}
+	if deployment, handled, err := s.promoteByDigest(ctx, source, target); handled {
+		return deployment, err
+	}
 	if source.ServerID != target.ServerID {
 		return Deployment{}, apperr.Conflict("As aplicações estão em servidores diferentes. Promover entre servidores exige um " +
 			"registry de imagens, que ainda não está disponível: use um destino no mesmo servidor ou faça o deploy pelo código.")

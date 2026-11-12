@@ -305,3 +305,50 @@ func truncateMessage(message string) string {
 	}
 	return message
 }
+
+// Server roles in a placement.
+const (
+	RolePrimary     = "primary"
+	RoleDestination = "destination"
+	RoleLeaving     = "leaving"
+)
+
+// PlacementServer is one server of an application with its rollout state.
+type PlacementServer struct {
+	ServerID string             `json:"server_id"`
+	Role     string             `json:"role"`
+	Rollout  *DestinationStatus `json:"rollout"`
+}
+
+// Servers lists the servers that run (or are leaving) the application, its
+// own server first, with the last rollout state recorded on each.
+func (s *MultiServer) Servers(ctx context.Context, id string) ([]PlacementServer, error) {
+	app, err := s.apps.Get(ctx, id)
+	if err != nil {
+		return nil, notFound(err, "Aplicação")
+	}
+	plan, _, err := s.plan(ctx, app)
+	if err != nil {
+		return nil, err
+	}
+	statuses, err := s.Status(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	byServer := map[string]*DestinationStatus{}
+	for index := range statuses {
+		byServer[statuses[index].ServerID] = &statuses[index]
+	}
+	result := []PlacementServer{}
+	for index, serverID := range append(slices.Clone(plan.servers), plan.stale...) {
+		role := RoleDestination
+		switch {
+		case index == 0:
+			role = RolePrimary
+		case index >= len(plan.servers):
+			role = RoleLeaving
+		}
+		result = append(result, PlacementServer{ServerID: serverID, Role: role, Rollout: byServer[serverID]})
+	}
+	return result, nil
+}

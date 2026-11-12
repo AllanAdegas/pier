@@ -24,9 +24,7 @@ func testAccess(t *testing.T, db *sql.DB) *rbac.Service {
 // grantRole gives a test identity its instance role, as an owner would.
 func grantRole(t *testing.T, a *API, userID string, role rbac.Role) {
 	t.Helper()
-	_, err := a.Instance.DB.Exec(`INSERT INTO access_instance_roles(user_id,role) VALUES(?,?)
-		ON CONFLICT(user_id) DO UPDATE SET role=excluded.role`, userID, role)
-	if err != nil {
+	if err := a.Access.Assign(context.Background(), userID, role); err != nil {
 		t.Fatal(err)
 	}
 }

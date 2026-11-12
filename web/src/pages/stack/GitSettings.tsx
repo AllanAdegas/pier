@@ -10,6 +10,7 @@ import type { PrivateKey, Stack, StackGitSource, WebhookInfo } from "../../lib/t
 import { t } from "../../i18n";
 import { RISK_LABELS } from "../new/CatalogStackForm";
 import { draftFrom, inputFrom, parseLines, shortCommit, usesSsh, withAcceptedRisks } from "./gitSource";
+import { GitIntegration } from "../settings/GitIntegration";
 
 /** What the last deployment of a Git stack ran: repository, ref and commit. */
 export function GitSummary(props: { git: StackGitSource }) {
@@ -155,6 +156,7 @@ export function GitSettings(props: { stack: Stack; git: StackGitSource; onSaved:
         </div>
       </form>
       <Webhook stack={props.stack} git={props.git} draftAutoDeploy={draft().autoDeploy} onToggle={(autoDeploy) => change({ autoDeploy })} />
+      <GitIntegration kind="stacks" id={props.stack.id} repository={props.git.repository} />
     </div>
   );
 }
@@ -212,6 +214,7 @@ function Webhook(props: { stack: Stack; git: StackGitSource; draftAutoDeploy: bo
             <CopyField label={t("GitHub (evento push, content type application/json)")} value={info().github_url} />
             <CopyField label={t("GitLab (Push events, Secret token)")} value={info().gitlab_url} />
             <CopyField label={t("Gitea / Forgejo")} value={info().gitea_url} />
+            <CopyField label={t("Bitbucket Cloud (repo:push e pull requests, com segredo)")} value={info().bitbucket_url} />
             <CopyField
               label={t("Gatilho genérico (CI)")}
               value={`curl -X POST -H "X-Pier-Token: ${info().secret}" ${info().deploy_url}`}

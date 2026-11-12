@@ -22,20 +22,35 @@ export interface BuiltPage {
 export async function buildPages(version: string): Promise<BuiltPage[]> {
   const values = placeholders(version);
   const description =
-    "Painel self-hosted para publicar aplicações, bancos e serviços no seu servidor, com domínio, HTTPS, backup e deploy sem downtime.";
+    "Painel self-hosted para publicar aplicações, bancos e serviços no seu servidor, com domínio, HTTPS, backup e deploy com verificação de prontidão.";
   const pages: BuiltPage[] = [{
     path: "/",
-    html: shell({ title: "Pier — seus projetos no ar, no seu servidor", description, path: "/", version, body: homeBody(version) }),
+    html: shell({
+      title: "Pier — seus projetos no ar, no seu servidor",
+      description,
+      path: "/",
+      version,
+      body: homeBody(version),
+    }),
   }];
   for (const page of allPages) {
     const source = await Deno.readTextFile(new URL(`${page.slug}.md`, contentDir));
     const { html, headings } = renderMarkdown(fillPlaceholders(source, values));
     pages.push({
       path: docPath(page),
-      html: shell({ title: page.title, description: page.description, path: docPath(page), version, body: docBody(page, html, headings) }),
+      html: shell({
+        title: page.title,
+        description: page.description,
+        path: docPath(page),
+        version,
+        body: docBody(page, html, headings),
+      }),
     });
   }
-  pages.push({ path: "/404.html", html: shell({ title: "Página não encontrada", description, path: "/404", version, body: notFound() }) });
+  pages.push({
+    path: "/404.html",
+    html: shell({ title: "Página não encontrada", description, path: "/404", version, body: notFound() }),
+  });
   return pages;
 }
 
@@ -91,7 +106,9 @@ async function write(pages: BuiltPage[], assets: string[]) {
     await Deno.writeTextFile(file, page.html);
   }
   await Deno.mkdir(new URL("assets/", distDir), { recursive: true });
-  for (const name of assets) await Deno.copyFile(new URL(name, assetsDir), new URL(`assets/${name}`, distDir));
+  for (const name of assets) {
+    await Deno.copyFile(new URL(name, assetsDir), new URL(`assets/${name}`, distDir));
+  }
 }
 
 if (import.meta.main) {

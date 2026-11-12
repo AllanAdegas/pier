@@ -43,7 +43,7 @@ func (a *API) stackWebhookResponse(r *http.Request, secret string) webhookRespon
 	base := a.publicURL(r) + "/webhooks/stacks/" + r.PathValue("id") + "/"
 	return webhookResponse{
 		Secret: secret, DeployURL: base + "deploy", GitHubURL: base + "github",
-		GitLabURL: base + "gitlab", GiteaURL: base + "gitea",
+		GitLabURL: base + "gitlab", GiteaURL: base + "gitea", BitbucketURL: base + "bitbucket",
 	}
 }
 
@@ -69,7 +69,7 @@ func (a *API) stackDeployHook(w http.ResponseWriter, r *http.Request) error {
 func (a *API) stackGitPushHook(w http.ResponseWriter, r *http.Request) error {
 	provider := application.GitProvider(r.PathValue("provider"))
 	switch provider {
-	case application.ProviderGitHub, application.ProviderGitLab, application.ProviderGitea:
+	case application.ProviderGitHub, application.ProviderGitLab, application.ProviderGitea, application.ProviderBitbucket:
 	default:
 		return apperr.NotFound("Provedor de webhook")
 	}

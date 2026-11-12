@@ -3,6 +3,7 @@ package httpapi
 import (
 	"net/http"
 	"net/http/httptest"
+	rbac "pier/internal/access"
 	"pier/internal/application"
 	"pier/internal/identity"
 	"strings"
@@ -17,6 +18,7 @@ func TestPreviewRoutesAbilitiesAndScopedVariables(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	grantRole(t, a, user.ID, rbac.Owner)
 	_, reader, err := a.Identity.CreateToken(t.Context(), user.ID, "reader", []identity.Ability{identity.AbilityRead})
 	if err != nil {
 		t.Fatal(err)

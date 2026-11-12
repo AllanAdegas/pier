@@ -60,3 +60,9 @@ func sameGitHubRepository(source, selected string) bool {
 	a, b := normalize(source), normalize(selected)
 	return a != "" && a == b
 }
+
+// SameGitHubRepository reports whether a source address is the GitHub
+// repository "owner/name" (HTTPS, case-insensitive, with or without ".git").
+func SameGitHubRepository(source, repository string) bool {
+	return sameGitHubRepository(source, "https://github.com/"+repository+".git")
+}

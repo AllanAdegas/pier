@@ -160,7 +160,7 @@ export interface Project {
   environments: Environment[];
 }
 
-export type BuildPack = "dockerfile" | "nixpacks" | "static" | "image";
+export type BuildPack = "dockerfile" | "nixpacks" | "railpack" | "static" | "image";
 
 export interface Storage {
   kind: "volume" | "bind";
@@ -208,6 +208,7 @@ export interface ApplicationConfig {
   auto_deploy: boolean;
   /** Empty or null means a single "web" process. */
   processes?: Process[] | null;
+  docker_options?: DockerOptions;
 }
 
 export interface Process {
@@ -288,6 +289,7 @@ export interface WebhookInfo {
   github_url: string;
   gitlab_url: string;
   gitea_url: string;
+  bitbucket_url: string;
 }
 
 export interface ScheduledTask {
@@ -699,4 +701,237 @@ export interface VolumeOperation {
   logs: string;
   started_at: string;
   finished_at: string | null;
+}
+
+// --- gitapp ---
+export interface GitProviderStatus {
+  configured: boolean;
+  app_id?: number;
+  slug?: string;
+  install_url?: string;
+  webhook_url: string;
+}
+
+export interface GitHubInstallation {
+  id: number;
+  account: string;
+  account_type: string;
+  repository_selection: string;
+  suspended: boolean;
+}
+
+export interface GitHubRepository {
+  id: number;
+  full_name: string;
+  private: boolean;
+  default_branch: string;
+  clone_url: string;
+}
+
+export interface GitProviderLink {
+  selected: boolean;
+  installation_id: number;
+  repository: string;
+}
+
+export type GitFeedbackProvider = "none" | "github" | "gitlab" | "gitea" | "bitbucket";
+
+export interface GitFeedbackSettings {
+  provider: GitFeedbackProvider;
+  commit_status: boolean;
+  pull_request_comments: boolean;
+  token?: string;
+  token_set: boolean;
+  saved: boolean;
+}
+
+export interface GitHubManifestStart {
+  action_url: string;
+  manifest: string;
+}
+
+// --- server-extras ---
+
+export interface OperationsPolicy {
+  maintenance: boolean;
+  cleanup_enabled: boolean;
+  cleanup_cron: string;
+  min_age_hours: number;
+}
+
+export type CleanupKind = "container" | "image" | "build_cache";
+
+export interface CleanupObject {
+  kind: CleanupKind;
+  id: string;
+  name: string;
+  detail: string;
+}
+
+export interface CleanupNote extends CleanupObject {
+  reason: string;
+}
+
+export interface CleanupReport {
+  dry_run: boolean;
+  min_age_hours: number;
+  candidates: CleanupObject[];
+  removed: CleanupObject[];
+  kept: CleanupNote[];
+  failed: CleanupNote[];
+  finished_at: string;
+}
+
+export type DockerInstallMethod = "convenience" | "packages";
+
+export type CloudProvider = "hetzner" | "digitalocean";
+
+export interface CloudCredential {
+  id: string;
+  provider: CloudProvider;
+  name: string;
+  key_id: string;
+  created_at: string;
+}
+
+export interface CloudOption {
+  id: string;
+  name: string;
+  detail: string;
+}
+
+export interface CloudCatalog {
+  regions: CloudOption[];
+  sizes: CloudOption[];
+  images: CloudOption[];
+}
+
+export type CloudMachineStatus = "creating" | "waiting_ssh" | "installing" | "ready" | "failed";
+
+export interface CloudMachine {
+  id: string;
+  credential_id: string;
+  provider: CloudProvider;
+  name: string;
+  region: string;
+  size: string;
+  image: string;
+  install_docker: boolean;
+  external_id: string;
+  ipv4: string;
+  server_id: string;
+  status: CloudMachineStatus;
+  error: string;
+  created_at: string;
+  operation?: OperationSnapshot;
+}
+
+export type LogDrainKind = "http" | "loki";
+export type LogDrainScope = "project" | "application" | "stack";
+
+export interface LogDrainStatus {
+  buffered: number;
+  capacity: number;
+  sent: number;
+  dropped: number;
+  failed_batches: number;
+  last_error: string;
+  last_error_at: string | null;
+  last_sent_at: string | null;
+}
+
+export interface LogDrain {
+  id: string;
+  name: string;
+  kind: LogDrainKind;
+  url: string;
+  has_token: boolean;
+  labels: Record<string, string>;
+  scope_type: LogDrainScope;
+  scope_id: string;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+  status: LogDrainStatus;
+}
+
+export interface LogDrainInput {
+  name: string;
+  kind: LogDrainKind;
+  url: string;
+  /** Omitted keeps the stored token; "" removes it. */
+  token?: string;
+  labels: Record<string, string>;
+  scope_type: LogDrainScope;
+  scope_id: string;
+  enabled: boolean;
+}
+
+// --- engine ---
+
+export interface Ulimit {
+  name: string;
+  soft: number;
+  hard: number;
+}
+
+/** Validated extra container settings; dangerous ones need the owner switch. */
+export interface DockerOptions {
+  extra_hosts: string[];
+  cap_add: string[];
+  cap_drop: string[];
+  ulimits: Ulimit[];
+  shm_size: string;
+  labels: Record<string, string> | null;
+  devices: string[];
+  privileged: boolean;
+  network_mode: string;
+  pid_mode: string;
+}
+
+export interface DockerOptionsPolicy {
+  allow_dangerous: boolean;
+  allow_devices: boolean;
+}
+
+export interface AutoDomainSettings {
+  enabled: boolean;
+  base_domain: string;
+  https: boolean;
+}
+
+export interface AutoDomain {
+  application_id: string;
+  domain: string;
+  url: string;
+  automatic: boolean;
+  removed: boolean;
+}
+
+export type SharedScope = "project" | "environment";
+
+/** A secret shared variable comes back with an empty value. */
+export interface SharedVariable {
+  id: string;
+  scope: SharedScope;
+  scope_id: string;
+  key: string;
+  value: string;
+  secret: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RedeployStatus {
+  required: boolean;
+  reason: string;
+  marked_at: string | null;
+}
+
+export interface CloneOptions {
+  target_environment_id: string;
+  name: string;
+  copy_variables: boolean;
+  copy_domains: boolean;
+  copy_secrets: boolean;
 }

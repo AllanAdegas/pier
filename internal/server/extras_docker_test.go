@@ -112,7 +112,11 @@ func TestDockerInstallRefusesWhatItCannotDoBeforeRunningAnything(t *testing.T) {
 		{"macOS", DockerConvenience, "exige Linux", &installHost{Fake: executor.NewFake().On("uname -s", "Darwin", 0)}},
 		{"alpine script", DockerConvenience, "não suporta Alpine", &installHost{Fake: executor.NewFake().On("uname -s", "Linux", 0).On("os-release", "ID=alpine\nPRETTY_NAME=\"Alpine Linux v3.20\"", 0)}},
 		{"centos packages", DockerPackages, "Não há pacotes", &installHost{Fake: executor.NewFake().On("uname -s", "Linux", 0).On("os-release", "ID=centos\nPRETTY_NAME=\"CentOS Stream 9\"", 0)}},
-		{"no sudo", DockerConvenience, "sudo sem senha", func() *installHost { h := ubuntuHost("1000"); h.Fake.On("sudo -n true", "password required", 1); return h }()},
+		{"no sudo", DockerConvenience, "sudo sem senha", func() *installHost {
+			h := ubuntuHost("1000")
+			h.Fake.On("sudo -n true", "password required", 1)
+			return h
+		}()},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			installer := NewDockerInstaller(&installConnector{ex: tc.host, target: sshTarget()}, nil)

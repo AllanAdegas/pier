@@ -11,14 +11,18 @@ Todas as chaves são opcionais:
 
 ```yaml
 build:
-  pack: dockerfile            # dockerfile | nixpacks | static
+  pack: dockerfile            # dockerfile | nixpacks | railpack | static
   dockerfile: docker/Dockerfile.prod
+  target: production          # estágio de Dockerfile, opcional
   publish_directory: /dist    # static
   spa: true                   # static
   install_command: npm ci     # nixpacks
   build_command: npm run build
   start_command: node server.js
 port: 8080
+runtime:
+  restart_policy: unless-stopped
+  stop_grace_seconds: 30
 health:
   enabled: true
   path: /healthz

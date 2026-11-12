@@ -10,7 +10,7 @@ O Pier tem um servidor [MCP](https://modelcontextprotocol.io), o protocolo que a
    - `deploy` para também implantar e reiniciar.
 3. Copie a configuração gerada pela tela.
 
-O MCP aceita só token de API, nunca a sessão do painel, e respeita as mesmas permissões.
+O MCP aceita só token de API, nunca a sessão do painel. A capacidade do token é limitada também pelo papel atual do usuário e pelo projeto. Permissões de um projeto não concedem acesso global a servidores ou a outro projeto. Nem todo recurso novo da CLI ou da API tem ferramenta MCP correspondente.
 
 ## Claude Code
 

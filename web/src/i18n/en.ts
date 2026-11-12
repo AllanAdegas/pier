@@ -1,5 +1,6 @@
 import { englishServerExtras } from "./en-serverextras";
 import { englishEngineExtras } from "./en-engineextras";
+import { englishEngine06 } from "./en-engine06";
 import { englishRbac } from "./en-rbac";
 import { englishMultiserver } from "./en-multiserver";
 import { englishGitapp } from "./en-gitapp";
@@ -1044,6 +1045,7 @@ export const english: Record<string, string> = {
   ...base,
   ...englishServerExtras,
   ...englishEngineExtras,
+  ...englishEngine06,
   ...englishRbac,
   ...englishMultiserver,
   ...englishAuth,

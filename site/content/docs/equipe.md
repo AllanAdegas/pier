@@ -1,39 +1,41 @@
-Um papel define o que uma pessoa pode fazer em um projeto. Ele é separado da capacidade de um token de API: um token não deve ampliar o acesso do usuário.
+O acesso combina o papel da pessoa e a capacidade do token. Ter um token `write` não aumenta o papel do usuário. A interface esconde ações indisponíveis, e o backend deve recusar a mesma operação quando chamada diretamente.
 
-## Papéis
+## Papéis e escopos
 
-| Papel | Uso esperado |
+| Papel | Operações permitidas pelo papel |
 |---|---|
-| Somente leitura (`viewer`) | Consultar recursos permitidos |
+| Somente leitura (`viewer`) | Consultar recursos autorizados |
 | Desenvolvedor (`developer`) | Consultar e implantar |
-| Administrador (`admin`) | Configurar recursos e administrar convites |
-| Proprietário (`owner`) | Administrar também os proprietários do projeto |
+| Administrador (`admin`) | Configurar recursos e administrar acessos dentro do limite do próprio papel |
+| Proprietário (`owner`) | Administrar também proprietários e operações reservadas |
 
-O proprietário da instância administra as configurações globais. Na migração, a conta mais antiga recebe esse papel; confira qual conta foi escolhida antes de liberar acesso. Outras contas existentes precisam de concessões explícitas. Não há transferência de proprietário da instância neste fluxo.
+Um papel de **projeto** vale somente naquele projeto. Um papel de **instância** vale para todos os projetos e para recursos globais, como servidores e configurações. **Somente projetos** significa que a conta não tem papel global.
 
-## Convidar alguém
+Na atualização de uma instalação anterior à 0.6, **todas as contas existentes recebem `owner` da instância**, preservando o acesso administrativo que já tinham, inclusive por tokens. Revise e reduza esses papéis depois de atualizar; não presuma que a migração restringiu usuários antigos. Em uma instalação nova, a primeira conta é proprietária. A instância e cada projeto conservam pelo menos um proprietário; uma pessoa não altera o próprio papel por esse fluxo.
 
-Na tela **Equipe e permissões** do projeto (`/projects/ID/access`):
+Na tela de equipe, proprietários da instância encontram **Papéis na instância**. Conceda acesso global só quando necessário. Um projeto não é isolamento do kernel: recursos que permitem executar código, Docker privilegiado ou terminal exigem confiança no operador.
 
-1. Informe o e-mail de uma conta já existente e escolha o menor papel necessário.
-2. Clique em **Criar convite**. Copie o token agora: aparece uma vez. Envie por um canal privado.
-3. A pessoa entra com a conta do mesmo e-mail e usa **Aceitar convite** com esse token.
-4. Confira a lista de membros. Convites expiram em 24 horas, são de uso único e podem ser revogados.
+## Convites do projeto
 
-Convites não cadastram contas e não substituem o papel de um membro existente. Só um proprietário pode conceder ou mudar `owner`. A proteção impede remover o último proprietário do projeto e alterar o próprio papel.
+Na tela **Equipe e permissões** do projeto:
+
+1. Informe o e-mail de uma conta existente e escolha o menor papel necessário.
+2. Clique em **Criar convite** e copie o token, mostrado uma vez. Envie por canal privado.
+3. A pessoa entra com a conta desse e-mail e usa **Aceitar convite**.
+4. Confira membros e convites. Convites expiram em 24 horas, são de uso único e podem ser revogados.
+
+O convite não cria uma conta e não substitui silenciosamente o papel de um membro existente. Revogar o convite impede seu uso; para retirar acesso já concedido, remova o membro ou o papel correspondente. Revise também os acessos globais.
 
 ## SSO OpenID Connect
 
-SSO é login por um provedor de identidade, não uma forma de criar contas automaticamente. Somente o proprietário da instância configura **SSO OpenID Connect**.
+SSO autentica contas previamente vinculadas. E-mail igual não cria vínculo e não há cadastro automático por SSO. Preserve uma conta local com [recuperação preparada](/docs/conta/) para não perder acesso ao desativar ou mudar o provedor.
 
-1. O operador deve configurar um issuer permitido e callback HTTPS exato no servidor. A disponibilidade depende dessa integração; não basta preencher a tela.
-2. Cadastre no provedor o callback `/api/v1/access/oidc/callback` na origem HTTPS do painel.
-3. Na tela, informe issuer, Client ID, Client secret e callback aprovados.
-4. Autorize o par exato issuer + subject para o ID de uma conta existente. E-mail igual, mesmo verificado, não cria vínculo.
-5. Use **Entrar com SSO**. Para retirar acesso, revogue a identidade e revise as sessões da conta.
+O operador configura na instalação as variáveis `PIER_OIDC_ISSUERS` (issuers HTTPS exatos separados por espaço) e `PIER_OIDC_CALLBACK` (URL HTTPS exata de retorno). Repasse-as ao processo/container do Pier; não basta tê-las no shell se o Compose não as encaminhar. O callback termina em `/api/v1/access/oidc/callback`.
 
-SSO exige HTTPS, inclusive para o cookie de vinculação do navegador. Preserve uma conta local com [recuperação preparada](/docs/conta/) antes de testar ou desativar o provedor.
+Em **SSO OpenID Connect**, o proprietário informa issuer permitido, Client ID, Client secret e callback aprovado. Autoriza o par exato issuer + subject para o ID de uma conta existente. O botão **Entrar com SSO** inicia o login. HTTPS é obrigatório, inclusive para o cookie que vincula o retorno ao navegador.
 
-## Limite de integração nesta beta
+Opcionalmente, configure o claim de grupos e mapeamentos, uma linha `grupo=papel` (`admin`, `developer` ou `viewer`). Confira o papel padrão antes de salvar: um papel de instância amplia o acesso para todos os projetos. SSO nunca concede nem remove `owner`. Sem mapeamento, mantenha os papéis no Pier. Para retirar uma identidade, use **Revogar identidade SSO** e revise as sessões da conta.
 
-As notas de implementação registram pendências de autorização transversal, filtros de listas e navegação. A presença da tela ou testes do serviço não prova isolamento completo de todos os endpoints. Antes de abrir a instância para usuários com menor confiança, valide na versão integrada leitura, deploy, escrita e acesso entre projetos, inclusive terminal, Docker, tokens e MCP. Não trate um projeto como fronteira de isolamento de host.
+## Verificar antes de abrir acesso
+
+A integração da 0.6 está em validação de QA. Teste com contas diferentes: leitura, deploy, escrita, tentativa de acessar outro projeto, operações globais, terminal e MCP. Serviços e telas implementados não equivalem a uma auditoria externa ou a isolamento entre cargas não confiáveis.

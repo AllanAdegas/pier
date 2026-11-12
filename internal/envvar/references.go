@@ -25,7 +25,7 @@ func (s *Store) ListForDeploy(ctx context.Context, owner Owner, environmentID, s
 	if err != nil {
 		return nil, err
 	}
-	return ResolveReferences(ctx, variables, environmentID, serverID, s.resolver)
+	return s.resolveAllReferences(ctx, variables, environmentID, serverID)
 }
 
 // ResolveReferences performs a single pass so credentials containing reference-like

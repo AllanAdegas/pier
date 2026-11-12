@@ -2,6 +2,7 @@ package volumebackup
 
 import (
 	"context"
+	"errors"
 	"path"
 	"strings"
 	"time"
@@ -66,7 +67,7 @@ func (s *Service) runRestore(resource Resource, backup Backup, op Operation) {
 	_ = s.store.finishOperation(context.WithoutCancel(ctx), op.ID, status, message, logs.String())
 }
 
-func (s *Service) restore(ctx context.Context, resource Resource, backup Backup, op Operation, log executor.LineSink) error {
+func (s *Service) restore(ctx context.Context, resource Resource, backup Backup, op Operation, log executor.LineSink) (resultErr error) {
 	ex, target, err := s.reach(ctx, resource.ServerID)
 	if err != nil {
 		return err
@@ -94,7 +95,7 @@ func (s *Service) restore(ctx context.Context, resource Resource, backup Backup,
 	log(i18n.Instance().Text("Parando o recurso para restaurar os volumes."))
 	defer func() {
 		log(i18n.Instance().Text("Iniciando o recurso novamente."))
-		resumeContainers(ex, running)
+		resultErr = errors.Join(resultErr, resumeContainers(ex, running))
 	}()
 	if err := docker.Stop(ctx, ex, running); err != nil {
 		return i18n.Errorf("não foi possível parar o recurso: %w", err)

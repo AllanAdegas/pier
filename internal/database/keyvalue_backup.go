@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path"
 	"time"
@@ -87,15 +88,33 @@ func (s *Service) restoreKeyValue(ctx context.Context, source, target Database, 
 		return err
 	}
 	running := runningContainers(containers)
-	log(i18n.Instance().Text("Parando o banco para substituir os dados. As conexões serão interrompidas."))
-	if err := docker.Stop(ctx, ex, running); err != nil {
+	ids := make([]string, 0, len(running))
+	for _, c := range running {
+		ids = append(ids, c.ID)
+	}
+	journal, err := json.Marshal(ids)
+	if err != nil {
 		return err
 	}
-	restoreErr := s.replaceKeyValueData(ctx, ex, target, b, op)
+	result, err := s.store.db.ExecContext(ctx, "UPDATE database_operations SET resume_containers=? WHERE id=? AND status='running'", string(journal), op.ID)
+	if err != nil {
+		return err
+	}
+	if n, err := result.RowsAffected(); err != nil || n != 1 {
+		return fmt.Errorf("não foi possível registrar os containers antes da parada")
+	}
+	log(i18n.Instance().Text("Parando o banco para substituir os dados. As conexões serão interrompidas."))
+	restoreErr := docker.Stop(ctx, ex, running)
+	if restoreErr == nil {
+		restoreErr = s.replaceKeyValueData(ctx, ex, target, b, op)
+	}
 	startCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Minute)
 	defer cancel()
 	if err := docker.Start(startCtx, ex, running); err != nil {
 		return i18n.Errorf("Não foi possível iniciar o banco novamente: %w (restauração: %v).", err, restoreErr)
+	}
+	if _, err := s.store.db.ExecContext(startCtx, "UPDATE database_operations SET resume_containers='[]' WHERE id=?", op.ID); err != nil {
+		return err
 	}
 	if restoreErr != nil {
 		return restoreErr

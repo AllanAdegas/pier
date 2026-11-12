@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	rbac "pier/internal/access"
 	"strings"
 	"testing"
 	"time"
@@ -53,6 +54,7 @@ func TestTerminalWebSocketMovesBytesAndClosesShell(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	grantRole(t, a, user.ID, rbac.Owner)
 	cookie, err := a.Identity.OpenSession(context.Background(), user.ID)
 	if err != nil {
 		t.Fatal(err)

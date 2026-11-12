@@ -172,7 +172,7 @@ type imageBuilder struct{}
 func (imageBuilder) build(ctx context.Context, j *job) (string, error) {
 	image := j.app.Config.Source.Image
 	j.log.Command("docker pull " + image)
-	if err := j.ex.Stream(ctx, shell.Join("docker", "pull", image), j.log.Output); err != nil {
+	if err := j.pullImage(ctx, image); err != nil {
 		// A registry outage or rate limit must not block a deploy whose image
 		// is already on the server.
 		if ctx.Err() != nil || !docker.ImageExists(ctx, j.ex, image) {

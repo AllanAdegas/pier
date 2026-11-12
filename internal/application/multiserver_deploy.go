@@ -65,11 +65,12 @@ type rollout struct {
 // releasedServer is a server that runs the new version and what it ran before.
 type releasedServer struct {
 	id, name, previous string
+	recovery           *releaseRecovery
 }
 
 func (r *rollout) run(ctx context.Context) error {
 	r.log.repository(r.app.Config.Source.Repository)
-	r.log.Info("Iniciando deploy de %q em %d servidor(es) (%s).", r.app.Name, len(r.plan.servers), r.deployment.Trigger)
+	r.log.Info("Iniciando o deploy de %q em %d servidor(es), com gatilho %s.", r.app.Name, len(r.plan.servers), r.deployment.Trigger)
 	for _, id := range append([]string{r.plan.buildServer}, r.plan.servers...) {
 		if err := server.CheckConnectorDeployment(ctx, r.d.connector, id); err != nil {
 			return err
@@ -91,6 +92,17 @@ func (r *rollout) run(ctx context.Context) error {
 	}
 	if err := r.d.store.setCurrentImage(ctx, r.app.ID, r.image); err != nil {
 		return err
+	}
+	for _, released := range r.released {
+		if released.recovery != nil && released.recovery.touched {
+			j, err := r.job(ctx, released.id)
+			if err == nil {
+				err = docker.Remove(ctx, j.ex, released.recovery.previous)
+			}
+			if err != nil {
+				r.log.Info("Não foi possível remover containers antigos de %s: %s", released.name, err)
+			}
+		}
 	}
 	r.decommission(context.WithoutCancel(ctx))
 	return nil
@@ -127,26 +139,31 @@ func (r *rollout) releaseOn(ctx context.Context, serverID string, index int) err
 		r.record(ctx, serverID, PlacementFailed, "", "", err)
 		return err
 	}
-	r.log.Info("Servidor %s (%d de %d).", j.server.Name, index+1, len(r.plan.servers))
+	r.log.Info("Servidor %s: atualização %d de %d.", j.server.Name, index+1, len(r.plan.servers))
 	if err := docker.EnsureNetwork(ctx, j.ex); err != nil {
 		r.record(ctx, serverID, PlacementFailed, "", "", err)
 		return err
 	}
-	previous := previousImage(ctx, j)
+	previous, err := previousImage(ctx, j)
+	if err != nil {
+		r.record(ctx, serverID, PlacementFailed, "", "", err)
+		return err
+	}
 	r.record(ctx, serverID, PlacementDeploying, r.image, previous, nil)
 	if index > 0 {
 		withoutOneShotSteps(&j.app)
 	}
-	err = j.release(ctx, r.image, environmentOf(j.env))
+	recovery := &releaseRecovery{retain: true}
+	err = j.releaseRecoverable(ctx, r.image, environmentOf(j.env), recovery)
 	r.deployment.Hints, r.deployment.RetiredLogs = j.deployment.Hints, j.deployment.RetiredLogs
 	if err != nil {
-		if runsDeployment(context.WithoutCancel(ctx), j) {
-			r.released = append(r.released, releasedServer{id: serverID, name: j.server.Name, previous: previous})
+		if recovery.touched || runsDeployment(context.WithoutCancel(ctx), j) {
+			r.released = append(r.released, releasedServer{id: serverID, name: j.server.Name, previous: previous, recovery: recovery})
 		}
 		r.record(ctx, serverID, PlacementFailed, previous, "", err)
 		return err
 	}
-	r.released = append(r.released, releasedServer{id: serverID, name: j.server.Name, previous: previous})
+	r.released = append(r.released, releasedServer{id: serverID, name: j.server.Name, previous: previous, recovery: recovery})
 	r.record(ctx, serverID, PlacementHealthy, r.image, previous, nil)
 	r.d.pruneImages(context.WithoutCancel(ctx), j)
 	return nil
@@ -188,6 +205,9 @@ func (r *rollout) restore(ctx context.Context, released releasedServer) error {
 	j, err := r.job(ctx, released.id)
 	if err != nil {
 		return err
+	}
+	if released.recovery != nil && released.recovery.touched {
+		return released.recovery.restore(ctx, j)
 	}
 	if released.previous == "" {
 		containers, err := docker.ListByResource(ctx, j.ex, r.app.ID)
@@ -255,17 +275,17 @@ func (r *rollout) record(ctx context.Context, serverID, status, image, previous 
 }
 
 // previousImage is what the server runs now, the version to go back to.
-func previousImage(ctx context.Context, j *job) string {
+func previousImage(ctx context.Context, j *job) (string, error) {
 	containers, err := docker.ListByResource(ctx, j.ex, j.app.ID)
 	if err != nil {
-		return ""
+		return "", err
 	}
 	for _, container := range containers {
 		if container.Image != "" {
-			return container.Image
+			return container.Image, nil
 		}
 	}
-	return ""
+	return "", nil
 }
 
 // runsDeployment tells whether the new release already serves on the

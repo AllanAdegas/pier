@@ -38,8 +38,10 @@ func parseRemote(repository string) (remote, error) {
 		return remote{}, unknownRemote()
 	}
 	path := strings.TrimSuffix(strings.Trim(parsed.Path, "/"), ".git")
-	if path == "" || strings.Contains(path, "..") || strings.Contains(path, "//") {
-		return remote{}, unknownRemote()
+	for _, segment := range strings.Split(path, "/") {
+		if !validSegment(segment) {
+			return remote{}, unknownRemote()
+		}
 	}
 	return remote{origin: origin, host: strings.ToLower(parsed.Hostname()), path: path}, nil
 }
@@ -48,7 +50,7 @@ func parseRemote(repository string) (remote, error) {
 func scpToURL(value string) string {
 	at := strings.Index(value, "@")
 	colon := strings.Index(value, ":")
-	if colon <= at+1 {
+	if at < 1 || colon <= at+1 {
 		return value
 	}
 	host := value[at+1 : colon]

@@ -2,31 +2,46 @@ package monitor
 
 import (
 	"context"
+
 	"pier/internal/application"
 	"pier/internal/docker"
 )
 
+// syncPlacement sets the status of an application that runs on several
+// servers, once per round (when its own server is sampled). handled is false
+// for single-server applications, which keep the per-server rule.
+//
+// Every server running is "running"; some servers without a running release
+// (unreachable or empty) make it "degraded"; none makes it "stopped".
 func (m *Monitor) syncPlacement(ctx context.Context, app application.Application, serverID string) bool {
-	targets, err := m.Applications.PlacementDestinations(ctx, app.ID)
-	if err != nil {
-		return true
+	servers, err := m.Applications.PlacementDestinations(ctx, app)
+	if err != nil || len(servers) == 0 {
+		return err != nil
 	}
-	if len(targets) == 0 {
-		return false
-	}
-	if targets[0] != serverID {
+	if servers[0] != serverID {
 		return true
 	}
 	all := []docker.Container{}
-	for _, id := range targets {
-		items, e := m.listContainers(ctx, id)
-		group := docker.GroupByResource(items)[app.ID]
-		if e != nil || len(group) == 0 {
-			_ = m.Applications.SetStatus(ctx, app.ID, docker.StatusStopped)
-			return true
+	missing := 0
+	for _, id := range servers {
+		containers, err := m.listContainers(ctx, id)
+		group := docker.GroupByResource(containers)[app.ID]
+		if err != nil || docker.Summarize(group) == docker.StatusStopped {
+			missing++
+			continue
 		}
 		all = append(all, group...)
 	}
-	_ = m.Applications.SetStatus(ctx, app.ID, docker.Summarize(all))
+	_ = m.Applications.SetStatus(ctx, app.ID, placementStatus(all, missing, len(servers)))
 	return true
+}
+
+func placementStatus(containers []docker.Container, missing, total int) string {
+	switch {
+	case missing == total:
+		return docker.StatusStopped
+	case missing > 0:
+		return docker.StatusDegraded
+	}
+	return docker.Summarize(containers)
 }

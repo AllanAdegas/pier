@@ -9,12 +9,14 @@ import { createAction, createQuery } from "../../lib/query";
 import type { Application, ScheduledTask, TaskExecution, WebhookInfo } from "../../lib/types";
 import { t } from "../../i18n";
 import { Checkbox, TextInput } from "../../components/Form";
+import { GitIntegration } from "../settings/GitIntegration";
 
 /** Automatic deploys (webhooks) and commands that run on a schedule. */
 export function AutomationTab(props: { application: Application; onSaved: (application: Application) => void }) {
   return (
     <div class="stack-lg">
       <WebhooksSection application={props.application} onSaved={props.onSaved} />
+      <Show when={props.application.config.build.pack !== "image"}><GitIntegration kind="applications" id={props.application.id} repository={props.application.config.source.repository} /></Show>
       <TasksSection applicationId={props.application.id} />
     </div>
   );
@@ -66,6 +68,7 @@ function WebhooksSection(props: { application: Application; onSaved: (applicatio
               <CopyField label={t("GitHub (evento push, content type application/json)")} value={info().github_url} />
               <CopyField label={t("GitLab (Push events, Secret token)")} value={info().gitlab_url} />
               <CopyField label={t("Gitea / Forgejo")} value={info().gitea_url} />
+              <CopyField label={t("Bitbucket Cloud (repo:push e pull requests, com segredo)")} value={info().bitbucket_url} />
             </Show>
             <CopyField
               label={t("Gatilho genérico (CI)")}

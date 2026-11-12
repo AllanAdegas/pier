@@ -2,6 +2,7 @@ package volumebackup
 
 import (
 	"context"
+	"errors"
 	"io"
 	"path"
 	"strconv"
@@ -100,7 +101,7 @@ func (s *Service) publish(kind notify.EventType, resource Resource, title, messa
 }
 
 // archive writes the tar.gz on the server and returns its path and size.
-func (s *Service) archive(ctx context.Context, resource Resource, policy Policy, backup Backup) (string, int64, error) {
+func (s *Service) archive(ctx context.Context, resource Resource, policy Policy, backup Backup) (resultPath string, resultSize int64, resultErr error) {
 	ex, target, err := s.reach(ctx, resource.ServerID)
 	if err != nil {
 		return "", 0, err
@@ -127,7 +128,7 @@ func (s *Service) archive(ctx context.Context, resource Resource, policy Policy,
 		if err != nil {
 			return "", 0, err
 		}
-		defer resume()
+		defer func() { resultErr = errors.Join(resultErr, resume()) }()
 	}
 	if _, err := ex.Run(ctx, backupCommand(helper, directory, file, backup.Mounts)); err != nil {
 		return "", 0, i18n.Errorf("o arquivamento dos volumes falhou: %w", err)
@@ -165,7 +166,7 @@ func cleanup(ex executor.Executor, helper, filePath string) {
 // quiesce stops the running containers of the resource and returns the
 // function that starts them again. The stopped IDs are persisted first, so a
 // restart of Pier in the middle can still bring the resource back.
-func (s *Service) quiesce(ctx context.Context, ex executor.Executor, resourceID, backupID string) (func(), error) {
+func (s *Service) quiesce(ctx context.Context, ex executor.Executor, resourceID, backupID string) (func() error, error) {
 	containers, err := docker.ListByResource(ctx, ex, resourceID)
 	if err != nil {
 		return nil, err
@@ -175,16 +176,19 @@ func (s *Service) quiesce(ctx context.Context, ex executor.Executor, resourceID,
 		return nil, err
 	}
 	if err := docker.Stop(ctx, ex, running); err != nil {
-		resumeContainers(ex, running)
-		return nil, i18n.Errorf("não foi possível parar a aplicação: %w", err)
+		resumeErr := resumeContainers(ex, running)
+		return nil, errors.Join(i18n.Errorf("não foi possível parar a aplicação: %w", err), resumeErr)
 	}
-	return func() { resumeContainers(ex, running) }, nil
+	return func() error { return resumeContainers(ex, running) }, nil
 }
 
-func resumeContainers(ex executor.Executor, containers []docker.Container) {
+func resumeContainers(ex executor.Executor, containers []docker.Container) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
-	_ = docker.Start(ctx, ex, containers)
+	if err := docker.Start(ctx, ex, containers); err != nil {
+		return i18n.Errorf("Não foi possível reiniciar o recurso após a operação: %w", err)
+	}
+	return nil
 }
 
 func runningOf(containers []docker.Container) []docker.Container {

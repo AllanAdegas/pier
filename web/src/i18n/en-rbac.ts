@@ -12,4 +12,9 @@ export const englishRbac: Record<string, string> = {
   "Email do convidado": "Invitee email", "Papel do convite": "Invitation role", "Criar convite": "Create invitation",
   "Copie o token agora. Ele aparece somente nesta resposta.": "Copy the token now. It appears only in this response.",
   "Ocultar token": "Hide token", "Revogar convite": "Revoke invitation",
+  "Somente projetos": "Projects only", "Papéis na instância": "Instance roles", "Papel na instância": "Instance role",
+  "O papel na instância vale para todos os projetos e para servidores, configurações e usuários.": "The instance role applies to every project and to servers, settings and users.",
+  "Linhas de mapeamento inválidas: {lines}": "Invalid mapping lines: {lines}",
+  "Papéis pelo SSO: uma linha grupo=papel (admin, developer ou viewer). O SSO nunca concede proprietário. Sem mapeamento, os papéis ficam só no Pier.": "Roles from SSO: one group=role line (admin, developer or viewer). SSO never grants owner. Without a mapping, roles are managed only in Pier.",
+  "Claim dos grupos": "Groups claim", "Mapeamento de papéis": "Role mapping", "Papel padrão do SSO": "Default SSO role",
 };

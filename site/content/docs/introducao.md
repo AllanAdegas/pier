@@ -6,7 +6,7 @@ O Pier é um painel que você instala no **seu** servidor para publicar projetos
 
 - **Quem está começando** e quer colocar um site, uma API ou um bot no ar sem aprender Docker, proxy reverso e certificados.
 - **Devs e equipes pequenas** que mantêm várias aplicações em uma ou algumas VPS e querem deploy sem downtime, rollback e backup sem montar tudo à mão.
-- **Quem automatiza**: tudo tem API, CLI (`pierctl`), configuração no repositório (`pier.yaml`) e um servidor MCP para agentes de IA.
+- **Quem automatiza**: há API, CLI (`pierctl`), configuração no repositório (`pier.yaml`) e um servidor MCP para agentes de IA.
 
 ## O que dá para publicar
 
@@ -33,7 +33,7 @@ Um deploy segue sempre o mesmo caminho:
 4. Sobe a versão nova **ao lado** da atual e espera ela ficar pronta.
 5. Só então muda o tráfego e para a versão anterior.
 
-Se qualquer passo falhar, a versão que estava no ar continua respondendo.
+Falhas antes da troca preservam a versão anterior. Em múltiplos servidores, a atualização é sequencial e a compensação pode exigir intervenção; migrations e efeitos externos não são desfeitos pelo rollback.
 
 ## Organização
 
@@ -45,11 +45,11 @@ Se qualquer passo falhar, a versão que estava no ar continua respondendo.
 
 O Pier está em **beta** (versão {{version}}). Antes de decidir, saiba o que fica de fora desta versão:
 
-- Cada aplicação roda em **um** servidor. As réplicas ficam no mesmo servidor, sem balanceamento entre máquinas.
+- [Múltiplos destinos](/docs/multisservidor/) usam rollout sequencial. DNS/balanceador e dados compartilhados ficam por sua conta.
 - [Previews por pull request](/docs/previews/) são opcionais e executam código do repositório; forks exigem cuidado especial.
 - Há [equipe e papéis por projeto](/docs/equipe/); valide a integração de autorização desta versão antes de abrir acesso a uma equipe.
 - Há [histórico de métricas](/docs/alertas/#historico-de-metricas); lacunas não significam uso zero.
-- O Pier não instala o Docker nos servidores nem cria máquinas na nuvem.
+- Há fluxos de instalação de Docker por SSH e provisionamento Hetzner/DigitalOcean, ainda sujeitos à validação do ambiente. Veja [operações](/docs/operacoes/).
 - Os serviços do catálogo são validados automaticamente, mas só alguns foram implantados de verdade. Teste o que for usar.
 
 Kubernetes existe como opção avançada (importar um cluster ou criar um K3s), mas nada no fluxo comum depende dele.
@@ -61,3 +61,5 @@ Siga a [instalação](/docs/instalacao/): são uns 10 minutos num servidor com D
 ## Licença e responsabilidade
 
 O código usa Apache-2.0. A disponibilidade pública do repositório e das imagens depende da publicação pelo proprietário. Veja [licença e governança](/docs/comunidade/). Automação reduz manutenção, mas não dispensa revisão humana.
+
+Os guias novos acompanham o desenvolvimento da linha 0.6. A versão publicada {{version}} pode não conter todos esses recursos até a release correspondente; confira as notas da tag escolhida.

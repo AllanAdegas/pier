@@ -114,7 +114,7 @@ pierctl stack create wiki --project docs --template docmost \
 | Códigos de saída | `0` sucesso · `1` erro · `2` uso incorreto · `3` a operação falhou · `4` tempo esgotado |
 | Esperar | `--wait` espera a operação terminar, `--follow` mostra o log, `--timeout` limita a espera |
 | Destrutivo | `rm`, `prune` e afins exigem `--yes`. Nunca há pergunta interativa |
-| Nomes | Recursos aceitam id ou nome. Um nome ambíguo é erro, nunca um palpite |
+| Nomes | Comandos tradicionais resolvem id ou nome. Os grupos novos abaixo exigem IDs explícitos; confira o help. Um nome ambíguo é erro |
 
 ### GitHub Actions
 
@@ -138,4 +138,45 @@ jobs:
         run: pierctl app deploy api --wait --timeout 15m
 ```
 
-Use um token com permissão `deploy`: ele implanta, mas não remove nada nem lê segredos.
+Use um token com capacidade `deploy` e papel compatível no projeto. Ele não deve ler segredos nem remover recursos principais; remoção de previews temporários faz parte da capacidade de deploy.
+
+
+## Grupos novos da linha 0.6
+
+Esses comandos exigem uma versão da CLI e do servidor que os inclua. Os argumentos de recurso abaixo são **IDs**, não nomes. Use `--help` no grupo para ver payloads e opções. Os grupos novos usam JSON como saída padrão. Operações assíncronas retornam o estado inicial; consulte o status antes de considerar sucesso e não presuma que aceitam `--wait`.
+
+| Grupo | Para quê |
+|---|---|
+| `preview` | Listar, configurar, reimplantar/remover previews e manter variáveis exclusivas |
+| `placement` e `registry` | Consultar/configurar destinos e cadastrar/verificar credenciais de registry |
+| `git-stack` e `git-provider` | Fonte Git, webhooks, vínculo de repositório e retorno dos deploys |
+| `volume-backup` | Volumes elegíveis, políticas, backups, download e restauração |
+| `metrics-history` | Consultar séries por servidor, aplicação, banco ou stack |
+| `server-operations` | Política de manutenção, simulação/execução de limpeza e instalação Docker |
+| `log-drain` | Configurar e testar encaminhamento externo de logs |
+| `access` | Consultar permissões efetivas e membros autorizados |
+| `shared-var` | Variáveis compartilhadas de projeto/ambiente e aplicações dependentes |
+| `clone-resource` | Copiar definição de aplicação, banco ou stack para outro ambiente |
+| `auto-domain` | Consultar/gerar domínio automático e configurar sua política |
+| `cloud` | Consultar provedores/máquinas e criar máquinas; criação exige `--yes` e gera cobrança |
+
+Exemplos de leitura e operação com IDs:
+
+```sh
+pierctl preview ls APP_ID
+pierctl placement servers APP_ID
+pierctl registry ls
+pierctl volume-backup app-ls APP_ID
+pierctl metrics-history application APP_ID --range 1h
+pierctl access me
+```
+
+Mutações desses grupos recebem JSON com `-f arquivo.json` ou `-f -` pela entrada padrão. Não coloque credenciais em argumentos de shell. Arquivos de entrada precisam de acesso restrito e remoção após o uso. Valores sensíveis ficam ocultos na saída por padrão; `--show-secrets` é uma escolha explícita que pode vazar no log do CI.
+
+Remoções e restaurações exigem `--yes`, além da confirmação por nome que a API exigir no JSON. `volume-backup download BACKUP_ID -O arquivo.tar.gz` cria um arquivo privado novo e não sobrescreve arquivo existente. Proteja os dumps baixados: o arquivo de volumes não é cifrado como `.pierbak`.
+
+### O que exige o painel
+
+A CLI usa token de API e não envia cookies de sessão. Segurança da conta (2FA, códigos de recuperação e sessões), convites, alteração de papéis e SSO exigem sessão no painel. `pierctl account` explica essa distinção; não converte um token de escrita em sessão de navegador. A recuperação offline usa `pier admin`, não `pierctl`.
+
+Terminal interativo do navegador e fluxos de credenciais de nuvem que exigem sessão também não devem ser contornados por comandos de token. Veja [conta](/docs/conta/), [equipe](/docs/equipe/) e [operações](/docs/operacoes/).

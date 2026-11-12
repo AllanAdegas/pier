@@ -19,7 +19,7 @@ func (r *rollout) produce(ctx context.Context) error {
 		return err
 	}
 	if r.plan.buildServer != r.app.ServerID {
-		r.log.Info("Servidor de build: %s.", j.server.Name)
+		r.log.Info("Construção da imagem no servidor %s.", j.server.Name)
 	}
 	if err := docker.EnsureNetwork(ctx, j.ex); err != nil {
 		return err

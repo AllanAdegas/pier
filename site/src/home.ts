@@ -13,8 +13,9 @@ interface Feature {
 
 const features: Feature[] = [
   {
-    title: "Deploy sem derrubar nada",
-    text: "A versão nova sobe ao lado da atual e só assume quando está pronta. Se falhar, a anterior continua no ar.",
+    title: "Deploy com prontidão",
+    text:
+      "A versão nova sobe ao lado da atual e só assume quando está pronta. Se falhar, a anterior continua no ar.",
     href: "/docs/aplicacoes/",
   },
   {
@@ -24,17 +25,20 @@ const features: Feature[] = [
   },
   {
     title: "Bancos com backup",
-    text: "PostgreSQL, MySQL, MariaDB, MongoDB, Redis e mais, com senhas geradas, backup agendado e restauração testada.",
+    text:
+      "Bancos com senhas geradas, backup agendado e restauração. Volumes de aplicações e stacks têm backup próprio.",
     href: "/docs/bancos-de-dados/",
   },
   {
     title: "Catálogo com 350+ serviços",
-    text: "n8n, Plausible, Uptime Kuma, Supabase, WordPress… prontos para subir, ou cole seu próprio docker compose.",
+    text:
+      "n8n, Plausible, Uptime Kuma, Supabase, WordPress… prontos para subir, ou cole seu próprio docker compose.",
     href: "/docs/stacks/",
   },
   {
     title: "Avisa quando algo dá errado",
-    text: "Container em loop, falta de memória, disco cheio, certificado vencendo, backup que não rodou ou site fora do ar.",
+    text:
+      "Container em loop, falta de memória, disco cheio, certificado vencendo, backup que não rodou ou site fora do ar.",
     href: "/docs/alertas/",
   },
   {
@@ -63,7 +67,9 @@ cd pier
 
 function featureCards(): string {
   return features.map((feature) =>
-    `<a class="card" href="${feature.href}"><h3>${escapeHtml(feature.title)}</h3><p>${escapeHtml(feature.text)}</p></a>`
+    `<a class="card" href="${feature.href}"><h3>${escapeHtml(feature.title)}</h3><p>${
+      escapeHtml(feature.text)
+    }</p></a>`
   ).join("\n");
 }
 
@@ -122,7 +128,9 @@ pierctl up            # envia a pasta atual e implanta</code></pre>
 
 <section class="section beta">
   <h2>Em beta, com transparência</h2>
-  <p>A versão do código é ${escapeHtml(version)}. Os guias descrevem os recursos da linha PIER 0.6 e identificam as integrações pendentes. Ainda é beta: teste o que for usar antes de colocar algo crítico, e faça o backup da instância logo no primeiro dia.</p>
+  <p>A versão do código é ${
+    escapeHtml(version)
+  }. Estes guias acompanham o desenvolvimento da linha PIER 0.6; a tag publicada indicada acima pode ainda não conter os recursos novos. Confira as notas da release antes de instalar. As limitações de integração e validação aparecem em cada guia. Ainda é beta: teste o que for usar antes de colocar algo crítico, e faça o backup da instância logo no primeiro dia.</p>
   <p>Licença Apache-2.0. A automação reduz manutenção rotineira; revisão humana, decisões de segurança e recuperação continuam necessárias. <a href="/docs/comunidade/">Licença e governança</a>.</p>
   <p><a href="/docs/introducao/#o-que-ainda-nao-faz">O que o Pier ainda não faz →</a></p>
 </section>

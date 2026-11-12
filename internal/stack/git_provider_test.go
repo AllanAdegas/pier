@@ -76,3 +76,28 @@ func TestGitStackSelectedInstallationFailureDoesNotRunPublicClone(t *testing.T) 
 		t.Fatal("unauthenticated fallback used")
 	}
 }
+
+func TestGitHubAppPushDeploysOnlyTheLinkedStack(t *testing.T) {
+	service, fake := newGitService(t)
+	input := gitInput()
+	input.Git.Repository = "https://github.com/acme/shop.git"
+	resource, err := service.Create(t.Context(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seedClone(fake, resource, DefaultComposePath, gitCompose)
+	push := []byte(`{"ref":"refs/heads/main","after":"` + gitCommit + `"}`)
+	if result, err := service.HandleGitHubAppEvent(t.Context(), resource.ID, "acme/other", "push", push); err != nil || result.Deployed {
+		t.Fatal("push of another repository deployed", result, err)
+	}
+	if result, err := service.HandleGitHubAppEvent(t.Context(), resource.ID, "acme/shop", "pull_request", push); err != nil || result.Deployed {
+		t.Fatal("pull request deployed a stack", result, err)
+	}
+	result, err := service.HandleGitHubAppEvent(t.Context(), resource.ID, "ACME/shop", "push", push)
+	if err != nil || !result.Deployed {
+		t.Fatal(result, err)
+	}
+	if snapshot := waitOperation(t, service, resource.ID); snapshot.Error != "" {
+		t.Fatal(snapshot.Error)
+	}
+}

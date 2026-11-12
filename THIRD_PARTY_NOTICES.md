@@ -57,3 +57,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 - github.com/coreos/go-oidc/v3 v3.14.1 — Apache-2.0; https://github.com/coreos/go-oidc/blob/v3.14.1/LICENSE
 - github.com/go-jose/go-jose/v4 v4.0.5 — Apache-2.0; https://github.com/go-jose/go-jose/blob/v4.0.5/LICENSE
+
+## Railpack build pack (downloaded at build time, not bundled)
+
+Pier does not embed Railpack. The `railpack` build pack downloads the pinned
+release v0.43.0 to `<data_dir>/tools/railpack/v0.43.0/` on the server that
+builds, verifying the archive and the binary against SHA-256 checksums in
+`internal/application/railpack_install.go`, and builds through the BuildKit
+frontend image `ghcr.io/railwayapp/railpack-frontend:v0.43.0` pinned by digest.
+
+- Railpack v0.43.0 (CLI and BuildKit frontend) — MIT, https://github.com/railwayapp/railpack/blob/v0.43.0/LICENSE.
+  Copyright (c) 2025 Railway Corp.

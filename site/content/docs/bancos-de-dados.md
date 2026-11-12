@@ -8,12 +8,12 @@ O Pier sobe um banco de dados em segundos, com senha forte gerada, dados em volu
 | MySQL | Sim |
 | MariaDB | Sim |
 | MongoDB | Sim |
-| Redis | Não |
-| KeyDB | Não |
-| Dragonfly | Não |
+| Redis | Snapshot RDB; restauração no próprio banco |
+| KeyDB | Snapshot RDB; restauração no próprio banco |
+| Dragonfly | Snapshot RDB; restauração no próprio banco |
 | ClickHouse | Não |
 
-Para as engines sem backup pelo Pier, use a persistência própria delas e faça cópia do volume por fora.
+Para ClickHouse, use uma estratégia própria de backup e recuperação. Snapshots Redis/KeyDB/Dragonfly não comprovam compatibilidade entre versões ou engines; veja [backup](/docs/backup/#redis-keydb-e-dragonfly).
 
 ## Criar um banco
 
@@ -52,7 +52,7 @@ Um backup que nunca foi restaurado é só uma esperança. Com o teste ligado, po
 
 ## Restaurar
 
-Escolha um backup concluído e clique em **Restaurar**. Você digita o nome do banco para confirmar e decide o destino:
+Para PostgreSQL, MySQL, MariaDB e MongoDB, escolha um backup concluído e clique em **Restaurar**. Digite o nome do banco para confirmar e escolha o destino:
 
 - **No mesmo banco:** sobrescreve os dados atuais.
 - **Num banco novo:** cria outro banco com o conteúdo do backup e credenciais novas. É o jeito seguro de conferir os dados antes de trocar.

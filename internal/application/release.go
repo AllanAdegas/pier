@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -82,15 +83,15 @@ func serviceFor(spec releaseSpec, replica replica, routes []compose.Route) *comp
 	labels[docker.LabelDeployment] = spec.DeploymentID
 	labels[LabelProcess] = replica.Process.Name
 	service := &compose.Service{
-		Image:         spec.Image,
-		ContainerName: replica.Name,
-		Restart:       orDefault(config.Runtime.RestartPolicy, "unless-stopped"),
+		Image:           spec.Image,
+		ContainerName:   replica.Name,
+		Restart:         orDefault(config.Runtime.RestartPolicy, "unless-stopped"),
 		StopGracePeriod: stopGracePeriod(config.Runtime),
-		Environment:   runtimeEnvironment(spec, routes, replica.Process.Name),
-		Labels:        labels,
-		Networks:      map[string]*compose.NetworkAttachment{docker.Network: {}},
-		CPUs:          orDefault(replica.Process.Limits.CPUs, config.Limits.CPUs),
-		MemLimit:      orDefault(replica.Process.Limits.Memory, config.Limits.Memory),
+		Environment:     runtimeEnvironment(spec, routes, replica.Process.Name),
+		Labels:          labels,
+		Networks:        map[string]*compose.NetworkAttachment{docker.Network: {}},
+		CPUs:            orDefault(replica.Process.Limits.CPUs, config.Limits.CPUs),
+		MemLimit:        orDefault(replica.Process.Limits.Memory, config.Limits.Memory),
 	}
 	if command := replica.Process.Command; command != "" {
 		service.Command = []string{"sh", "-c", command}
@@ -178,6 +179,19 @@ func healthcheckFor(config Config) *compose.Healthcheck {
 // host port mapping it is a rolling update: the old version keeps serving
 // until every new replica is ready.
 func (j *job) release(ctx context.Context, image string, env map[string]string) error {
+	state := &releaseRecovery{}
+	err := j.releaseRecoverable(ctx, image, env, state)
+	if err != nil && state.touched {
+		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), compensationTimeout)
+		defer cancel()
+		if restoreErr := state.restore(cleanup, j); restoreErr != nil {
+			return errors.Join(err, fmt.Errorf("restaurar versão anterior: %w", restoreErr))
+		}
+	}
+	return err
+}
+
+func (j *job) releaseRecoverable(ctx context.Context, image string, env map[string]string, recovery *releaseRecovery) error {
 	// Readable in `docker ps`; unique per deployment so consecutive releases
 	// coexist during the rolling update.
 	containerName := docker.ReadableName(j.app.Name, j.app.ID) + "-" + docker.ShortID(j.deployment.ID)
@@ -213,7 +227,10 @@ func (j *job) release(ctx context.Context, image string, env map[string]string) 
 	if !rolling && len(previous) > 0 {
 		j.captureRetiredLogs(ctx, previous)
 		j.log.Info("Portas mapeadas no host impedem o rolling update: parando a versão atual antes de subir a nova.")
-		if err := docker.Remove(ctx, j.ex, previous); err != nil {
+		recovery.previous = previous
+		recovery.replicas = replicas
+		recovery.touched = true
+		if err := stopApplicationContainers(ctx, j.ex, previous); err != nil {
 			return err
 		}
 		previous = nil
@@ -231,7 +248,13 @@ func (j *job) release(ctx context.Context, image string, env map[string]string) 
 		j.log.Info(docker.ProxyStoppedWarning)
 	}
 	server.ReportEdgeSync(ctx, j.ex, j.server, func(message string) { j.log.Info("%s", message) })
-	return j.runHook(ctx, "pós-deploy", j.app.Config.Hooks.PostDeploy, primary.Name)
+	if err := j.runHook(ctx, "pós-deploy", j.app.Config.Hooks.PostDeploy, primary.Name); err != nil {
+		return err
+	}
+	if recovery.touched && !recovery.retain {
+		return docker.Remove(ctx, j.ex, recovery.previous)
+	}
+	return nil
 }
 
 // startReplicas brings every replica up and waits until all are ready. If

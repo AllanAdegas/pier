@@ -2,6 +2,7 @@ package i18n
 
 // englishVolumes holds the volume backups area (and key-value database backups).
 var englishVolumes = map[string]string{
+	"Não foi possível reiniciar o recurso após a operação: %w":                    "Could not restart the resource after the operation: %w",
 	"Esta engine só pode ser restaurada no próprio banco.":                        "This engine can only be restored to the same database.",
 	"Parando o banco para substituir os dados. As conexões serão interrompidas.":  "Stopping the database to replace its data. Connections will be interrupted.",
 	"Não foi possível iniciar o banco novamente: %w (restauração: %v).":           "Could not start the database again: %w (restore: %v).",

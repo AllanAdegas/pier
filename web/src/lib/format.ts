@@ -87,6 +87,7 @@ export const TRIGGER_LABEL: Record<string, string> = {
 export const BUILD_PACK_LABEL: Record<string, string> = {
   dockerfile: "Dockerfile",
   nixpacks: "Nixpacks",
+  railpack: "Railpack",
   static: t("Site estático"),
   image: t("Imagem Docker"),
 };

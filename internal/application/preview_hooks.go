@@ -18,6 +18,9 @@ func (s *Service) handlePullRequest(ctx context.Context, id string, provider Git
 	if err != nil {
 		return WebhookResult{}, err
 	}
+	if body, err = s.normalizePullRequest(ctx, app, provider, body); err != nil {
+		return WebhookResult{}, err
+	}
 	return s.previews.HandlePullRequest(ctx, app, provider, body)
 }
 

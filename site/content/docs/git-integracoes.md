@@ -20,12 +20,18 @@ Em **Configurações**, a integração permite cadastrar uma GitHub App própria
 
 A integração usa `api.github.com`; GitHub Enterprise não é suportado. Não confunda GitHub App com [SSO](/docs/equipe/): ela autoriza acesso a repositórios, não o login de pessoas.
 
-### Integração ainda em validação
+### Vincular e acompanhar
 
-As notas registram o adaptador de clone e reporte de preview, mas deixam a ligação ao deploy a cargo da integração. Selecionar um repositório não é, sozinho, prova de deploy privado funcionando. Mantenha o método de credencial já validado na sua instalação até confirmar clone e deploy reais. Reportes de status/comentário são de melhor esforço, sem garantia de repetição após falhas; confira os logs no Pier.
+Use **Integração Git** na aplicação ou stack para escolher um repositório instalado e clicar em **Vincular repositório**. A origem precisa usar o mesmo endereço HTTPS selecionado. Um vínculo incompatível, suspenso ou sem acesso é recusado, sem tentar clonar publicamente. **Desvincular** volta ao método de autenticação da origem no próximo deploy.
 
-## Registry e múltiplos destinos
+Aplicações vinculadas recebem pushes e pull requests pelo webhook da App; não cadastre também o webhook individual do recurso no GitHub. Mantenha as inscrições de eventos da App compatíveis com push e pull request. Os tokens para clone têm leitura de conteúdo; o reporte usa permissões separadas de escrita. Os tokens são temporários e não devem ser copiados para variáveis da aplicação.
 
-Há implementação de cadastro de registry e configuração de placement, mas as notas de multi-server registram pendência de integração ao engine. Esta documentação não oferece um procedimento de produção para build remoto ou deploy em múltiplos destinos. Salvar placement não comprova que o deploy passou a usá-lo.
+Em aplicações, escolha **Publicar no provedor** para enviar status de commit e comentários em PR. GitHub usa a App; GitLab, Gitea/Forgejo e Bitbucket Cloud usam o token configurado para o provedor. Conceda só as permissões necessárias no repositório. Stacks têm vínculo de clone, mas não o mesmo reporte de deploy de aplicações. O reporte é de melhor esforço; um comentário ausente não altera o resultado do deploy no Pier.
 
-O fluxo documentado continua sendo uma aplicação em um servidor. Réplicas locais não equivalem a alta disponibilidade entre máquinas. Não há promessa de transação distribuída, recuperação automática de rollout interrompido, volumes compartilhados, banco em HA ou configuração automática de DNS/balanceador externo.
+A integração ao deploy foi exercitada com HTTP simulado e executores de teste. Não equivale a validar permissões e webhooks contra uma App real: faça um PR de teste antes de depender do reporte em produção.
+
+## Outros provedores
+
+Aplicações e Git stacks mostram os endereços e segredos de webhook na área de automação. Use o endereço específico do provedor e valide a assinatura/segredo; eventos de uma branch diferente ou tag não selecionada não devem publicar a aplicação principal. Não exponha o segredo em issues, capturas ou comandos.
+
+Para builds em outra máquina, registries privados e deploy em vários destinos, siga [Registry e múltiplos servidores](/docs/multisservidor/).

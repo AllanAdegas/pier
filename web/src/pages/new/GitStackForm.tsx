@@ -10,6 +10,8 @@ import { t } from "../../i18n";
 import { parseLines, usesSsh } from "../stack/gitSource";
 import type { Placement } from "../NewResource";
 import { createStack } from "./stackCreation";
+import { GitRepositoryPicker, linkPickedRepository } from "../settings/GitRepositoryPicker";
+import type { GitHubPick } from "../settings/gitLinks";
 
 /**
  * Creates a stack that runs the docker-compose file of a Git repository. The
@@ -26,14 +28,16 @@ export function GitStackForm(props: { placement: Placement }) {
   const [baseDirectory, setBaseDirectory] = createSignal("");
   const [keyId, setKeyId] = createSignal("");
   const [watchPaths, setWatchPaths] = createSignal("");
+  const [githubPick, setGithubPick] = createSignal<GitHubPick | null>(null);
   const keys = createQuery(
     () => true,
     () => api.get<PrivateKey[]>("/keys"),
   );
 
   const create = createAction(
-    (deploy: boolean) =>
-      createStack(
+    async (deploy: boolean) => {
+      // Linked before the first deploy, so a private repository clones.
+      const stack = await createStack(
         {
           environment_id: props.placement.environmentId,
           server_id: serverId(),
@@ -47,8 +51,14 @@ export function GitStackForm(props: { placement: Placement }) {
             watch_paths: parseLines(watchPaths()),
           },
         },
-        deploy,
-      ),
+        false,
+      );
+      await linkPickedRepository("stacks", stack.id, githubPick(), repository());
+      if (deploy) {
+        await api.post(`/stacks/${stack.id}/actions/deploy`).catch(() => undefined);
+      }
+      return stack;
+    },
     {
       success: t("Stack criada."),
       onSuccess: (stack) => navigate(`/stacks/${stack.id}?tab=overview`),
@@ -73,6 +83,7 @@ export function GitStackForm(props: { placement: Placement }) {
         error={errors().server_id}
       />
       <TextInput label={t("Nome")} required value={name()} onValue={setName} error={errors().name} />
+      <GitRepositoryPicker onPick={(pick, url) => { setGithubPick(pick); if (url) setRepository(url); }} />
       <TextInput
         label={t("Repositório")}
         required

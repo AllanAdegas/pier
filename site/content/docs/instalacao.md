@@ -7,13 +7,13 @@ Este guia instala a versão beta **{{version}}** num servidor Linux. No fim voc�
 | Servidor | Linux 64 bits (x86_64 ou ARM64) | Ubuntu 24.04 LTS ou Debian 12 |
 | Memória | 1 GB | 2 GB ou mais se for construir código no servidor |
 | Disco | 20 GB | 40 GB ou mais; o Pier avisa abaixo de 10 GB livres |
-| Docker | Docker Engine 24 com o plugin compose 2.20 | A versão beta mais recente, com Buildx |
+| Docker | Docker Engine 24 com o plugin compose 2.20 | Versão suportada pelo projeto, com Buildx |
 | Acesso | SSH com um usuário que use `sudo` | — |
 | Domínio | Opcional | Um subdomínio para o painel, como `pier.seudominio.com` |
 
 Sozinho, o Pier ocupa pouco: cerca de 16 MB de RAM parado. O que consome memória são os builds e as aplicações que você publicar.
 
-> **Dá para testar no seu computador?** Sim. Com o Docker Desktop no macOS ou no Linux, os mesmos comandos funcionam e os dados ficam em `~/.pier`. Mas webhooks de push não chegam a um computador sem endereço público, e nada roda com ele desligado. Para uso real, instale num servidor.
+> **Dá para testar no seu computador?** Sim. Com Docker Desktop, os mesmos comandos podem ser usados em ambiente local. No macOS, o padrão é `~/.pier`; em Linux, `/data/pier`. Mas webhooks de push não chegam a um computador sem endereço público, e nada roda com ele desligado. Para uso real, instale num servidor.
 
 ## 1. Instale o Docker
 

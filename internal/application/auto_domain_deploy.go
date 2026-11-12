@@ -5,19 +5,27 @@ import (
 	"errors"
 	"net/netip"
 	"slices"
+	"strings"
 
 	"pier/internal/platform/apperr"
 	"pier/internal/platform/executor"
+	"pier/internal/platform/i18n"
 	"pier/internal/platform/sqlite"
 	"pier/internal/server"
 )
 
-// engineDeployPreflight runs before anything is built: the instance's Docker
-// options policy (fail closed) and the automatic domain.
-func (d *Deployer) engineDeployPreflight(ctx context.Context, app *Application, target server.Server, ex executor.Executor, log *deployLog) error {
+// checkDeployPolicy enforces the instance's Docker options policy before
+// anything else, on single-server and multi-server deployments alike: turning
+// a switch off also stops the next deployment that depends on it.
+func (d *Deployer) checkDeployPolicy(ctx context.Context, app Application) error {
 	if err := d.store.checkDockerOptionsPolicy(ctx, app.Config); err != nil {
-		return err
+		return deployPolicyError(err)
 	}
+	return nil
+}
+
+// engineDeployPreflight runs before anything is built: the automatic domain.
+func (d *Deployer) engineDeployPreflight(ctx context.Context, app *Application, target server.Server, ex executor.Executor, log *deployLog) error {
 	assigned, err := d.store.ensureAutoDomain(ctx, app, target, ex)
 	if err != nil {
 		// A missing automatic domain never blocks a deployment.
@@ -28,6 +36,21 @@ func (d *Deployer) engineDeployPreflight(ctx context.Context, app *Application, 
 		log.Info("Domínio automático atribuído: %s. Remova-o na configuração se não quiser usá-lo.", assigned)
 	}
 	return nil
+}
+
+// deployPolicyError keeps the field messages, which a deployment log would
+// otherwise reduce to "review the highlighted fields".
+func deployPolicyError(err error) error {
+	appErr, ok := apperr.As(err)
+	if !ok || len(appErr.Fields) == 0 {
+		return err
+	}
+	messages := []string{}
+	for _, message := range appErr.Fields {
+		messages = append(messages, message)
+	}
+	slices.Sort(messages)
+	return i18n.Errorf("a configuração foi bloqueada pela política da instância: %s", strings.Join(messages, " "))
 }
 
 // ensureAutoDomain gives an application without domains its automatic one,

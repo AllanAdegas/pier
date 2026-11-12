@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	rbac "pier/internal/access"
 	"testing"
 	"time"
 
@@ -34,6 +35,7 @@ func TestMetricsHistoryRoutes(t *testing.T) {
 		t.Fatal(err)
 	}
 	user, _ := a.Identity.CreateUser(ctx, "Ana", "ana@example.com", "test-password-long")
+	grantRole(t, a, user.ID, rbac.Owner)
 	_, reader, _ := a.Identity.CreateToken(ctx, user.ID, "read", []identity.Ability{identity.AbilityRead})
 
 	if w := metricsRequest(t, a, "/api/v1/servers/s1/metrics/history?range=1h", ""); w.Code != http.StatusUnauthorized {
@@ -64,6 +66,7 @@ func TestMetricsHistoryRejectsBadInput(t *testing.T) {
 	a := platformAPI(t)
 	a.MetricsHistory = &monitor.HistoryStore{DB: a.Audit.DB}
 	user, _ := a.Identity.CreateUser(ctx, "Ana", "ana@example.com", "test-password-long")
+	grantRole(t, a, user.ID, rbac.Owner)
 	_, secret, _ := a.Identity.CreateToken(ctx, user.ID, "read", []identity.Ability{identity.AbilityRead})
 	cases := map[string]int{
 		"/api/v1/servers/s1/metrics/history?range=1y":                 http.StatusUnprocessableEntity,

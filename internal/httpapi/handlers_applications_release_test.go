@@ -79,7 +79,7 @@ func newReleaseHTTPFixture(t *testing.T) releaseHTTPFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a := New(Dependencies{Access: testAccess(t,db), Identity: auth, Env: env, Applications: apps, Logger: logger})
+	a := New(Dependencies{Access: testAccess(t, db), Identity: auth, Env: env, Applications: apps, Logger: logger})
 	mux := http.NewServeMux()
 	a.registerApplicationRoutes(mux)
 	return releaseHTTPFixture{mux: mux, deployToken: deployToken, read: readToken, apps: apps, ex: ex, appID: app.ID}

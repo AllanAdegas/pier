@@ -1,4 +1,5 @@
 import { TerminalButton } from "../components/Terminal";
+import { CloneResource } from "../components/CloneResource";
 import { useNavigate, useParams, useSearchParams } from "@solidjs/router";
 import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
@@ -98,6 +99,7 @@ export function DatabasePage() {
               </Match>
               <Match when={tab() === "config"}>
                 <ConfigTab database={data()} onSaved={(saved) => database.set(saved)} />
+                <CloneResource kind="databases" id={data().id} name={data().name} environmentId={data().environment_id} />
               </Match>
             </Switch>
           </>

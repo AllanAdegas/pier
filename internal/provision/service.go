@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"pier/internal/platform/apperr"
+	"pier/internal/platform/executor"
 	"pier/internal/platform/i18n"
 	"pier/internal/platform/idgen"
 	"pier/internal/platform/oplog"
@@ -34,7 +35,7 @@ type Registrar interface {
 
 // DockerInstaller installs Docker on a registered server.
 type DockerInstaller interface {
-	Install(ctx context.Context, id, method string, sink func(string)) (server.DockerInstallResult, error)
+	Install(ctx context.Context, id, method string, sink executor.LineSink) (server.DockerInstallResult, error)
 }
 
 // Timing bounds each wait of provisioning.
@@ -164,11 +165,12 @@ type MachineWithProgress struct {
 
 // Machine returns one machine with its provisioning log.
 func (s *Service) Machine(ctx context.Context, id string) (MachineWithProgress, error) {
+	// The log first: a finished log then never pairs with an older status.
+	snapshot, _ := s.operations.Get(id)
 	machine, err := s.store.machine(ctx, id)
 	if err != nil {
 		return MachineWithProgress{}, machineNotFound(err)
 	}
-	snapshot, _ := s.operations.Get(id)
 	return MachineWithProgress{Machine: machine, Operation: snapshot}, nil
 }
 
