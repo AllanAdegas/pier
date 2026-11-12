@@ -2,6 +2,7 @@ package identity
 
 import (
 	"context"
+
 	"pier/internal/platform/apperr"
 )
 
@@ -16,4 +17,18 @@ func (p Principal) AuthorizeAccess(ctx context.Context, authorizer AccessAuthori
 		return apperr.Forbidden("Acesso não autorizado.")
 	}
 	return authorizer.Check(ctx, p.User.ID, projectID, string(ability))
+}
+
+// Within returns the principal reduced to the abilities both its credential
+// and its role grant. Handlers that test Can (secrets, terminals) then see
+// what the caller may really do, not only what the token carries.
+func (p Principal) Within(roleAllows func(Ability) bool) Principal {
+	granted := make([]Ability, 0, len(AllAbilities))
+	for _, ability := range AllAbilities {
+		if p.Can(ability) && roleAllows(ability) {
+			granted = append(granted, ability)
+		}
+	}
+	p.Abilities = granted
+	return p
 }

@@ -30,6 +30,8 @@ func builderFor(pack BuildPack) (builder, error) {
 		return guardedBuilder{staticBuilder{}}, nil
 	case PackNixpacks:
 		return guardedBuilder{nixpacksBuilder{}}, nil
+	case PackRailpack:
+		return guardedBuilder{railpackBuilder{}}, nil
 	case PackImage:
 		return imageBuilder{}, nil
 	}
@@ -78,6 +80,9 @@ func (j *job) dockerBuild(ctx context.Context, dockerfile string) (string, error
 		args = append(args, "--target", j.app.Config.Build.Target)
 	}
 	buildArgs := j.buildArgs()
+	if j.app.Config.Build.Pack == PackRailpack {
+		buildArgs = j.railpackBuildArgs()
+	}
 	args = append(args, buildArgs...)
 	args = append(args, j.contextDir())
 

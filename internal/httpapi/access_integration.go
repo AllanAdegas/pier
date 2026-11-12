@@ -1,99 +1,130 @@
 package httpapi
 
 import (
-	"bytes"
-	"encoding/json"
-	"io"
+	"context"
 	"net/http"
-	"strings"
 
+	rbac "pier/internal/access"
 	"pier/internal/identity"
 	"pier/internal/platform/apperr"
 )
 
-// authorizeRequest is shared by REST and the in-process MCP adapter. Global
-// collections and unknown routes are intentionally instance-owner only.
-func (a *API) authorizeRequest(r *http.Request, p identity.Principal, ability identity.Ability) error {
-	if a.Access == nil {
-		return apperr.Forbidden("Acesso não autorizado.")
-	}
-	path := strings.TrimPrefix(r.URL.Path, "/api/v1/")
-	if path == "me" || strings.HasPrefix(path, "me/") || path == "access/accept" || path == "terminal" {
-		return nil
-	}
-	if path == "tokens" || strings.HasPrefix(path, "tokens/") {
-		if id := r.PathValue("id"); id != "" {
-			return a.Access.OwnToken(r.Context(), p.User.ID, id)
-		}
-		return nil
-	}
-	parts := strings.Split(path, "/")
-	project := ""
-	if len(parts) > 1 && r.PathValue("id") != "" {
-		var err error
-		switch parts[0] {
-		case "projects", "environments", "applications", "databases", "stacks", "deployments", "tasks", "backups":
-			project, err = a.Access.Project(r.Context(), parts[0], r.PathValue("id"))
-			if err != nil {
-				return apperr.Forbidden("Acesso não autorizado.")
-			}
-		}
-	}
-	if err := p.AuthorizeAccess(r.Context(), a.Access, project, ability); err != nil {
-		return err
-	}
-	// Body references may choose a second resource or privileged infrastructure.
-	// Check every recognized ID recursively; unrecognized IDs require owner.
-	if r.Body != nil && r.Body != http.NoBody && !strings.Contains(r.Header.Get("Content-Type"), "application/octet-stream") {
-		raw, err := io.ReadAll(io.LimitReader(r.Body, 2<<20))
-		if err != nil {
-			return err
-		}
-		r.Body = io.NopCloser(bytes.NewReader(raw))
-		var body any
-		if json.Unmarshal(raw, &body) == nil {
-			return a.checkReferences(r, p, ability, body)
-		}
-		if len(raw) > 0 {
-			return p.AuthorizeAccess(r.Context(), a.Access, "", ability)
-		}
-	}
-	return nil
+func accessDenied() error { return apperr.Forbidden("Acesso não autorizado.") }
+
+// grant is the outcome of authorizing one request.
+type grant struct {
+	// principal is reduced to what the caller's role allows.
+	principal identity.Principal
+	// filterKind is set when a collection must drop foreign items.
+	filterKind string
 }
 
-func (a *API) checkReferences(r *http.Request, p identity.Principal, ability identity.Ability, v any) error {
-	switch value := v.(type) {
-	case []any:
-		for _, item := range value {
-			if err := a.checkReferences(r, p, ability, item); err != nil {
-				return err
-			}
-		}
-	case map[string]any:
-		for key, item := range value {
-			if strings.HasSuffix(key, "_ids") {
-				if err := p.AuthorizeAccess(r.Context(), a.Access, "", ability); err != nil {
-					return err
-				}
-			}
-			if id, ok := item.(string); ok && id != "" && (strings.HasSuffix(key, "_id") || strings.HasSuffix(key, "_ids")) {
-				kind := map[string]string{"project_id": "projects", "environment_id": "environments", "application_id": "applications", "database_id": "databases", "stack_id": "stacks", "deployment_id": "deployments", "task_id": "tasks", "backup_id": "backups", "target_environment_id": "environments", "target_application_id": "applications", "source_application_id": "applications"}[key]
-				scope := ""
-				if kind != "" {
-					var err error
-					scope, err = a.Access.Project(r.Context(), kind, id)
-					if err != nil {
-						return apperr.Forbidden("Acesso não autorizado.")
-					}
-				}
-				if err := p.AuthorizeAccess(r.Context(), a.Access, scope, ability); err != nil {
-					return err
-				}
-			}
-			if err := a.checkReferences(r, p, ability, item); err != nil {
-				return err
-			}
-		}
+// authorizeRequest applies the route's declared policy (access_policy.go)
+// after authentication. It runs for REST and for MCP tools alike: tools call
+// these same routes in process with the agent's token.
+func (a *API) authorizeRequest(r *http.Request, p identity.Principal, required access) (grant, error) {
+	if a.Access == nil {
+		return grant{}, accessDenied()
 	}
-	return nil
+	policy, _ := policyFor(r.Pattern)
+	granted, err := a.authorizePolicy(r, p, required, policy)
+	if err == nil && policy.guard != nil {
+		err = policy.guard(a, r, p)
+	}
+	return granted, err
+}
+
+func (a *API) authorizePolicy(r *http.Request, p identity.Principal, required access, policy routePolicy) (grant, error) {
+	switch policy.scope {
+	case scopePublic, scopeSelf, scopeTerminal:
+		return grant{principal: p}, nil
+	case scopeCollection:
+		return a.authorizeCollection(r.Context(), p, required, policy)
+	}
+	project, err := a.primaryProject(r, policy)
+	if err != nil {
+		return grant{}, err
+	}
+	role, err := a.authorizeScope(r.Context(), p, project, required.ability, policy.minimum)
+	if err != nil {
+		return grant{}, err
+	}
+	if err := a.checkBodyReferences(r, p, required.ability); err != nil {
+		return grant{}, err
+	}
+	return grant{principal: within(p, role)}, nil
+}
+
+// authorizeScope demands that the credential and the role on project ("" =
+// the instance) both grant ability, and that the role reaches minimum.
+func (a *API) authorizeScope(ctx context.Context, p identity.Principal, project string, ability identity.Ability, minimum rbac.Role) (rbac.Role, error) {
+	if !p.Can(ability) {
+		return "", accessDenied()
+	}
+	role, err := a.Access.Role(ctx, p.User.ID, project)
+	if err != nil {
+		return "", err
+	}
+	if !role.Allows(string(ability)) || (minimum != "" && !role.AtLeast(minimum)) {
+		return "", accessDenied()
+	}
+	return role, nil
+}
+
+// primaryProject finds the project of the route. A resource that cannot be
+// resolved (missing, or an unknown kind) falls back to the instance: only
+// instance roles may then proceed, and they get the handler's 404.
+func (a *API) primaryProject(r *http.Request, policy routePolicy) (string, error) {
+	switch policy.scope {
+	case scopeProject:
+		return a.resolveProject(r.Context(), policy.resourceKind(r), r.PathValue(policy.idParam()))
+	case scopeCreate:
+		return a.bodyProject(r)
+	}
+	return "", nil
+}
+
+func (p routePolicy) resourceKind(r *http.Request) string {
+	if p.kindParam != "" {
+		return kindAliases[r.PathValue(p.kindParam)]
+	}
+	return p.kind
+}
+
+func (a *API) resolveProject(ctx context.Context, kind, id string) (string, error) {
+	project, err := a.Access.Project(ctx, kind, id)
+	if err == nil {
+		return project, nil
+	}
+	if failure, ok := apperr.As(err); ok && failure.Kind == apperr.KindForbidden {
+		return "", nil
+	}
+	return "", err
+}
+
+// guardOwnToken hides whether a foreign token exists.
+func (a *API) guardOwnToken(r *http.Request, p identity.Principal) error {
+	return a.Access.OwnToken(r.Context(), p.User.ID, r.PathValue("id"))
+}
+
+// guardAccountRemoval keeps the last instance owner (the database trigger
+// enforces it too; this gives the clear message).
+func (a *API) guardAccountRemoval(r *http.Request, _ identity.Principal) error {
+	return a.Access.GuardAccountRemoval(r.Context(), r.PathValue("id"))
+}
+
+func within(p identity.Principal, role rbac.Role) identity.Principal {
+	return p.Within(func(ability identity.Ability) bool { return role.Allows(string(ability)) })
+}
+
+// authorizeCollection lets instance readers list everything; anyone else gets
+// the list filtered to the projects they belong to.
+func (a *API) authorizeCollection(ctx context.Context, p identity.Principal, required access, policy routePolicy) (grant, error) {
+	if !p.Can(required.ability) {
+		return grant{}, accessDenied()
+	}
+	if role, err := a.Access.Role(ctx, p.User.ID, ""); err == nil && role.Allows(string(required.ability)) {
+		return grant{principal: within(p, role)}, nil
+	}
+	return grant{principal: within(p, ""), filterKind: policy.kind}, nil
 }

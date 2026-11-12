@@ -67,6 +67,7 @@ func composeFor(spec releaseSpec) (*compose.File, error) {
 	for _, replica := range replicasOf(config, spec.ContainerName) {
 		service := serviceFor(spec, replica, routes)
 		service.Volumes = slices.Clone(mounts)
+		applyDockerOptions(service, config.DockerOptions)
 		file.Services[replica.Name] = service
 	}
 	return file, nil
@@ -97,7 +98,7 @@ func serviceFor(spec releaseSpec, replica replica, routes []compose.Route) *comp
 	if replica.Process.Name != WebProcess {
 		return service
 	}
-	if service.Command == nil && config.Build.StartCommand != "" && config.Build.Pack != PackNixpacks && config.Build.Pack != PackStatic {
+	if service.Command == nil && config.Build.StartCommand != "" && config.Build.Pack != PackNixpacks && config.Build.Pack != PackStatic && config.Build.Pack != PackRailpack {
 		service.Command = []string{"sh", "-c", config.Build.StartCommand}
 	}
 	publication := compose.Publication{

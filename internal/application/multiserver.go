@@ -5,116 +5,205 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"regexp"
-	"sync"
+	"slices"
+	"strings"
 	"time"
 
 	"pier/internal/platform/apperr"
+	"pier/internal/platform/sqlite"
 	"pier/internal/registry"
 )
 
+// maxDestinations bounds a rollout: each server is released in turn.
+const maxDestinations = 20
+
+// Rollout states of an application on one server.
+const (
+	PlacementDeploying      = "deploying"
+	PlacementHealthy        = "healthy"
+	PlacementFailed         = "failed"
+	PlacementRolledBack     = "rolled_back"
+	PlacementRollbackFailed = "rollback_failed"
+	PlacementInterrupted    = "interrupted"
+)
+
+// Placement says where an application is built and which servers run it.
+// Destinations always include the application's own server. Without a
+// placement (or with only that server and no build server) the application
+// is deployed exactly as a single-server application.
 type Placement struct {
 	BuildServerID string   `json:"build_server_id"`
 	RegistryID    string   `json:"registry_id"`
 	Repository    string   `json:"repository"`
 	Destinations  []string `json:"destinations"`
 }
+
+// DestinationStatus is the last known rollout state on one server.
 type DestinationStatus struct {
-	ServerID      string `json:"server_id"`
-	Image         string `json:"image"`
-	PreviousImage string `json:"previous_image"`
-	Status        string `json:"status"`
+	ServerID      string    `json:"server_id"`
+	DeploymentID  string    `json:"deployment_id"`
+	Image         string    `json:"image"`
+	PreviousImage string    `json:"previous_image"`
+	Status        string    `json:"status"`
+	Message       string    `json:"message"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
-// PlacementRuntime is the additive engine hook. Prepare must leave old routes
-// and containers intact, Ready checks ALL replicas, Activate switches routes,
-// Restore undoes even a partially failed Activate, Discard removes candidates.
-// Implementations must render proxy labels/TLS separately for each server.
-type PlacementRuntime interface {
-	Architecture(context.Context, string) (string, error)
-	Prepare(context.Context, Application, string, string) error
-	Ready(context.Context, Application, string, string) error
-	Activate(context.Context, Application, string, string) error
-	Restore(context.Context, Application, string, string) error
-	Discard(context.Context, Application, string, string) error
+// placementPlan is what one deployment of an application must do.
+type placementPlan struct {
+	Placement
+	// servers are the runtime servers, the application's own first.
+	servers []string
+	// buildServer builds (or pulls) the image.
+	buildServer string
+	// stale are servers that still run the application but left the placement.
+	stale []string
 }
+
+// distributed tells whether the image must travel between servers.
+func (p placementPlan) distributed() bool {
+	for _, id := range p.servers {
+		if id != p.buildServer {
+			return true
+		}
+	}
+	return false
+}
+
+// MultiServer stores placements and the per-server rollout state.
 type MultiServer struct {
-	enqueue func(context.Context, string, string) error
-	db      *sql.DB
-	apps    *Store
-	guard   DeployGuard
-	runtime PlacementRuntime
-	mu      sync.Mutex
+	db     *sql.DB
+	apps   *Store
+	guard  DeployGuard
+	images *registry.Service
 }
 
-func NewMultiServer(db *sql.DB, apps *Store, guard DeployGuard, runtime PlacementRuntime) *MultiServer {
-	return &MultiServer{db: db, apps: apps, guard: guard, runtime: runtime}
+// NewMultiServer creates the placement service.
+func NewMultiServer(db *sql.DB, apps *Store, guard DeployGuard, images *registry.Service) *MultiServer {
+	return &MultiServer{db: db, apps: apps, guard: guard, images: images}
 }
+
+// Settings returns the placement of an application (empty when it has none).
 func (s *MultiServer) Settings(ctx context.Context, id string) (Placement, error) {
-	var p Placement
+	if _, err := s.apps.Get(ctx, id); err != nil {
+		return Placement{}, notFound(err, "Aplicação")
+	}
+	return s.settings(ctx, id)
+}
+
+func (s *MultiServer) settings(ctx context.Context, id string) (Placement, error) {
+	p := Placement{Destinations: []string{}}
+	var build, registryID sql.NullString
 	var raw string
-	err := s.db.QueryRowContext(ctx, `SELECT build_server_id,registry_id,repository,destinations FROM application_placements WHERE application_id=?`, id).Scan(&p.BuildServerID, &p.RegistryID, &p.Repository, &raw)
+	err := s.db.QueryRowContext(ctx, `SELECT build_server_id, registry_id, repository, destinations
+		FROM application_placements WHERE application_id = ?`, id).Scan(&build, &registryID, &p.Repository, &raw)
 	if errors.Is(err, sql.ErrNoRows) {
-		p.Destinations = []string{}
 		return p, nil
 	}
 	if err != nil {
 		return p, err
 	}
-	err = json.Unmarshal([]byte(raw), &p.Destinations)
-	return p, err
+	p.BuildServerID, p.RegistryID = build.String, registryID.String
+	return p, json.Unmarshal([]byte(raw), &p.Destinations)
 }
-func (s *MultiServer) Save(ctx context.Context, id string, p Placement) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+
+// Save validates and stores a placement. It takes effect on the next
+// deployment, which also removes the application from servers taken out.
+func (s *MultiServer) Save(ctx context.Context, id string, p Placement) (Placement, error) {
 	app, err := s.apps.Get(ctx, id)
 	if err != nil {
-		return err
+		return Placement{}, notFound(err, "Aplicação")
 	}
-	if s.guard == nil {
-		return apperr.Unavailable("Proteção de ambiente indisponível.")
-	}
-	if err = s.guard.CheckDeploy(ctx, app.EnvironmentID); err != nil {
-		return err
-	}
-	if p.BuildServerID == "" || p.RegistryID == "" || len(p.Destinations) == 0 || len(p.Destinations) > 20 || !regexp.MustCompile(`^[a-z0-9][a-z0-9/_.-]*$`).MatchString(p.Repository) {
-		return apperr.Invalid("Configuração de destinos inválida.")
-	}
-	seen := map[string]bool{}
-	for _, id := range p.Destinations {
-		if id == "" || seen[id] {
-			return apperr.Invalid("Configuração de destinos inválida.")
-		}
-		seen[id] = true
-		var exists int
-		if err = s.db.QueryRowContext(ctx, `SELECT count(*) FROM servers WHERE id=?`, id).Scan(&exists); err != nil {
-			return err
-		}
-		if exists != 1 {
-			return apperr.Invalid("Servidor de destino inválido.")
+	if s.guard != nil {
+		if err := s.guard.CheckDeploy(ctx, app.EnvironmentID); err != nil {
+			return Placement{}, err
 		}
 	}
-	current, e := s.Settings(ctx, id)
-	if e != nil {
-		return e
-	}
-	statuses, e := s.Status(ctx, id)
-	if e != nil {
-		return e
-	}
-	if len(statuses) > 0 {
-		before, _ := json.Marshal(current)
-		after, _ := json.Marshal(p)
-		if string(before) != string(after) {
-			return apperr.Conflict("Remova os releases antes de alterar os destinos.")
-		}
+	p = normalizedPlacement(p, app.ServerID)
+	if err := s.validate(ctx, app, p); err != nil {
+		return Placement{}, err
 	}
 	raw, _ := json.Marshal(p.Destinations)
-	_, err = s.db.ExecContext(ctx, `INSERT INTO application_placements VALUES(?,?,?,?,?) ON CONFLICT(application_id) DO UPDATE SET build_server_id=excluded.build_server_id, registry_id=excluded.registry_id,repository=excluded.repository,destinations=excluded.destinations`, id, p.BuildServerID, p.RegistryID, p.Repository, string(raw))
-	return err
+	_, err = s.db.ExecContext(ctx, `INSERT INTO application_placements
+		(application_id, build_server_id, registry_id, repository, destinations, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+		ON CONFLICT(application_id) DO UPDATE SET build_server_id = excluded.build_server_id,
+		registry_id = excluded.registry_id, repository = excluded.repository,
+		destinations = excluded.destinations, updated_at = excluded.updated_at`,
+		id, nullable(p.BuildServerID), nullable(p.RegistryID), p.Repository, string(raw), sqlite.FormatTime(time.Now()))
+	if err != nil {
+		return Placement{}, err
+	}
+	return s.settings(ctx, id)
 }
+
+// normalizedPlacement trims the input and puts the application's server
+// first; a placement that names no destination means "only this server".
+func normalizedPlacement(p Placement, primary string) Placement {
+	p.BuildServerID = strings.TrimSpace(p.BuildServerID)
+	p.RegistryID = strings.TrimSpace(p.RegistryID)
+	p.Repository = strings.TrimSpace(p.Repository)
+	if p.BuildServerID == primary {
+		p.BuildServerID = ""
+	}
+	destinations := []string{primary}
+	for _, id := range p.Destinations {
+		if id = strings.TrimSpace(id); id != "" && id != primary {
+			destinations = append(destinations, id)
+		}
+	}
+	p.Destinations = destinations
+	return p
+}
+
+func (s *MultiServer) validate(ctx context.Context, app Application, p Placement) error {
+	fields := apperr.Fields{}
+	seen := map[string]bool{}
+	for _, id := range p.Destinations {
+		if seen[id] {
+			fields.Add("destinations", "Cada servidor pode aparecer uma vez só.")
+			break
+		}
+		seen[id] = true
+		if !s.exists(ctx, "servers", id) {
+			fields.Add("destinations", "Um dos servidores escolhidos não existe mais.")
+			break
+		}
+	}
+	if len(p.Destinations) > maxDestinations {
+		fields.Add("destinations", "Escolha no máximo %d servidores.", maxDestinations)
+	}
+	if p.BuildServerID != "" && !s.exists(ctx, "servers", p.BuildServerID) {
+		fields.Add("build_server_id", "O servidor de build não existe mais.")
+	}
+	if p.RegistryID != "" && !s.exists(ctx, "registries", p.RegistryID) {
+		fields.Add("registry_id", "O registro de imagens não existe mais.")
+	}
+	if p.Repository != "" && !registry.ValidRepository(p.Repository) {
+		fields.Add("repository", "Use letras minúsculas, números, '.', '_', '-' e '/', como empresa/api.")
+	}
+	if p.RegistryID != "" && p.Repository == "" {
+		fields.Add("repository", "Informe o repositório onde as imagens serão enviadas.")
+	}
+	travels := len(p.Destinations) > 1 || p.BuildServerID != ""
+	if travels && app.Config.Build.Pack != PackImage && p.RegistryID == "" {
+		fields.Add("registry_id", "Escolha um registro: a imagem construída precisa chegar aos outros servidores.")
+	}
+	return fields.Err()
+}
+
+func (s *MultiServer) exists(ctx context.Context, table, id string) bool {
+	var count int
+	query := `SELECT COUNT(*) FROM servers WHERE id = ?`
+	if table == "registries" {
+		query = `SELECT COUNT(*) FROM registries WHERE id = ?`
+	}
+	return s.db.QueryRowContext(ctx, query, id).Scan(&count) == nil && count == 1
+}
+
+// Status returns the rollout state of the application on each server.
 func (s *MultiServer) Status(ctx context.Context, id string) ([]DestinationStatus, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT server_id,image,previous_image,status FROM placement_status WHERE application_id=? ORDER BY server_id`, id)
+	rows, err := s.db.QueryContext(ctx, `SELECT server_id, deployment_id, image, previous_image, status, message, updated_at
+		FROM placement_status WHERE application_id = ? ORDER BY server_id`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -122,140 +211,97 @@ func (s *MultiServer) Status(ctx context.Context, id string) ([]DestinationStatu
 	result := []DestinationStatus{}
 	for rows.Next() {
 		var d DestinationStatus
-		if err = rows.Scan(&d.ServerID, &d.Image, &d.PreviousImage, &d.Status); err != nil {
+		var updated string
+		if err := rows.Scan(&d.ServerID, &d.DeploymentID, &d.Image, &d.PreviousImage, &d.Status, &d.Message, &updated); err != nil {
 			return nil, err
 		}
+		d.UpdatedAt = sqlite.ParseTime(updated)
 		result = append(result, d)
 	}
 	return result, rows.Err()
 }
-func (s *MultiServer) record(ctx context.Context, id, server, image, previous, status string) error {
-	_, err := s.db.ExecContext(ctx, `INSERT INTO placement_status VALUES(?,?,?,?,?) ON CONFLICT(application_id,server_id) DO UPDATE SET image=excluded.image,previous_image=excluded.previous_image,status=excluded.status`, id, server, image, previous, status)
+
+// Recover marks rollouts cut by a restart: the dispatcher already failed
+// their deployments, and the next deployment reconciles the servers.
+func (s *MultiServer) Recover(ctx context.Context) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE placement_status SET status = ?, updated_at = ? WHERE status = ?`,
+		PlacementInterrupted, sqlite.FormatTime(time.Now()), PlacementDeploying)
 	return err
 }
 
-// Rollout is also the rollback hook: supply a previously recorded digest.
-// A failed compensation is persisted as rollback_failed, never reported healthy.
-func (s *MultiServer) Rollout(ctx context.Context, id, image string) error {
-	if s.enqueue != nil {
-		if !registry.Immutable(image) {
-			return apperr.Invalid("Use uma imagem por digest.")
-		}
-		return s.enqueue(ctx, id, image)
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.rollout(ctx, id, image)
+func (s *MultiServer) record(ctx context.Context, appID string, status DestinationStatus) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO placement_status
+		(application_id, server_id, deployment_id, image, previous_image, status, message, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(application_id, server_id) DO UPDATE SET deployment_id = excluded.deployment_id, image = excluded.image,
+		previous_image = excluded.previous_image, status = excluded.status, message = excluded.message, updated_at = excluded.updated_at`,
+		appID, status.ServerID, status.DeploymentID, status.Image, status.PreviousImage, status.Status,
+		truncateMessage(status.Message), sqlite.FormatTime(time.Now()))
+	return err
 }
-func (s *MultiServer) rollout(ctx context.Context, id, image string) error {
-	if !registry.Immutable(image) {
-		return apperr.Invalid("Use uma imagem por digest.")
-	}
-	app, err := s.apps.Get(ctx, id)
-	if err != nil {
-		return err
-	}
-	if s.guard == nil {
-		return apperr.Unavailable("Proteção de ambiente indisponível.")
-	}
-	if err = s.guard.CheckDeploy(ctx, app.EnvironmentID); err != nil {
-		return err
-	}
-	if s.runtime == nil {
-		return apperr.Unavailable("Integração de release multisservidor indisponível.")
-	}
-	p, err := s.Settings(ctx, id)
-	if err != nil {
-		return err
-	}
-	if len(p.Destinations) == 0 {
-		return apperr.Invalid("Configuração de destinos inválida.")
-	}
-	arch, err := s.runtime.Architecture(ctx, p.BuildServerID)
-	if err != nil {
-		return apperr.Unavailable("Falha ao validar arquitetura.")
-	}
-	for _, target := range p.Destinations {
-		a, e := s.runtime.Architecture(ctx, target)
-		if e != nil || a != arch || a == "" {
-			return apperr.Invalid("Arquiteturas incompatíveis.")
-		}
-	}
-	statuses, err := s.Status(ctx, id)
-	if err != nil {
-		return err
-	}
-	old := map[string]string{}
-	for _, d := range statuses {
-		if d.Status != "healthy" && d.Status != "preserved" {
-			return apperr.Unavailable("Rollout incompleto: reconcilie os destinos.")
-		}
-		old[d.ServerID] = d.Image
-	}
-	prepared := []string{}
-	activated := map[string]bool{}
-	compensate := func() error {
-		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Minute)
-		defer cancel()
-		failed := false
-		for i := len(prepared) - 1; i >= 0; i-- {
-			target := prepared[i]
-			state := "preserved"
-			if activated[target] {
-				if s.runtime.Restore(cleanup, app, target, old[target]) != nil {
-					state = "rollback_failed"
-					failed = true
-				}
-			}
-			if state != "rollback_failed" && s.runtime.Discard(cleanup, app, target, image) != nil {
-				state = "rollback_failed"
-				failed = true
-			}
-			if s.record(cleanup, id, target, old[target], "", state) != nil {
-				failed = true
-			}
-		}
-		if failed {
-			return apperr.Unavailable("Rollback parcial: verifique os destinos.")
-		}
-		return apperr.Unavailable("Deploy falhou; versão anterior preservada.")
-	}
-	for _, target := range p.Destinations {
-		prepared = append(prepared, target)
-		if s.record(ctx, id, target, old[target], "", "preparing") != nil {
-			return compensate()
-		}
-		if s.runtime.Prepare(ctx, app, target, image) != nil {
-			return compensate()
-		}
-		if s.runtime.Ready(ctx, app, target, image) != nil {
-			return compensate()
-		}
-	}
-	for _, target := range prepared {
-		activated[target] = true
-		if s.runtime.Activate(ctx, app, target, image) != nil {
-			return compensate()
-		}
-	}
-	for _, target := range prepared {
-		if s.record(ctx, id, target, image, old[target], "activated") != nil {
-			return compensate()
-		}
-	}
-	if retire, ok := s.runtime.(interface {
-		Retire(context.Context, Application, string) error
-	}); ok {
-		for _, target := range prepared {
-			if retire.Retire(ctx, app, target) != nil {
-				return apperr.Unavailable("Versão ativada; limpeza dos destinos incompleta.")
-			}
-		}
-	}
-	for _, target := range prepared {
-		if err := s.record(ctx, id, target, image, old[target], "healthy"); err != nil {
+
+func (s *MultiServer) forget(ctx context.Context, appID string, servers ...string) error {
+	for _, id := range servers {
+		if _, err := s.db.ExecContext(ctx, `DELETE FROM placement_status WHERE application_id = ? AND server_id = ?`, appID, id); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// plan resolves what a deployment of app must do. ok is false when the
+// application is a plain single-server one.
+func (s *MultiServer) plan(ctx context.Context, app Application) (placementPlan, bool, error) {
+	p, err := s.settings(ctx, app.ID)
+	if err != nil {
+		return placementPlan{}, false, err
+	}
+	statuses, err := s.Status(ctx, app.ID)
+	if err != nil {
+		return placementPlan{}, false, err
+	}
+	plan := placementPlan{Placement: p, servers: normalizedPlacement(p, app.ServerID).Destinations, buildServer: app.ServerID}
+	if p.BuildServerID != "" {
+		plan.buildServer = p.BuildServerID
+	}
+	for _, status := range statuses {
+		if !slices.Contains(plan.servers, status.ServerID) {
+			plan.stale = append(plan.stale, status.ServerID)
+		}
+	}
+	active := len(plan.servers) > 1 || plan.buildServer != app.ServerID
+	return plan, active || len(plan.stale) > 0, nil
+}
+
+// targets are every server the application may have containers on.
+func (s *MultiServer) targets(ctx context.Context, app Application) ([]string, error) {
+	plan, ok, err := s.plan(ctx, app)
+	if err != nil || !ok {
+		return []string{app.ServerID}, err
+	}
+	return append(slices.Clone(plan.servers), plan.stale...), nil
+}
+
+// PlacementDestinations returns the servers that run the application, its
+// own first, or nil for a single-server application.
+func (s *Store) PlacementDestinations(ctx context.Context, app Application) ([]string, error) {
+	plan, ok, err := NewMultiServer(s.db, s, nil, nil).plan(ctx, app)
+	if err != nil || !ok || len(plan.servers) < 2 {
+		return nil, err
+	}
+	return plan.servers, nil
+}
+
+func nullable(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
+}
+
+func truncateMessage(message string) string {
+	const limit = 500
+	if len(message) > limit {
+		return message[:limit]
+	}
+	return message
 }

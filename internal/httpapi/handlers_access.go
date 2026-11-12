@@ -7,9 +7,35 @@ import (
 	"pier/internal/platform/apperr"
 )
 
-// RegisterAccessRoutes keeps construction independent of auth's active changes.
-// The coordinator calls this on the same API mux so audit/CSRF apply normally.
+// RegisterAccessRoutes exposes roles, memberships and invitations. Every
+// route goes through a.route, so authentication, CSRF, audit and the policy of
+// access_policy.go apply; the service re-checks the caller's role itself.
 func (a *API) RegisterAccessRoutes(mux *http.ServeMux, service *rbac.Service) {
+	a.route(mux, "GET /api/v1/me/access", canRead, func(w http.ResponseWriter, r *http.Request) error {
+		principal := principalFrom(r.Context())
+		summary, err := service.Summary(r.Context(), principal.User.ID)
+		if err != nil {
+			return err
+		}
+		return ok(w, accessSummary{Summary: summary, Abilities: principal.Within(allowAll).Abilities})
+	})
+	a.route(mux, "GET /api/v1/access/instance", canRead, func(w http.ResponseWriter, r *http.Request) error {
+		items, err := service.InstanceMembers(r.Context(), principalFrom(r.Context()).User.ID)
+		if err != nil {
+			return err
+		}
+		return ok(w, items)
+	})
+	a.route(mux, "PUT /api/v1/access/instance/{user}", sessionOnly, func(w http.ResponseWriter, r *http.Request) error {
+		body, err := decode[roleRequest](w, r)
+		if err != nil {
+			return err
+		}
+		if err = service.SetInstanceRole(r.Context(), principalFrom(r.Context()).User.ID, r.PathValue("user"), body.Role); err != nil {
+			return err
+		}
+		return noContent(w)
+	})
 	a.route(mux, "GET /api/v1/projects/{id}/members", canRead, func(w http.ResponseWriter, r *http.Request) error {
 		items, err := service.Members(r.Context(), principalFrom(r.Context()).User.ID, r.PathValue("id"))
 		if err != nil {
@@ -18,9 +44,7 @@ func (a *API) RegisterAccessRoutes(mux *http.ServeMux, service *rbac.Service) {
 		return ok(w, items)
 	})
 	a.route(mux, "PUT /api/v1/projects/{id}/members/{user}", sessionOnly, func(w http.ResponseWriter, r *http.Request) error {
-		body, err := decode[struct {
-			Role rbac.Role `json:"role"`
-		}](w, r)
+		body, err := decode[roleRequest](w, r)
 		if err != nil {
 			return err
 		}
@@ -137,7 +161,7 @@ func (a *API) RegisterOIDCRoutes(mux *http.ServeMux, provider *identity.OIDCServ
 			return apperr.Forbidden("SSO não autorizado.")
 		}
 		http.SetCookie(w, &http.Cookie{Name: "__Host-pier_oidc", Value: "", Path: "/", Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: -1})
-		token, err := a.Identity.OpenOIDCSession(r.Context(), provider, r.URL.Query().Get("state"), binding.Value, r.URL.Query().Get("code"), a.sessionClient(r))
+		token, err := a.openSSOSession(r, provider, binding.Value)
 		if err != nil {
 			return err
 		}
@@ -146,4 +170,36 @@ func (a *API) RegisterOIDCRoutes(mux *http.ServeMux, provider *identity.OIDCServ
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return nil
 	})
+}
+
+type roleRequest struct {
+	Role rbac.Role `json:"role"`
+}
+
+// accessSummary is GET /me/access: the caller's roles and the abilities of
+// the credential in use. The UI hides what these do not allow; the API
+// still decides on every request.
+type accessSummary struct {
+	rbac.Summary
+	Abilities []identity.Ability `json:"abilities"`
+}
+
+func allowAll(identity.Ability) bool { return true }
+
+// openSSOSession verifies the callback, applies the instance role the SSO
+// configuration maps the login to, then opens the session.
+func (a *API) openSSOSession(r *http.Request, provider *identity.OIDCService, binding string) (string, error) {
+	login, err := provider.Complete(r.Context(), r.URL.Query().Get("state"), binding, r.URL.Query().Get("code"))
+	if err != nil {
+		return "", err
+	}
+	if login.RoleManaged {
+		if a.Access == nil {
+			return "", accessDenied()
+		}
+		if err := a.Access.ApplySSORole(r.Context(), login.UserID, login.Role); err != nil {
+			return "", err
+		}
+	}
+	return a.Identity.StartSession(r.Context(), login.UserID, a.sessionClient(r))
 }

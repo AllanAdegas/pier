@@ -1,28 +1,56 @@
 package access
 
-import "context"
+import (
+	"context"
+	"database/sql"
+	"errors"
+)
 
-// Project resolves ownership from persisted rows. Unknown kinds fail closed.
+// projectQueries resolve the project that owns a resource from persisted
+// rows (resource -> parent -> environment -> project). Request input never
+// names the project directly. Unknown kinds fail closed.
+var projectQueries = map[string]string{
+	"projects":       `SELECT id FROM projects WHERE id=?`,
+	"environments":   `SELECT project_id FROM environments WHERE id=?`,
+	"applications":   resourceProject("applications"),
+	"databases":      resourceProject("databases"),
+	"stacks":         resourceProject("stacks"),
+	"deployments":    parentProject("deployments", "application_id", "applications"),
+	"tasks":          parentProject("scheduled_tasks", "application_id", "applications"),
+	"backups":        parentProject("backup_executions", "database_id", "databases"),
+	"volume-backups": volumeBackupProject,
+}
+
+func resourceProject(table string) string {
+	return `SELECT e.project_id FROM ` + table + ` r JOIN environments e ON e.id=r.environment_id WHERE r.id=?`
+}
+
+func parentProject(table, column, parent string) string {
+	return `SELECT e.project_id FROM ` + table + ` r JOIN ` + parent + ` p ON p.id=r.` + column +
+		` JOIN environments e ON e.id=p.environment_id WHERE r.id=?`
+}
+
+// volumeBackupProject follows the polymorphic owner of a volume backup.
+const volumeBackupProject = `SELECT e.project_id FROM volume_backups v
+	LEFT JOIN applications a ON v.resource_type='application' AND a.id=v.resource_id
+	LEFT JOIN stacks s ON v.resource_type='stack' AND s.id=v.resource_id
+	JOIN environments e ON e.id=COALESCE(a.environment_id,s.environment_id) WHERE v.id=?`
+
+// KnownKind reports whether Project can resolve kind.
+func KnownKind(kind string) bool { _, ok := projectQueries[kind]; return ok }
+
+// Project returns the project owning the resource. A missing resource is
+// denied like a foreign one, so callers cannot probe for existence.
 func (s *Service) Project(ctx context.Context, kind, id string) (string, error) {
-	var query string
-	switch kind {
-	case "projects":
-		query = `SELECT id FROM projects WHERE id=?`
-	case "environments":
-		query = `SELECT project_id FROM environments WHERE id=?`
-	case "applications", "databases", "stacks":
-		query = `SELECT e.project_id FROM ` + kind + ` r JOIN environments e ON e.id=r.environment_id WHERE r.id=?`
-	case "deployments":
-		query = `SELECT e.project_id FROM deployments r JOIN applications a ON a.id=r.application_id JOIN environments e ON e.id=a.environment_id WHERE r.id=?`
-	case "tasks":
-		query = `SELECT e.project_id FROM scheduled_tasks r JOIN applications a ON a.id=r.application_id JOIN environments e ON e.id=a.environment_id WHERE r.id=?`
-	case "backups":
-		query = `SELECT e.project_id FROM backup_executions r JOIN databases d ON d.id=r.database_id JOIN environments e ON e.id=d.environment_id WHERE r.id=?`
-	default:
+	query, ok := projectQueries[kind]
+	if !ok || id == "" {
 		return "", denied()
 	}
 	var project string
 	err := s.db.QueryRowContext(ctx, query, id).Scan(&project)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", denied()
+	}
 	return project, err
 }
 

@@ -129,7 +129,9 @@ func (a *API) terminalConnect(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	defer session.Close()
- if err := a.authorizeTerminal(r.Context(),principal,session.Grant()); err != nil { return err }
+	if err := a.authorizeTerminal(r.Context(), principal, session.Grant()); err != nil {
+		return err
+	}
 	// The origin was verified above, scheme and host, against the public URL
 	// and the request host: stricter than the library's host-only check.
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{InsecureSkipVerify: true})
@@ -138,6 +140,7 @@ func (a *API) terminalConnect(w http.ResponseWriter, r *http.Request) error {
 	}
 	conn.SetReadLimit(terminal.MaxFrameBytes)
 	grant := session.Grant()
+	defer a.guardTerminal(r, principal, grant, func() { _ = conn.CloseNow() })()
 	a.auditTerminal(r, principal, http.StatusSwitchingProtocols, grant.ResourceID, openEvent(grant))
 	stopPings := keepAlive(conn, func(ctx context.Context) bool {
 		cookie, err := r.Cookie(sessionCookie)
@@ -145,7 +148,8 @@ func (a *API) terminalConnect(w http.ResponseWriter, r *http.Request) error {
 			return false
 		}
 		current, err := a.Identity.AuthenticateSession(ctx, cookie.Value)
-		return err == nil && current.User.ID == principal.User.ID && current.Can(identity.AbilityWrite) && a.authorizeTerminal(ctx,current,grant)==nil
+		return err == nil && current.User.ID == principal.User.ID && current.Can(identity.AbilityWrite) &&
+			a.authorizeTerminal(ctx, current, grant) == nil
 	})
 	report := session.Serve(websocketPeer{conn: conn})
 	stopPings()
@@ -304,12 +308,4 @@ func (a *API) auditTerminal(r *http.Request, principal identity.Principal, statu
 	if err != nil && a.Logger != nil {
 		a.Logger.Error("audit record failed", "error", err)
 	}
-}
-
-func (a *API) authorizeTerminal(ctx context.Context, p identity.Principal, grant terminal.Grant) error {
- if a.Access == nil { return apperr.Forbidden("Acesso não autorizado.") }
- kind := map[terminal.Kind]string{terminal.KindApplication:"applications",terminal.KindDatabase:"databases",terminal.KindStack:"stacks"}[grant.Kind]
- project := ""
- if kind != "" { var err error; project,err=a.Access.Project(ctx,kind,grant.ResourceID);if err!=nil{return err} }
- return p.AuthorizeAccess(ctx,a.Access,project,identity.AbilityWrite)
 }

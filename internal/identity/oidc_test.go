@@ -41,6 +41,7 @@ func TestOIDCFlow(t *testing.T) {
 	}
 	var issuer, nonce, challenge, subject string
 	badNonce := false
+	var groups []string
 	encode := func(v any) string { b, _ := json.Marshal(v); return base64.RawURLEncoding.EncodeToString(b) }
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -61,7 +62,7 @@ func TestOIDCFlow(t *testing.T) {
 			if badNonce {
 				claimNonce = "wrong"
 			}
-			payload := encode(map[string]string{"alg": "RS256", "kid": "test"}) + "." + encode(map[string]any{"iss": issuer, "sub": subject, "aud": "client", "exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(), "nonce": claimNonce, "email": "member@example.com", "email_verified": true})
+			payload := encode(map[string]string{"alg": "RS256", "kid": "test"}) + "." + encode(map[string]any{"iss": issuer, "sub": subject, "aud": "client", "exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(), "nonce": claimNonce, "email": "member@example.com", "email_verified": true, "groups": groups})
 			digest := sha256.Sum256([]byte(payload))
 			signature, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, digest[:])
 			if err != nil {
@@ -110,9 +111,9 @@ func TestOIDCFlow(t *testing.T) {
 	if _, err = s.Complete(ctx, state, "wrong-browser", "code"); err == nil {
 		t.Fatal("browser binding bypassed")
 	}
-	user, err := s.Complete(ctx, state, browser, "code")
-	if err != nil || user != "member" {
-		t.Fatalf("callback: %s %v", user, err)
+	login, err := s.Complete(ctx, state, browser, "code")
+	if err != nil || login.UserID != "member" || login.RoleManaged {
+		t.Fatalf("callback: %+v %v", login, err)
 	}
 	if _, err = s.Complete(ctx, state, browser, "code"); err == nil {
 		t.Fatal("state replay")
@@ -132,6 +133,35 @@ func TestOIDCFlow(t *testing.T) {
 	_, _ = db.Exec(`UPDATE access_oidc_states SET expires_at=0`)
 	if _, err = s.Complete(ctx, state, browser, "code"); err == nil {
 		t.Fatal("expired state accepted")
+	}
+	badNonce = false
+	mapped := config
+	mapped.RoleMappings = map[string]string{"pier-devs": "developer", "pier-admins": "admin"}
+	mapped.DefaultRole = "viewer"
+	if err = s.Configure(ctx, "owner", mapped); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		groups []string
+		want   string
+	}{{[]string{"other", "pier-devs"}, "developer"}, {[]string{"pier-devs", "pier-admins"}, "admin"}, {nil, "viewer"}} {
+		groups = tc.groups
+		state, browser = start()
+		login, err = s.Complete(ctx, state, browser, "code")
+		if err != nil || !login.RoleManaged || string(login.Role) != tc.want {
+			t.Fatalf("groups %v: %+v %v", tc.groups, login, err)
+		}
+	}
+	for _, bad := range []OIDCConfig{
+		{RoleMappings: map[string]string{"pier-owners": "owner"}},
+		{DefaultRole: "owner"},
+		{RoleMappings: map[string]string{"x": "root"}},
+	} {
+		attempt := config
+		attempt.RoleMappings, attempt.DefaultRole = bad.RoleMappings, bad.DefaultRole
+		if s.Configure(ctx, "owner", attempt) == nil {
+			t.Fatalf("SSO mapping accepted %+v", bad)
+		}
 	}
 	config.Issuer = "https://untrusted.example"
 	if s.Configure(ctx, "owner", config) == nil {

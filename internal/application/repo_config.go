@@ -111,7 +111,7 @@ func overlayRepoConfig(content []byte, config Config) (Config, []string, error) 
 		return Config{}, nil, repoSyntaxError(err)
 	}
 	if pack := file.Build.Pack; pack != nil && !slices.Contains(GitPacks, *pack) {
-		return Config{}, nil, i18n.Errorf("pier.yaml, linha %d: build.pack aceita dockerfile, nixpacks ou static", lines["build.pack"])
+		return Config{}, nil, i18n.Errorf("pier.yaml, linha %d: build.pack aceita dockerfile, nixpacks, railpack ou static", lines["build.pack"])
 	}
 	merged, fields := file.apply(config)
 	if err := merged.Validate(); err != nil {
@@ -212,4 +212,4 @@ func repoValidationError(err error, lines map[string]int) error {
 }
 
 // GitPacks are the build packs that build from source code.
-var GitPacks = []BuildPack{PackDockerfile, PackNixpacks, PackStatic}
+var GitPacks = []BuildPack{PackDockerfile, PackNixpacks, PackStatic, PackRailpack}

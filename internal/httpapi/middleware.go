@@ -55,8 +55,17 @@ func (a *API) authenticate(required access, next http.Handler) http.Handler {
 			a.writeError(w, r, apperr.Forbidden("Cabeçalho %s ausente.", clientHeader))
 			return
 		}
-		if err := a.authorizeRequest(r, principal, required.ability); err != nil { a.writeError(w,r,err); return }
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), contextKey{}, principal)))
+		granted, err := a.authorizeRequest(r, principal, required)
+		if err != nil {
+			a.writeError(w, r, err)
+			return
+		}
+		r = r.WithContext(context.WithValue(r.Context(), contextKey{}, granted.principal))
+		if granted.filterKind != "" {
+			a.serveFiltered(w, r, principal, granted.filterKind, next)
+			return
+		}
+		next.ServeHTTP(w, r)
 	})
 }
 

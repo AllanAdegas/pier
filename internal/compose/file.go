@@ -35,6 +35,20 @@ type Service struct {
 	Privileged    bool                          `yaml:"privileged,omitempty"`
 	Tmpfs         []string                      `yaml:"tmpfs,omitempty"`
 	Logging       *Logging                      `yaml:"logging,omitempty"`
+	// Validated application Docker options (application/docker_options.go).
+	CapAdd      []string          `yaml:"cap_add,omitempty"`
+	CapDrop     []string          `yaml:"cap_drop,omitempty"`
+	Ulimits     map[string]Ulimit `yaml:"ulimits,omitempty"`
+	ShmSize     string            `yaml:"shm_size,omitempty"`
+	Devices     []string          `yaml:"devices,omitempty"`
+	NetworkMode string            `yaml:"network_mode,omitempty"`
+	Pid         string            `yaml:"pid,omitempty"`
+}
+
+// Ulimit mirrors one entry of the compose ulimits block.
+type Ulimit struct {
+	Soft int64 `yaml:"soft"`
+	Hard int64 `yaml:"hard"`
 }
 
 // Logging mirrors the compose logging block.

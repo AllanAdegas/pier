@@ -91,6 +91,8 @@ type API struct {
 	// resetLimiter bounds reset e-mails per address; apiLimiter, API tokens.
 	resetLimiter *rateLimiter
 	apiLimiter   *tokenBuckets
+	// routes records every registered route for the authorization coverage test.
+	routes []registeredRoute
 }
 
 // New creates the API.
@@ -167,11 +169,13 @@ type handlerFunc func(w http.ResponseWriter, r *http.Request) error
 
 // route registers an authenticated endpoint.
 func (a *API) route(mux *http.ServeMux, pattern string, required access, handler handlerFunc) {
+	a.routes = append(a.routes, registeredRoute{pattern: pattern, required: required})
 	mux.Handle(pattern, a.authenticate(required, a.adapt(handler)))
 }
 
 // public registers an endpoint that needs no authentication.
 func (a *API) public(mux *http.ServeMux, pattern string, handler handlerFunc) {
+	a.routes = append(a.routes, registeredRoute{pattern: pattern, public: true})
 	mux.Handle(pattern, a.adapt(handler))
 }
 

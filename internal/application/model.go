@@ -17,6 +17,7 @@ const (
 	PackDockerfile BuildPack = "dockerfile"
 	PackNixpacks   BuildPack = "nixpacks"
 	PackStatic     BuildPack = "static"
+	PackRailpack   BuildPack = "railpack"
 	PackImage      BuildPack = "image"
 )
 
@@ -125,6 +126,8 @@ type Config struct {
 	AutoDeploy bool        `json:"auto_deploy"`
 	// Processes empty means a single "web" process, as before processes existed.
 	Processes []Process `json:"processes"`
+	// DockerOptions are validated extra container settings (docker_options.go).
+	DockerOptions DockerOptions `json:"docker_options"`
 }
 
 // Application is a deployable unit running as one container.

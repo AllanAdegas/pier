@@ -15,6 +15,8 @@ import (
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
+
+	"pier/internal/access"
 	"pier/internal/platform/apperr"
 	"pier/internal/platform/secretbox"
 )
@@ -26,6 +28,11 @@ type OIDCConfig struct {
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
 	Callback     string `json:"callback"`
+	// RoleClaim, RoleMappings and DefaultRole map the ID token to the
+	// instance role of the linked account (see oidc_roles.go).
+	RoleClaim    string            `json:"role_claim,omitempty"`
+	RoleMappings map[string]string `json:"role_mappings,omitempty"`
+	DefaultRole  string            `json:"default_role,omitempty"`
 }
 type OIDCService struct {
 	db       *sql.DB
@@ -73,6 +80,9 @@ func (s *OIDCService) Configure(ctx context.Context, actor string, c OIDCConfig)
 	}
 	if s.box == nil || !s.allowed[c.Issuer] || !secureOIDCURL(c.Callback) || c.Callback != s.callback || strings.TrimSpace(c.ClientID) == "" {
 		return oidcDenied()
+	}
+	if err := validateRoleMapping(c); err != nil {
+		return err
 	}
 	raw, err := json.Marshal(c)
 	if err != nil {
@@ -207,61 +217,76 @@ func (s *OIDCService) Begin(ctx context.Context) (string, string, error) {
 	return oauth.AuthCodeURL(state, oauth2.S256ChallengeOption(verifier), oidc.Nonce(nonce)), browser, nil
 }
 
+// OIDCLogin is a verified SSO login of a linked account.
+type OIDCLogin struct {
+	UserID string
+	// Role is the instance role the configuration maps the token to ("" =
+	// none); it applies only when RoleManaged.
+	Role        access.Role
+	RoleManaged bool
+}
+
 // Complete consumes state before network I/O. Signature, issuer, audience,
 // expiry, nonce and PKCE are verified; only an administratively linked user
-// can receive a normal identity session through OpenOIDCSession.
-func (s *OIDCService) Complete(ctx context.Context, state, browser, code string) (string, error) {
+// is returned, with the instance role the configuration maps the token to.
+func (s *OIDCService) Complete(ctx context.Context, state, browser, code string) (OIDCLogin, error) {
+	user, claims, config, err := s.exchange(ctx, state, browser, code)
+	if err != nil {
+		return OIDCLogin{}, err
+	}
+	role, managed := mappedRole(config, claims)
+	return OIDCLogin{UserID: user, Role: role, RoleManaged: managed}, nil
+}
+
+// exchange redeems the code and returns the linked account and the claims.
+func (s *OIDCService) exchange(ctx context.Context, state, browser, code string) (string, map[string]any, OIDCConfig, error) {
 	if state == "" || browser == "" || code == "" {
-		return "", oidcDenied()
+		return "", nil, OIDCConfig{}, oidcDenied()
 	}
 	var sealed string
 	err := s.db.QueryRowContext(ctx, `DELETE FROM access_oidc_states WHERE state_hash=? AND browser_hash=? AND expires_at>? RETURNING sealed`, oidcHash(state), oidcHash(browser), time.Now().Unix()).Scan(&sealed)
 	if err != nil {
-		return "", oidcDenied()
+		return "", nil, OIDCConfig{}, oidcDenied()
 	}
 	raw, err := s.box.Open(sealed)
 	if err != nil {
-		return "", oidcDenied()
+		return "", nil, OIDCConfig{}, oidcDenied()
 	}
 	var pending oidcPending
 	if json.Unmarshal([]byte(raw), &pending) != nil {
-		return "", oidcDenied()
+		return "", nil, OIDCConfig{}, oidcDenied()
 	}
 	c, err := s.config(ctx)
 	if err != nil {
-		return "", err
+		return "", nil, OIDCConfig{}, err
 	}
 	p, oauth, err := s.provider(ctx, c)
 	if err != nil {
-		return "", err
+		return "", nil, OIDCConfig{}, err
 	}
 	token, err := oauth.Exchange(oidc.ClientContext(ctx, s.client), code, oauth2.VerifierOption(pending.Verifier))
 	if err != nil {
-		return "", oidcDenied()
+		return "", nil, OIDCConfig{}, oidcDenied()
 	}
 	idToken, ok := token.Extra("id_token").(string)
 	if !ok {
-		return "", oidcDenied()
+		return "", nil, OIDCConfig{}, oidcDenied()
 	}
 	verified, err := p.Verifier(&oidc.Config{ClientID: c.ClientID, SupportedSigningAlgs: []string{"RS256", "ES256"}}).Verify(oidc.ClientContext(ctx, s.client), idToken)
 	if err != nil || subtle.ConstantTimeCompare([]byte(verified.Nonce), []byte(pending.Nonce)) != 1 {
-		return "", oidcDenied()
+		return "", nil, OIDCConfig{}, oidcDenied()
 	}
 	var user string
 	err = s.db.QueryRowContext(ctx, `SELECT user_id FROM access_oidc_links WHERE issuer=? AND subject=?`, c.Issuer, verified.Subject).Scan(&user)
 	if err != nil {
-		return "", oidcDenied()
+		return "", nil, OIDCConfig{}, oidcDenied()
 	}
-	return user, nil
-}
-func (s *Service) OpenOIDCSession(ctx context.Context, provider *OIDCService, state, browser, code string, client Client) (string, error) {
-	user, err := provider.Complete(ctx, state, browser, code)
-	if err != nil {
-		return "", err
+	claims := map[string]any{}
+	if err := verified.Claims(&claims); err != nil {
+		return "", nil, OIDCConfig{}, oidcDenied()
 	}
-	return s.StartSession(ctx, user, client)
+	return user, claims, c, nil
 }
-
 // Disable removes credentials and invalidates pending logins atomically.
 func (s *OIDCService) Disable(ctx context.Context, actor string) error {
 	if err := s.owner(ctx, actor); err != nil {
