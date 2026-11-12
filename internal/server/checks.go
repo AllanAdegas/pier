@@ -96,6 +96,10 @@ func collectChecks(ctx context.Context, ex executor.Executor, settings ProxySett
 		status = "warning"
 	}
 	add("clock", status, language.Text("Relógio sincronizado com o Pier (até 30 segundos)"), language.Text("Ative a sincronização NTP no servidor, por exemplo: timedatectl set-ntp true."))
+	buildx, buildxErr := ex.Run(ctx, "docker buildx version")
+	status = "pass"
+	if buildxErr != nil || !strings.Contains(buildx, "buildx") { status = "warning" }
+	add("buildx", status, language.Text("Docker Buildx disponível"), language.Text("Instale o plugin Docker Buildx para construir aplicações neste servidor."))
 	return checks, version
 }
 

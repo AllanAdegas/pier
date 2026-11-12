@@ -36,7 +36,7 @@ func platformAPI(t *testing.T) *API {
 	}
 	t.Cleanup(func() { db.Close() })
 	box, _ := secretbox.New("platform-test-instance-key")
-	return New(Dependencies{Identity: identity.NewService(identity.NewStore(db), time.Hour), Instance: &instance.Service{DB: db, DataDir: dir, Key: "platform-test-instance-key", Box: box}, Audit: &audit.Store{DB: db}, Monitoring: &monitor.State{DB: db}, Settings: settings.NewStore(db), Projects: project.NewService(db), Applications: application.NewService(application.NewStore(db, box), nil, nil, nil), Stacks: stack.NewService(db, nil, nil, nil), Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), SessionTTL: time.Hour})
+	return New(Dependencies{Access: testAccess(t,db), Identity: identity.NewService(identity.NewStore(db), time.Hour), Instance: &instance.Service{DB: db, DataDir: dir, Key: "platform-test-instance-key", Box: box}, Audit: &audit.Store{DB: db}, Monitoring: &monitor.State{DB: db}, Settings: settings.NewStore(db), Projects: project.NewService(db), Applications: application.NewService(application.NewStore(db, box), nil, nil, nil), Stacks: stack.NewService(db, nil, nil, nil), Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), SessionTTL: time.Hour})
 }
 func TestLimiterMemoryIsBoundedWithoutSweepingAndWindowsExpire(t *testing.T) {
 	l := newRateLimiter(2, time.Minute)

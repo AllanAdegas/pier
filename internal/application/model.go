@@ -45,6 +45,7 @@ type Source struct {
 
 // Build configures how the image is produced.
 type Build struct {
+	Target string `json:"target"`
 	Pack             BuildPack `json:"pack"`
 	BaseDirectory    string    `json:"base_directory"`
 	DockerfilePath   string    `json:"dockerfile_path"`
@@ -112,6 +113,7 @@ type Storage struct {
 
 // Config is the full, user-editable definition of an application.
 type Config struct {
+	Runtime Runtime `json:"runtime"`
 	Source     Source      `json:"source"`
 	Build      Build       `json:"build"`
 	Network    Network     `json:"network"`

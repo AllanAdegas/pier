@@ -18,6 +18,7 @@ type File struct {
 
 // Service is one container definition.
 type Service struct {
+	StopGracePeriod string `yaml:"stop_grace_period,omitempty"`
 	Image         string                        `yaml:"image"`
 	ContainerName string                        `yaml:"container_name,omitempty"`
 	Restart       string                        `yaml:"restart,omitempty"`

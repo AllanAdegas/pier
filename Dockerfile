@@ -30,6 +30,9 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags="-s -w" -o /out/pier ./cmd/pier
 
 FROM alpine:${ALPINE_VERSION}
+LABEL org.opencontainers.image.title="Pier" \
+      org.opencontainers.image.source="https://github.com/AllanAdegas/pier" \
+      org.opencontainers.image.licenses="Apache-2.0"
 # docker-cli-buildx: the static-site build pack needs BuildKit (heredocs).
 # tzdata: scheduled tasks and backups follow the TZ of the container.
 # tini: reaps the docker/compose processes Pier leaves behind when it cancels.

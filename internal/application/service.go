@@ -40,11 +40,13 @@ type UpdateInput struct {
 
 // Service implements the application use cases.
 type Service struct {
+ multi *MultiServer
 	store      *Store
 	env        *envvar.Store
 	connector  Connector
 	dispatcher *Dispatcher
 	guard      DeployGuard
+	previews   *PreviewService
 }
 
 // DeployGuard decides whether an environment accepts deployments now (a
@@ -57,6 +59,7 @@ type DeployGuard interface {
 func (s *Service) SetDeployGuard(guard DeployGuard) { s.guard = guard }
 
 func (s *Service) checkDeploy(ctx context.Context, app Application) error {
+ if err := server.CheckConnectorDeployment(ctx, s.connector, app.ServerID); err != nil { return err }
 	if s.guard == nil {
 		return nil
 	}
@@ -140,7 +143,13 @@ func (s *Service) Delete(ctx context.Context, id string, deleteVolumes, force bo
 		return err
 	}
 	defer resume()
-	if err := s.removeFromServer(ctx, app, deleteVolumes); err != nil && !force {
+ var cleanup error
+ targets:=[]string{app.ServerID}
+ if s.multi!=nil {s.multi.mu.Lock();defer s.multi.mu.Unlock();p,e:=s.multi.Settings(ctx,id);if e!=nil{return e};if len(p.Destinations)>0 {targets=p.Destinations}}
+ cleanup=s.removePreviewsFromServer(ctx,app)
+ for _,target:=range targets {view:=app;view.ServerID=target;cleanup=errors.Join(cleanup,s.removeFromServer(ctx,view,deleteVolumes))}
+
+	if err := cleanup; err != nil && !force {
 		return apperr.Unavailable("Não foi possível limpar o servidor (%s). Use a remoção forçada para "+
 			"apagar apenas o registro.", err)
 	}
@@ -162,7 +171,8 @@ func (s *Service) removeFromServer(ctx context.Context, app Application, deleteV
 	if err := docker.Remove(ctx, ex, containers); err != nil {
 		return err
 	}
-	server.LogEdgeSync(ctx, ex, target)
+	if _,err:=ex.Run(ctx,shell.Join("rm","-f",path.Join(target.ProxyDir(),"dynamic","placement-"+app.ID+".json")));err!=nil{return err}
+ server.LogEdgeSync(ctx, ex, target)
 	if deleteVolumes {
 		for _, storage := range app.Config.Storages {
 			if storage.Kind == StorageVolume {
@@ -313,7 +323,7 @@ func (s *Service) Containers(ctx context.Context, id string) ([]ApplicationConta
 
 // Stop stops the running containers without removing them.
 func (s *Service) Stop(ctx context.Context, id string) error {
-	return s.operate(ctx, id, docker.StatusStopped, docker.Stop)
+	return s.operate(ctx, id, docker.StatusStopped, stopApplicationContainers)
 }
 
 // Start starts containers previously stopped.
@@ -323,12 +333,13 @@ func (s *Service) Start(ctx context.Context, id string) error {
 
 // Restart restarts the containers in place (no new build).
 func (s *Service) Restart(ctx context.Context, id string) error {
-	return s.operate(ctx, id, docker.StatusRunning, docker.Restart)
+	return s.operate(ctx, id, docker.StatusRunning, restartApplicationContainers)
 }
 
 type containerOperation func(ctx context.Context, ex executor.Executor, containers []docker.Container) error
 
 func (s *Service) operate(ctx context.Context, id, resultingStatus string, operation containerOperation) error {
+ if handled,err:=s.placementOperate(ctx,id,resultingStatus,operation);handled{return err}
 	ex, containers, err := s.reach(ctx, id)
 	if err != nil {
 		return err
@@ -390,6 +401,9 @@ func (s *Service) HandleGitPush(ctx context.Context, id string, provider GitProv
 	secret, err := s.WebhookSecret(ctx, id)
 	if err != nil || !verifyWebhook(provider, secret, header, body) {
 		return WebhookResult{}, apperr.Unauthorized("Assinatura do webhook inválida.")
+	}
+	if isPullRequestEvent(provider, header) {
+		return s.handlePullRequest(ctx, id, provider, body)
 	}
 	if !isPushEvent(provider, header) {
 		return WebhookResult{Reason: i18n.FromContext(ctx).Text("Evento ignorado: apenas push dispara deploy.")}, nil

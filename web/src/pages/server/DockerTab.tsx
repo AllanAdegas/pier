@@ -160,7 +160,7 @@ function Containers(props: { base: string }) {
                 <div class="list">
                   <For each={visible()}>
                     {(container) => (
-                      <ContainerRow
+                      <ContainerRow terminalBase={props.base}
                         container={container}
                         act={act}
                         onDialog={setDialog}
@@ -187,7 +187,7 @@ function Containers(props: { base: string }) {
                       <div class="list">
                         <For each={group.containers}>
                           {(container) => (
-                            <ContainerRow hideComposeTag
+                            <ContainerRow terminalBase={props.base} hideComposeTag
                               container={container}
                               act={act}
                               onDialog={setDialog}

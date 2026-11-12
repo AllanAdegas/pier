@@ -5,6 +5,7 @@ import { Button, IconButton } from "../components/Button";
 import { Icon, type IconName } from "../components/Icon";
 import { currentUser, signOut, theme, toggleTheme } from "../lib/state";
 import { Alert } from "../components/Feedback";
+import { UpdateBanner } from "../components/UpdateBanner";
 import { createQuery, createAction } from "../lib/query";
 import { api } from "../lib/api";
 import { t } from "../i18n";
@@ -101,7 +102,7 @@ export function Shell(props: RouteSectionProps) {
         </div>
       </aside>
 
-      <main class="main"><Show when={backup.data() && !backup.data()!.last_backup_at}><Alert tone="warning">{t("Faça um backup da instância para proteger o Pier e suas credenciais.")} <A href="/settings#instance-backup">{t("Configurar backup")}</A></Alert></Show>{props.children}</main>
+      <main class="main"><UpdateBanner /><Show when={backup.data() && !backup.data()!.last_backup_at}><Alert tone="warning">{t("Faça um backup da instância para proteger o Pier e suas credenciais.")} <A href="/settings#instance-backup">{t("Configurar backup")}</A></Alert></Show>{props.children}</main>
     </div>
   );
 }

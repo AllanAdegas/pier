@@ -74,6 +74,9 @@ func (j *job) dockerBuild(ctx context.Context, dockerfile string) (string, error
 	args := []string{"docker", "buildx", "build", "--builder", builderName, "--load", "--progress", "plain", "--tag", image, "--file", dockerfile,
 		"--label", docker.LabelManaged + "=true", "--label", docker.LabelID + "=" + j.app.ID}
 
+	if j.app.Config.Build.Pack == PackDockerfile && j.app.Config.Build.Target != "" {
+		args = append(args, "--target", j.app.Config.Build.Target)
+	}
 	buildArgs := j.buildArgs()
 	args = append(args, buildArgs...)
 	args = append(args, j.contextDir())

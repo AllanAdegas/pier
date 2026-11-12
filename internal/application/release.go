@@ -83,7 +83,8 @@ func serviceFor(spec releaseSpec, replica replica, routes []compose.Route) *comp
 	service := &compose.Service{
 		Image:         spec.Image,
 		ContainerName: replica.Name,
-		Restart:       "unless-stopped",
+		Restart:       orDefault(config.Runtime.RestartPolicy, "unless-stopped"),
+		StopGracePeriod: stopGracePeriod(config.Runtime),
 		Environment:   runtimeEnvironment(spec, routes, replica.Process.Name),
 		Labels:        labels,
 		Networks:      map[string]*compose.NetworkAttachment{docker.Network: {}},
@@ -288,7 +289,7 @@ func (j *job) retire(ctx context.Context, previous []docker.Container) error {
 		return nil
 	}
 	j.log.Info("Nova versão pronta. Removendo %d container(s) da versão anterior.", len(previous))
-	if err := docker.Stop(ctx, j.ex, previous); err != nil {
+	if err := stopApplicationContainers(ctx, j.ex, previous); err != nil {
 		return err
 	}
 	j.captureRetiredLogs(ctx, previous)

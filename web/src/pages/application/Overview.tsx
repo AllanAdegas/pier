@@ -1,7 +1,9 @@
+import { TerminalButton } from "../../components/Terminal";
 import { A } from "@solidjs/router";
 import { For, Show } from "solid-js";
 import { Alert, EmptyState, StatusBadge } from "../../components/Feedback";
 import { Section } from "../../components/Page";
+import { MetricsHistory } from "../../components/charts/MetricsHistory";
 import { DeploymentList } from "../../components/Rows";
 import { BUILD_PACK_LABEL } from "../../lib/format";
 import type { Application, Container, Deployment } from "../../lib/types";
@@ -24,6 +26,7 @@ export function OverviewTab(props: { application: Application; containers: Conta
 
   return (
     <div class="stack-lg">
+ <TerminalButton endpoint={`/applications/${props.application.id}/terminal`} />
       <Show when={neverDeployed()}>
         <Alert tone="info">
           <Trans
@@ -81,6 +84,8 @@ export function OverviewTab(props: { application: Application; containers: Conta
           </div>
         </Show>
       </Section>
+
+      <MetricsHistory path={`/resources/application/${props.application.id}/metrics/history`} />
 
       <section class="stack">
         <div class="row-between">

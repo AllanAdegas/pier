@@ -1,0 +1,20 @@
+export const englishGitapp: Record<string, string> = {
+ "Configure a origem do recurso com a mesma URL HTTPS do GitHub selecionado. A seleção fornece a credencial no deploy e nos previews.": "Configure the resource source with the same selected GitHub HTTPS URL. The selection supplies credentials for deployments and previews.",
+ "Remover seleção": "Remove selection",
+ "Seleção removida. O próximo deploy usará a autenticação da origem.": "Selection removed. The next deployment will use the source authentication.",
+  "GitHub App": "GitHub App",
+  "Configure seu GitHub App. Conteúdo: leitura; status de commit e pull requests: escrita. Instale apenas nos repositórios necessários.": "Configure your GitHub App. Contents: read; commit statuses and pull requests: write. Install only on the required repositories.",
+  "Webhook: /webhooks/git-provider/github. Assine eventos de instalação e repositórios da instalação.": "Webhook: /webhooks/git-provider/github. Subscribe to installation and installation repository events.",
+  "GitHub App salvo.": "GitHub App saved.",
+  "App ID": "App ID",
+  "Chave privada PEM": "Private PEM key",
+  "Segredo do webhook (mínimo 32 caracteres)": "Webhook secret (at least 32 characters)",
+  "Salvar": "Save",
+  "Listar instalações": "List installations",
+  "Instalação GitHub": "GitHub installation",
+  "Repositório GitHub": "GitHub repository",
+  "Tipo de recurso": "Resource type",
+  "ID do recurso": "Resource ID",
+  "Repositório selecionado.": "Repository selected.",
+  "Selecionar repositório": "Select repository"
+};

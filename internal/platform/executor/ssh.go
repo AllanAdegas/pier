@@ -11,6 +11,7 @@ import (
 	"path"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -44,6 +45,8 @@ type SSH struct {
 	dialCancel context.CancelFunc
 	dialGate   chan struct{}
 	sessions   chan struct{}
+	// interactive counts terminals, which do not take command slots.
+	interactive atomic.Int32
 }
 
 func NewSSH(target SSHTarget) *SSH {
@@ -236,7 +239,12 @@ func (s *SSH) newSession(ctx context.Context) (*sshSession, error) {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
-	release := func() { <-s.sessions }
+	return s.openChannel(ctx, func() { <-s.sessions })
+}
+
+// openChannel opens a session channel on the shared transport. release frees
+// the caller's slot once the channel is gone.
+func (s *SSH) openChannel(ctx context.Context, release func()) (*sshSession, error) {
 	for attempt := 0; attempt < 2; attempt++ {
 		client, err := s.connect(ctx)
 		if err != nil {

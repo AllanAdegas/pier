@@ -278,7 +278,7 @@ func readContainerUsage(ctx context.Context, ex executor.Executor) ([]ContainerU
 	for _, container := range managed {
 		byName[container.Name] = container
 	}
-	format := docker.FormatColumns("{{.Name}}", "{{.CPUPerc}}", "{{.MemUsage}}", "{{.MemPerc}}")
+	format := docker.FormatColumns("{{.Name}}", "{{.CPUPerc}}", "{{.MemUsage}}", "{{.MemPerc}}", "{{.NetIO}}")
 	output, err := ex.Run(ctx, shell.Join("docker", "stats", "--no-stream", "--format", format))
 	if err != nil {
 		return nil, fmt.Errorf("docker stats: %w", err)
@@ -299,6 +299,7 @@ func readContainerUsage(ctx context.Context, ex executor.Executor) ([]ContainerU
 			State: container.State, Status: container.Status}
 		if fields, ok := stats[container.Name]; ok && container.State == "running" {
 			item.CPUPercent, item.MemoryUsage, item.MemoryPercent = fields[1], fields[2], fields[3]
+ if len(fields)>4 { item.NetworkIO=fields[4] }
 		}
 		usage = append(usage, item)
 	}

@@ -10,11 +10,13 @@ import (
 	"net"
 	"net/http"
 	"os"
+ "strings"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"pier/internal/application"
+ "pier/internal/registry"
 	"pier/internal/audit"
 	"pier/internal/cluster"
 	"pier/internal/config"
@@ -23,6 +25,7 @@ import (
 	"pier/internal/envvar"
 	"pier/internal/httpapi"
 	"pier/internal/identity"
+ "pier/internal/access"
 	"pier/internal/instance"
 	"pier/internal/mcp"
 	"pier/internal/monitor"
@@ -31,12 +34,17 @@ import (
 	"pier/internal/platform/oplog"
 	"pier/internal/platform/pubsub"
 	"pier/internal/platform/secretbox"
+ "pier/internal/gitprovider"
 	"pier/internal/platform/sqlite"
 	"pier/internal/project"
 	"pier/internal/schedule"
 	"pier/internal/server"
 	"pier/internal/settings"
 	"pier/internal/stack"
+	"pier/internal/updates"
+ "pier/internal/terminal"
+	"pier/internal/version"
+	"pier/internal/volumebackup"
 	"pier/internal/webui"
 )
 
@@ -47,6 +55,9 @@ func main() {
 	}
 	if len(os.Args) > 1 && os.Args[1] == "restore" {
 		command = runRestore
+	}
+	if len(os.Args) > 1 && os.Args[1] == "admin" {
+		command = runAdmin
 	}
 	if err := command(); err != nil {
 		fmt.Fprintln(os.Stderr, "pier:", err)
@@ -106,6 +117,13 @@ func run() error {
 		return err
 	}
 
+	updateChecker, err := updates.New(updates.Options{
+		Enabled: updates.EnabledByEnvironment(os.Getenv("PIER_UPDATE_CHECK")), Current: version.Number,
+	})
+	if err != nil {
+		return err
+	}
+
 	// Composition root: every dependency is wired here, explicitly.
 	notifications := notify.NewService(db, box, logger)
 	serverStore := server.NewStore(db)
@@ -130,6 +148,17 @@ func run() error {
 	deployer.SetDomainChecker(servers)
 	dispatcher := application.NewDispatcher(appStore, deployer, logger, cfg.DeployTimeout)
 	applications := application.NewService(appStore, env, connector, dispatcher)
+ images := registry.New(db,box)
+ multi := application.NewMultiServer(db,appStore,project.NewService(db),nil)
+ if err:=multi.CheckRecovery(ctx);err!=nil{return err}
+ deployer.SetMultiServer(multi,images)
+ applications.SetMultiServer(multi)
+ multi.SetRolloutQueue(applications)
+	previews := application.NewPreviewService(applications, logger)
+ gitProviders := gitprovider.New(db, box)
+ deployer.SetGitProvider(gitProviders)
+ previews.SetReporter(application.NewGitAppReporter(gitProviders))
+	go previews.RunJanitor(ctx, application.DefaultPreviewJanitorInterval)
 	databaseStore := database.NewStore(db, box)
 	databases := database.NewService(databaseStore, connector, notifications)
 	env.SetReferenceResolver(application.DatabaseReferences{Databases: databases})
@@ -139,15 +168,25 @@ func run() error {
 	applications.SetDeployGuard(projects)
 	stacks.SetDeployGuard(projects)
 	stacks.SetDomainChecker(servers)
+	stacks.SetGitSupport(box, keys)
+ stacks.SetGitProvider(gitProviders)
 	clusters := cluster.NewService(db, box, connector, oplog.NewRegistry(), cfg.LocalHost)
 	tasks := schedule.NewTaskService(db, applications, connector, notifications)
 
-	scheduler := schedule.NewScheduler(logger, tasks.Jobs, backupJobs(databases))
+	volumeBackups := volumebackup.NewService(db, box, connector, volumebackup.NewResourceDirectory(applications, stacks), notifications)
+	volumeBackups.SetAlertObserver(alerts)
+	serverOperations := server.NewOperations(db, connector)
+ scheduler := schedule.NewScheduler(logger, tasks.Jobs, backupJobs(databases), volumeBackupJobs(volumeBackups), serverOperationsJobs(serverOperations))
 	reload := func() { scheduler.Reload(context.WithoutCancel(ctx)) }
 	tasks.OnChange(reload)
 	databases.OnScheduleChange(reload)
+	volumeBackups.OnScheduleChange(reload)
+ serverOperations.OnChange(reload)
 
 	if err := databases.RecoverBackups(ctx); err != nil {
+		return err
+	}
+	if err := volumeBackups.Recover(ctx); err != nil {
 		return err
 	}
 	if err := clusters.RecoverProvisioning(ctx); err != nil {
@@ -166,18 +205,32 @@ func run() error {
 		Events: notifications, Interval: cfg.StatusPollInterval, Logger: logger,
 	}
 	go statusMonitor.Run(ctx)
+	metricsHistory := &monitor.HistoryStore{DB: db}
+	sampler := &monitor.Sampler{Servers: servers, Source: servers, Store: metricsHistory, Logger: logger}
+	go sampler.Run(ctx)
 
-	identities := identity.NewService(identity.NewStore(db), cfg.SessionTTL)
+	accessService := access.New(db)
+ if err := accessService.Bootstrap(ctx); err != nil { return err }
+ identities := identity.NewService(identity.NewStore(db), cfg.SessionTTL)
+	identities.SetSecretBox(box)
+	identities.SetResetMailer(notifications, logger)
 	if err := announceSetupCode(ctx, identities, logger); err != nil {
 		return err
 	}
-	api := httpapi.New(httpapi.Dependencies{
-		Identity: identities, Instance: backups, Audit: &audit.Store{DB: db}, Monitoring: alerts, CookieSecure: os.Getenv("PIER_COOKIE_SECURE") == "1",
-		Servers: servers, Keys: keys, Proxy: server.NewProxyService(connector), Connector: connector,
-		Projects: projects, Applications: applications, LogHub: logHub, Env: env,
-		Databases: databases, Stacks: stacks, Engine: engine.NewService(connector), Clusters: clusters,
+	terminals := terminal.NewService(connector)
+ defer terminals.Close()
+ api := httpapi.New(httpapi.Dependencies{
+ Access: accessService,
+ OIDC: identity.NewOIDC(db, box, strings.Fields(os.Getenv("PIER_OIDC_ISSUERS")), os.Getenv("PIER_OIDC_CALLBACK")),
+ GitProviders: gitProviders,
+ MultiServer: multi,
+ Registries: images,
+		Identity: identities, Instance: backups, Audit: &audit.Store{DB: db}, Monitoring: alerts, MetricsHistory: metricsHistory, CookieSecure: os.Getenv("PIER_COOKIE_SECURE") == "1",
+		Servers: servers, ServerOperations: serverOperations, Keys: keys, Proxy: server.NewProxyService(connector), Connector: connector,
+		Projects: projects, Applications: applications, Previews: previews, LogHub: logHub, Env: env,
+		Databases: databases, Stacks: stacks, VolumeBackups: volumeBackups, Engine: engine.NewService(connector), Clusters: clusters,
 		Tasks: tasks, Notifications: notifications,
-		Settings: instanceSettings, Logger: logger, WebUI: webui.Files(), SessionTTL: cfg.SessionTTL,
+		Terminal: terminals, Settings: instanceSettings, Updates: updateChecker, Logger: logger, WebUI: webui.Files(), SessionTTL: cfg.SessionTTL,
 		TrustedProxies: cfg.TrustedProxies,
 	})
 	return serve(ctx, cfg, api.Handler(), logger, dispatcher)

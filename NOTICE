@@ -1,0 +1,7 @@
+Pier
+Copyright 2026 Allan Adegas
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+This product includes third-party software, each distributed under its own
+license; see THIRD_PARTY_NOTICES.md and the go.mod and web/deno.lock files.

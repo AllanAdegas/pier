@@ -1,0 +1,15 @@
+export const englishRbac: Record<string, string> = {
+ "Revogar identidade SSO": "Revoke SSO identity", "Desativar SSO": "Disable SSO",
+ "SSO OpenID Connect": "OpenID Connect SSO",
+ "Somente o proprietário da instância configura SSO. Autorize cada identidade pelo subject; emails não criam vínculos.": "Only the instance owner configures SSO. Authorize each identity by subject; emails do not create links.",
+ "Alteração salva.": "Change saved.", "Issuer permitido": "Allowed issuer", "Client ID": "Client ID", "Client secret": "Client secret", "Callback HTTPS": "HTTPS callback", "Salvar SSO": "Save SSO", "Subject autorizado": "Authorized subject", "ID do usuário existente": "Existing user ID", "Autorizar identidade SSO": "Authorize SSO identity", "Entrar com SSO": "Sign in with SSO", "Aceitar convite": "Accept invitation", "Token do convite": "Invitation token",
+  "Proprietário": "Owner", "Administrador": "Administrator", "Desenvolvedor": "Developer", "Somente leitura": "Read only",
+  "Equipe e permissões": "Team and permissions",
+  "Permissões valem somente para este projeto. Convites expiram em 24 horas.": "Permissions apply only to this project. Invitations expire in 24 hours.",
+  "Carregando equipe…": "Loading team…", "Membros do projeto": "Project members",
+  "Nenhum membro explícito neste projeto.": "No explicit members in this project.",
+  "Papel do membro": "Member role", "Remover acesso": "Remove access", "Convidar para o projeto": "Invite to project",
+  "Email do convidado": "Invitee email", "Papel do convite": "Invitation role", "Criar convite": "Create invitation",
+  "Copie o token agora. Ele aparece somente nesta resposta.": "Copy the token now. It appears only in this response.",
+  "Ocultar token": "Hide token", "Revogar convite": "Revoke invitation",
+};

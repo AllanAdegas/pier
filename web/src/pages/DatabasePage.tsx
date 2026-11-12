@@ -1,8 +1,10 @@
+import { TerminalButton } from "../components/Terminal";
 import { useNavigate, useParams, useSearchParams } from "@solidjs/router";
 import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { Button, IconButton } from "../components/Button";
 import { Alert, EmptyState, QueryView, StatusBadge } from "../components/Feedback";
+import { MetricsHistory } from "../components/charts/MetricsHistory";
 import { ContainerLogs } from "../components/LogViewer";
 import { ConfirmDelete, deleteQuery, type DeleteOptions, Modal } from "../components/Modal";
 import { CopyField, PageHeader, Section, Tabs } from "../components/Page";
@@ -65,6 +67,7 @@ export function DatabasePage() {
                   when={data().status === "stopped"}
                   fallback={
                     <>
+ <TerminalButton endpoint={`/databases/${params.id}/terminal`} />
                       <Button icon="refresh" pending={operate.pending()} onClick={() => void operate.run("restart")}>{t("Reiniciar")}
                       </Button>
                       <Button icon="stop" pending={operate.pending()} onClick={() => void operate.run("stop")}>{t("Parar")}
@@ -80,7 +83,10 @@ export function DatabasePage() {
             <Tabs tabs={TABS} selected={tab()} onSelect={(id) => setSearch({ tab: id })} />
             <Switch>
               <Match when={tab() === "overview"}>
-                <ConnectionTab database={data()} engine={engine()} />
+                <div class="stack-lg">
+                  <ConnectionTab database={data()} engine={engine()} />
+                  <MetricsHistory path={`/resources/database/${data().id}/metrics/history`} />
+                </div>
               </Match>
               <Match when={tab() === "logs"}>
                 <QueryView query={containers}>

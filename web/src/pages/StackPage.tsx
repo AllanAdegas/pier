@@ -1,20 +1,24 @@
+import { TerminalButton } from "../components/Terminal";
 import { useNavigate, useParams, useSearchParams } from "@solidjs/router";
 import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { createStore } from "solid-js/store";
 import { Button, IconButton } from "../components/Button";
 import { EnvEditor } from "../components/EnvEditor";
 import { Alert, QueryView, StatusBadge } from "../components/Feedback";
+import { MetricsHistory } from "../components/charts/MetricsHistory";
 import { Icon } from "../components/Icon";
 import { ContainerLogs } from "../components/LogViewer";
 import { ConfirmDelete, deleteQuery, type DeleteOptions } from "../components/Modal";
 import { PageHeader, Section, Tabs } from "../components/Page";
+import { VolumeBackups } from "../components/VolumeBackups";
 import { api } from "../lib/api";
 import { resourceStatus } from "../lib/format";
 import { createAction, createQuery, type Query } from "../lib/query";
-import type { Container, OperationSnapshot, Stack, StackRoute } from "../lib/types";
+import type { Container, OperationSnapshot, Stack, StackGitSource, StackRoute } from "../lib/types";
 import { createDomainDnsCheck } from "./application/DomainDnsStatus";
 import { DirectorySource } from "./stack/DirectorySource";
 import { ExpectedVariables } from "./stack/ExpectedVariables";
+import { GitSettings, GitSummary } from "./stack/GitSettings";
 import { t } from "../i18n";
 import { NumberInput, Select, TextArea, TextInput } from "../components/Form";
 
@@ -23,7 +27,9 @@ const TABS = [
   { id: "compose", label: t("Compose e domínios") },
   { id: "env", label: t("Variáveis") },
   { id: "logs", label: "Logs" },
+  { id: "backups", label: t("Backups de volumes") },
 ];
+const GIT_TAB = { id: "git", label: t("Git") };
 
 export function StackPage() {
   const params = useParams<{ id: string }>();
@@ -95,10 +101,10 @@ export function StackPage() {
                 </>
               }
             />
-            <Tabs tabs={TABS} selected={tab()} onSelect={(id) => setSearch({ tab: id })} />
+            <Tabs tabs={data().git ? [...TABS, GIT_TAB] : TABS} selected={tab()} onSelect={(id) => setSearch({ tab: id })} />
             <Switch>
               <Match when={tab() === "overview"}>
-                <OverviewTab containers={containers.data() ?? []} operation={operation.data()} />
+                <OverviewTab git={data().git} stackId={data().id} stackName={data().name} containers={containers.data() ?? []} operation={operation.data()} />
               </Match>
               <Match when={tab() === "compose"}>
                 <ComposeTab stack={data()} onSaved={(saved) => stack.set(saved)} />
@@ -111,6 +117,12 @@ export function StackPage() {
                     note={t("Disponíveis no compose como ${NOME}. Senhas e chaves geradas (PIER_*) ficam aqui. Implante para aplicar.")}
                   />
                 </div>
+              </Match>
+              <Match when={tab() === "git" && data().git}>
+                <GitSettings stack={data()} git={data().git!} onSaved={(saved) => stack.set(saved)} />
+              </Match>
+              <Match when={tab() === "backups"}>
+                <VolumeBackups kind="stacks" id={data().id} name={data().name} />
               </Match>
               <Match when={tab() === "logs"}>
                 <QueryView query={containers}>
@@ -125,9 +137,10 @@ export function StackPage() {
   );
 }
 
-function OverviewTab(props: { containers: Container[]; operation?: OperationSnapshot }) {
+function OverviewTab(props: { git?: StackGitSource | null; stackId: string; stackName: string; containers: Container[]; operation?: OperationSnapshot }) {
   return (
     <div class="stack-lg">
+      <Show when={props.git}>{(git) => <GitSummary git={git()} />}</Show>
       <Show when={props.operation && props.operation.lines.length > 0 ? props.operation : undefined}>
         {(operation) => (
           <Section title={operation().title} description={operation().running ? t("Em andamento…") : t("Última operação.")}>
@@ -150,7 +163,8 @@ function OverviewTab(props: { containers: Container[]; operation?: OperationSnap
                     <span class="mono truncate">{container.name}</span>
                     <span class="small muted mono truncate">{container.image}</span>
                   </div>
-                  <StatusBadge
+                  <Show when={container.state === "running"}><TerminalButton endpoint={`/stacks/${props.stackId}/terminal`} container={container.id} /></Show>
+ <StatusBadge
                     status={{
                       label: container.status,
                       tone: container.state !== "running" ? "neutral" : container.status.includes("unhealthy") ? "danger" : "success",
@@ -162,6 +176,7 @@ function OverviewTab(props: { containers: Container[]; operation?: OperationSnap
           </div>
         </Show>
       </Section>
+      <MetricsHistory path={`/resources/stack/${props.stackId}/metrics/history`} />
     </div>
   );
 }
@@ -171,7 +186,8 @@ function ComposeTab(props: { stack: Stack; onSaved: (stack: Stack) => void }) {
   const initial = props.stack;
   const [name, setName] = createSignal(initial.name);
   const [compose, setCompose] = createSignal(initial.compose);
-  const fromDirectory = initial.directory !== "";
+  const fromGit = !!initial.git;
+  const fromDirectory = initial.directory !== "" && !fromGit;
   const [directory, setDirectory] = createSignal(initial.directory);
   const [composeFile, setComposeFile] = createSignal(initial.compose_file);
   const [routes, setRoutes] = createStore<StackRoute[]>(initial.routes.map((route) => ({ ...route })));
@@ -225,7 +241,7 @@ function ComposeTab(props: { stack: Stack; onSaved: (stack: Stack) => void }) {
       <Section title={t("Definição")}>
         <TextInput label={t("Nome")} required value={name()} onValue={setName} error={save.errors().name} />
         <Show
-          when={fromDirectory}
+          when={fromDirectory || fromGit}
           fallback={
             <TextArea
               label="docker-compose.yaml"
@@ -238,21 +254,26 @@ function ComposeTab(props: { stack: Stack; onSaved: (stack: Stack) => void }) {
             />
           }
         >
-          <div class="grid-2">
-            <TextInput
-              label={t("Pasta no servidor")}
-              mono
-              hint={t("O compose, o .env e os arquivos de segredo são lidos daqui a cada deploy; nada é copiado.")}
-              value={directory()}
-              onValue={setDirectory}
-              error={save.errors().directory}
-            />
-            <TextInput label={t("Arquivo compose")} mono value={composeFile()} onValue={setComposeFile} error={save.errors().compose_file} />
-          </div>
-          <Show when={initial.project_name}>
-            <p class="small muted">
-              {t("Projeto compose:")} <span class="mono">{initial.project_name}</span>
-            </p>
+          <Show
+            when={!fromGit}
+            fallback={<p class="small muted">{t("O compose vem do repositório; edite-o lá e implante. Origem e webhook ficam na aba Git.")}</p>}
+          >
+            <div class="grid-2">
+              <TextInput
+                label={t("Pasta no servidor")}
+                mono
+                hint={t("O compose, o .env e os arquivos de segredo são lidos daqui a cada deploy; nada é copiado.")}
+                value={directory()}
+                onValue={setDirectory}
+                error={save.errors().directory}
+              />
+              <TextInput label={t("Arquivo compose")} mono value={composeFile()} onValue={setComposeFile} error={save.errors().compose_file} />
+            </div>
+            <Show when={initial.project_name}>
+              <p class="small muted">
+                {t("Projeto compose:")} <span class="mono">{initial.project_name}</span>
+              </p>
+            </Show>
           </Show>
           <DirectorySource stackId={initial.id} />
         </Show>
@@ -272,12 +293,25 @@ function ComposeTab(props: { stack: Stack; onSaved: (stack: Stack) => void }) {
             {(route, index) => (
               <div class="stack-sm">
                 <div class="grid-3">
-                  <Select
-                    label={t("Serviço")}
-                    value={route.service}
-                    onValue={(value) => setRoutes(index(), "service", value)}
-                    options={(services.data() ?? [route.service]).map((service) => ({ value: service, label: service }))}
-                  />
+                  <Show
+                    when={(services.data()?.length ?? 0) > 0 || !fromGit}
+                    fallback={
+                      <TextInput
+                        label={t("Serviço")}
+                        mono
+                        hint={t("Informe o nome do serviço, como está no compose do repositório.")}
+                        value={route.service}
+                        onValue={(value) => setRoutes(index(), "service", value)}
+                      />
+                    }
+                  >
+                    <Select
+                      label={t("Serviço")}
+                      value={route.service}
+                      onValue={(value) => setRoutes(index(), "service", value)}
+                      options={(services.data() ?? [route.service]).map((service) => ({ value: service, label: service }))}
+                    />
+                  </Show>
                   <NumberInput label={t("Porta")} min={1} max={65535} value={route.port} onValue={(value) => setRoutes(index(), "port", value)} />
                   <TextInput
                     label={t("Domínio")}

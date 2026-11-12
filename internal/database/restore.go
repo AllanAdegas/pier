@@ -70,7 +70,7 @@ func (s *Service) StartRestore(ctx context.Context, backupID string, input Resto
 	if b.Status != BackupSucceeded {
 		return Operation{}, apperr.Conflict("Selecione um backup concluído para restaurar.")
 	}
-	if _, _, ok := restoreScript(source.Engine); !ok {
+	if _, _, ok := restoreScript(source.Engine); !ok && !isKeyValue(source.Engine) {
 		return Operation{}, apperr.Conflict("Esta engine não suporta restauração.")
 	}
 	if input.Confirmation != source.Name {
@@ -90,6 +90,9 @@ func (s *Service) StartRestore(ctx context.Context, backupID string, input Resto
 	}
 	target := source
 	if strings.TrimSpace(input.NewName) != "" {
+		if isKeyValue(source.Engine) {
+			return Operation{}, apperr.Conflict("Esta engine só pode ser restaurada no próprio banco.")
+		}
 		creds, err := s.store.credentials(ctx, source.ID)
 		if err != nil {
 			return Operation{}, err
@@ -203,6 +206,9 @@ func (s *Service) runRestore(source, target Database, b BackupExecution, op Oper
 }
 
 func (s *Service) restore(ctx context.Context, source, target Database, b BackupExecution, op Operation, log executor.LineSink) (restoreErr error) {
+	if isKeyValue(target.Engine) {
+		return s.restoreKeyValue(ctx, source, target, b, op, log)
+	}
 	script, query, ok := restoreScript(target.Engine)
 	if !ok {
 		return apperr.Conflict("Esta engine não suporta restauração.")

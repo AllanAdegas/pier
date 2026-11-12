@@ -17,6 +17,7 @@ type Fake struct {
 	Commands  []string
 	Files     map[string][]byte
 	Inputs    map[string][]byte
+	terminals []*FakeTerminal
 }
 
 type fakeResponse struct {

@@ -1,5 +1,7 @@
 # Pier
 
+[![Licença: Apache-2.0](https://img.shields.io/badge/licen%C3%A7a-Apache--2.0-blue.svg)](LICENSE) [![CI](https://github.com/AllanAdegas/pier/actions/workflows/ci.yml/badge.svg)](https://github.com/AllanAdegas/pier/actions/workflows/ci.yml)
+
 Painel self-hosted para subir projetos em servidores próprios: aplicações, bancos de dados e serviços compose, com domínio, HTTPS e deploy sem downtime. Escrito em Go e SolidJS.
 
 Três níveis sobre a mesma infraestrutura — use o que o projeto pedir:
@@ -18,27 +20,40 @@ Em **Infraestrutura › Monitoramento** (`/monitoring`), acompanhe cada servidor
 
 O consumo do host requer Linux com `/proc` acessível. Falta de suporte ou falha de coleta aparece como indisponível, nunca como consumo zero. O painel mostra snapshots, não histórico persistente;.
 
-> Versão 0.5.0 em beta. Em produção numa VPS Linux desde 11/11/2026: painel, proxy e cinco stacks validados. Instalação limpa, backup/restauração, deploy/rollback, segredos de build, promoção e alertas de uptime também exercitados em Docker local Linux/arm64. Essas verificações não cobrem todos os fluxos nem todo o catálogo.
+> Em beta (0.x). Em produção numa VPS Linux desde 11/11/2026: painel, proxy e cinco stacks validados. Instalação limpa, backup/restauração, deploy/rollback, segredos de build, promoção e alertas de uptime também exercitados em Docker local Linux/arm64. Essas verificações não cobrem todos os fluxos nem todo o catálogo.
 
 ## Instalar com Docker
 
 Só precisa do Docker com o plugin compose:
 
 ```sh
-git clone --branch v0.5.0 --depth 1 https://github.com/AllanAdegas/pier.git
+git clone --depth 1 https://github.com/AllanAdegas/pier.git
 cd pier
 ./install.sh
 ```
 
 O script:
 - cria o `.env`, com os dados em `/data/pier` no Linux e em `~/.pier` no macOS;
-- constrói a imagem (≈ 210 MB);
+- baixa a imagem publicada `ghcr.io/allanadegas/pier:<versão>` (amd64 e arm64), na versão do código clonado (a última release, se você clonou a `main`);
 - sobe o container;
 - espera o Pier responder;
 - mostra o endereço e o **código de configuração** da primeira conta.
 
-Rodar de novo atualiza a instalação sem perder dados. Para outra porta: `PIER_PORT=8790 ./install.sh`. Para parar: `docker compose down`; o que o Pier implantou continua rodando.
+Para construir a imagem na própria máquina em vez de baixá-la: `PIER_BUILD=1 ./install.sh`. Para outra porta: `PIER_PORT=8790 ./install.sh`. Para parar: `docker compose down`; o que o Pier implantou continua rodando.
 
+### Atualizar
+
+O painel mostra um aviso quando existe uma versão nova, com os comandos. Eles são sempre estes (na pasta onde o Pier foi instalado; os dados são mantidos):
+
+```sh
+git fetch --depth 1 origin tag vX.Y.Z
+git checkout vX.Y.Z
+./install.sh
+```
+
+Não há atualização automática de dentro do painel, de propósito: para se reiniciar, o Pier precisaria controlar o próprio container pelo socket do Docker, que equivale a root no servidor. Um painel que se substitui sozinho por uma imagem baixada da rede ampliaria muito o estrago de uma conta ou de um release comprometido. Atualizar é um comando, executado por quem administra a máquina.
+
+A verificação consulta a API pública de releases do GitHub no máximo a cada 12 horas, sem enviar nenhum dado da instância (User-Agent genérico `pier-update-check`). Para desligá-la: `PIER_UPDATE_CHECK=0` no `.env`.
 
 ## Rodar a partir do código
 
@@ -103,6 +118,10 @@ O Pier nunca lê `~/.kube/config`: só usa o kubeconfig que você colar ou o que
 
 Todo usuário é administrador. Um token de API pode ser `read`, `deploy` ou `write`; **`write` equivale a root nos servidores** (Docker puro, compose próprio, K3s privilegiado) e a tudo o que um kubeconfig importado permite.
 
+## Contribuir
+
+O Pier é software livre e feito para seguir sem um mantenedor dedicado: o CI valida, os releases saem sozinhos e as dependências se atualizam por automação. Leia o [CONTRIBUTING.md](CONTRIBUTING.md), o [GOVERNANCE.md](GOVERNANCE.md) e o [Código de Conduta](CODE_OF_CONDUCT.md). Vulnerabilidades: [SECURITY.md](SECURITY.md).
+
 ## Desenvolver
 
 ```sh
@@ -120,6 +139,8 @@ make test         # go vet, testes Go e verificação de tipos da interface
 | `PIER_SECRET_KEY` | gerada em `<data>/secret.key` | Deriva a chave que cifra os segredos |
 | `PIER_DEPLOY_CONCURRENCY` | `2` | Deploys simultâneos |
 | `PIER_DEV` | — | `1` liga o log de depuração |
+| `PIER_UPDATE_CHECK` | `1` | `0` desliga a consulta de novas versões (e qualquer requisição de saída do aviso) |
+| `PIER_VERSION` | versão do código clonado | Só no Docker: versão da imagem `ghcr.io/allanadegas/pier`; o `install.sh` preenche |
 
 ## Estrutura
 
@@ -130,6 +151,10 @@ internal/        um pacote por contexto (application, database, stack, server,
                  mcp = servidor MCP sobre a API, …)
 web/             interface SolidJS
 ```
+
+## Licença
+
+[Apache License 2.0](LICENSE). Avisos de terceiros em [NOTICE](NOTICE) e [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Documentação
 

@@ -1,3 +1,4 @@
+import { ServerOperations } from "./server/ServerOperations";
 import { A, useNavigate, useParams, useSearchParams } from "@solidjs/router";
 import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { createStore } from "solid-js/store";
@@ -497,6 +498,7 @@ function MaintenanceTab(props: { server: Server }) {
 
   return (
     <div class="stack-lg">
+      <ServerOperations id={props.server.id} name={props.server.name} />
       <Section
         title={t("Liberar espaço")}
         description={t("Remove containers parados criados pelo Pier, imagens sem tag, cache de build e diretórios de build antigos. Nada que o Pier não criou é tocado.")}

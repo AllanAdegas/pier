@@ -41,6 +41,8 @@ type APIToken struct {
 type Principal struct {
 	TokenID   string `json:"-"`
 	TokenName string `json:"-"`
+	// SessionID identifies the browser session (empty for API tokens).
+	SessionID string `json:"-"`
 	User      User
 	Abilities []Ability
 	// ViaToken is true for API-token calls, false for browser sessions.

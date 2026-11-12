@@ -13,6 +13,7 @@ import (
 	"pier/internal/platform/i18n"
 	"pier/internal/platform/shell"
 	"pier/internal/server"
+ "pier/internal/registry"
 )
 
 const (
@@ -39,10 +40,13 @@ type job struct {
 	log        *deployLog
 	env        []envvar.Variable
 	domains    DomainChecker
+ gitProvider GitCredentials
 }
 
 // Deployer executes deployments: fetch source, build image, release.
 type Deployer struct {
+ multi *MultiServer
+ images *registry.Service
 	store     *Store
 	env       *envvar.Store
 	connector Connector
@@ -52,6 +56,9 @@ type Deployer struct {
 	logger    *slog.Logger
 	archives  archiveStore
 	domains   DomainChecker
+	// previewReporter tells the Git provider about previews; nil reports nothing.
+	previewReporter PreviewReporter
+ gitProvider GitCredentials
 }
 
 // SetArchiveDir sets where uploaded source archives wait for their deployment.
@@ -122,6 +129,10 @@ func (d *Deployer) finish(ctx context.Context, deployment Deployment, status Dep
 	if err := d.store.finishDeployment(ctx, deployment.ID, status, failure); err != nil {
 		d.logger.Error("finish deployment", "deployment", deployment.ID, "error", err)
 	}
+	if deployment.Trigger == TriggerPreview {
+		d.finishPreview(ctx, deployment, status, failure)
+		return
+	}
 	switch status {
 	case DeploymentFinished:
 		d.events.Publish(notify.Event{
@@ -139,10 +150,16 @@ func (d *Deployer) finish(ctx context.Context, deployment Deployment, status Dep
 }
 
 func (d *Deployer) execute(ctx context.Context, deployment Deployment, log *deployLog) error {
+	if deployment.Trigger == TriggerPreview {
+		return d.executePreview(ctx, deployment, log)
+	}
 	app, err := d.store.Get(ctx, deployment.ApplicationID)
 	if err != nil {
 		return i18n.Errorf("carregar aplicação: %w", err)
 	}
+	if d.multi != nil {
+ p,e:=d.multi.Settings(ctx,app.ID);if e!=nil{return e};if len(p.Destinations)>0{return d.executePlacement(ctx,deployment,log)}
+ }
 	log.repository(app.Config.Source.Repository)
 	variables, err := d.env.ListForDeploy(ctx, envvar.Owner{Type: envvar.OwnerApplication, ID: app.ID}, app.EnvironmentID, app.ServerID)
 	if err != nil {
@@ -152,6 +169,7 @@ func (d *Deployer) execute(ctx context.Context, deployment Deployment, log *depl
 		log.redact(variable.Value)
 	}
 	log.Info("Iniciando deploy de %q (%s).", app.Name, deployment.Trigger)
+	if err := server.CheckConnectorDeployment(ctx, d.connector, app.ServerID); err != nil { return err }
 	ex, target, err := d.connector.Executor(ctx, app.ServerID)
 	if err != nil {
 		return i18n.Errorf("conectar ao servidor: %w", err)
@@ -161,7 +179,7 @@ func (d *Deployer) execute(ctx context.Context, deployment Deployment, log *depl
 	if err := docker.EnsureNetwork(ctx, ex); err != nil {
 		return err
 	}
-	j := &job{app: app, deployment: deployment, server: target, ex: ex, log: log, env: variables, domains: d.domains}
+	j := &job{app: app, deployment: deployment, server: target, ex: ex, log: log, env: variables, domains: d.domains, gitProvider: d.gitProvider}
 	defer func() {
 		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cleanupTimeout)
 		defer cancel()

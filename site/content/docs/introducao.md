@@ -46,9 +46,9 @@ Se qualquer passo falhar, a versão que estava no ar continua respondendo.
 O Pier está em **beta** (versão {{version}}). Antes de decidir, saiba o que fica de fora desta versão:
 
 - Cada aplicação roda em **um** servidor. As réplicas ficam no mesmo servidor, sem balanceamento entre máquinas.
-- Não há ambientes de preview por pull request.
-- Não há papéis por usuário: todo usuário do painel é administrador.
-- Não há histórico de métricas em gráficos. Há leituras ao vivo e alertas.
+- [Previews por pull request](/docs/previews/) são opcionais e executam código do repositório; forks exigem cuidado especial.
+- Há [equipe e papéis por projeto](/docs/equipe/); valide a integração de autorização desta versão antes de abrir acesso a uma equipe.
+- Há [histórico de métricas](/docs/alertas/#historico-de-metricas); lacunas não significam uso zero.
 - O Pier não instala o Docker nos servidores nem cria máquinas na nuvem.
 - Os serviços do catálogo são validados automaticamente, mas só alguns foram implantados de verdade. Teste o que for usar.
 
@@ -57,3 +57,7 @@ Kubernetes existe como opção avançada (importar um cluster ou criar um K3s), 
 ## Próximo passo
 
 Siga a [instalação](/docs/instalacao/): são uns 10 minutos num servidor com Docker.
+
+## Licença e responsabilidade
+
+O código usa Apache-2.0. A disponibilidade pública do repositório e das imagens depende da publicação pelo proprietário. Veja [licença e governança](/docs/comunidade/). Automação reduz manutenção, mas não dispensa revisão humana.

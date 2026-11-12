@@ -155,6 +155,7 @@ type Metrics struct {
 
 // ContainerUsage is the live resource usage of one managed container.
 type ContainerUsage struct {
+ NetworkIO string `json:"network_io"`
 	State         string `json:"state"`
 	Status        string `json:"status"`
 	Name          string `json:"name"`

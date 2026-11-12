@@ -1,4 +1,4 @@
-Este guia instala a versão estável **{{version}}** num servidor Linux. No fim você terá o painel no ar, com sua conta de administrador e, se quiser, um domínio com HTTPS.
+Este guia instala a versão beta **{{version}}** num servidor Linux. No fim você terá o painel no ar, com sua conta de administrador e, se quiser, um domínio com HTTPS.
 
 ## O que você precisa
 
@@ -7,7 +7,7 @@ Este guia instala a versão estável **{{version}}** num servidor Linux. No fim 
 | Servidor | Linux 64 bits (x86_64 ou ARM64) | Ubuntu 24.04 LTS ou Debian 12 |
 | Memória | 1 GB | 2 GB ou mais se for construir código no servidor |
 | Disco | 20 GB | 40 GB ou mais; o Pier avisa abaixo de 10 GB livres |
-| Docker | Docker Engine 24 com o plugin compose 2.20 | A versão estável mais recente, com Buildx |
+| Docker | Docker Engine 24 com o plugin compose 2.20 | A versão beta mais recente, com Buildx |
 | Acesso | SSH com um usuário que use `sudo` | — |
 | Domínio | Opcional | Um subdomínio para o painel, como `pier.seudominio.com` |
 
@@ -69,7 +69,7 @@ sudo mkdir -p /data/pier
 sudo chown "$USER" /data/pier
 ```
 
-Baixe a versão estável e rode o instalador:
+Baixe a versão beta e rode o instalador:
 
 ```sh
 git clone --branch {{tag}} --depth 1 {{repo}}.git
@@ -77,11 +77,23 @@ cd pier
 ./install.sh
 ```
 
+### Acesso enquanto o projeto é privado
+
+O clone exige uma conta autorizada no repositório. A imagem e a tag também precisam existir no GHCR e sua conta precisa de permissão de leitura do pacote. Não há garantia de pull anônimo enquanto o pacote não for público. Autentique o cliente Docker com `docker login ghcr.io` usando uma credencial com acesso ao pacote, sem colocar tokens em comandos ou no histórico.
+
+Se a imagem ainda não foi publicada ou você só tem acesso ao código, construa no checkout autorizado:
+
+```sh
+PIER_BUILD=1 ./install.sh
+```
+
+Use essa mesma opção nas reinstalações enquanto depender de build local. Não contorne um erro de acesso expondo credenciais no `.env` ou na URL do repositório.
+
 O script:
 
 1. confere o Docker;
 2. cria o arquivo `.env` com as configurações;
-3. constrói a imagem (cerca de 210 MB; leva alguns minutos na primeira vez);
+3. baixa `ghcr.io/allanadegas/pier:{{version}}` (não faz build por padrão);
 4. sobe o container `pier`;
 5. espera o painel responder.
 

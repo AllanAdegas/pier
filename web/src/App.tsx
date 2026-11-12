@@ -1,3 +1,5 @@
+import { TeamPage } from "./pages/access/Team";
+import { GitProviders } from "./pages/settings/GitProviders";
 import { Route, Router } from "@solidjs/router";
 import { Match, onMount, Switch } from "solid-js";
 import { Toasts } from "./components/Feedback";
@@ -42,6 +44,7 @@ export function App() {
             <Route path="/" component={DashboardPage} />
             <Route path="/projects" component={ProjectsPage} />
             <Route path="/projects/:id" component={ProjectDetailPage} />
+            <Route path="/projects/:id/access" component={TeamPage} />
             <Route path="/projects/:id/new" component={NewResourcePage} />
             <Route path="/applications/:id" component={ApplicationPage} />
             <Route path="/databases/:id" component={DatabasePage} />
@@ -56,6 +59,7 @@ export function App() {
             <Route path="/security" component={SecurityPage} />
             <Route path="/notifications" component={NotificationsPage} />
             <Route path="/settings" component={SettingsPage} />
+            <Route path="/settings/git-provider" component={GitProviders} />
             <Route path="*" component={NotFoundPage} />
           </Router>
         </Match>

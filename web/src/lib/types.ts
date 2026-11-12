@@ -169,6 +169,7 @@ export interface Storage {
 }
 
 export interface ApplicationConfig {
+  runtime?: { restart_policy: string; stop_grace_seconds: number };
   source: {
     repository: string;
     branch: string;
@@ -183,6 +184,7 @@ export interface ApplicationConfig {
     pack: BuildPack;
     base_directory: string;
     dockerfile_path: string;
+    target?: string;
     publish_directory: string;
     spa: boolean;
     install_command: string;
@@ -377,6 +379,8 @@ export interface Stack {
   compose_file: string;
   project_name: string;
   routes: StackRoute[];
+  /** Set when the compose file comes from a Git repository. */
+  git?: StackGitSource | null;
   status: string;
   created_at: string;
   updated_at: string;
@@ -574,4 +578,125 @@ export interface KubeApplied {
   kind: string;
   name: string;
   namespace: string;
+}
+
+// --- oss ---
+
+/** GET /updates: whether a newer Pier release exists (opt-out: PIER_UPDATE_CHECK=0). */
+export interface UpdateStatus {
+  enabled: boolean;
+  current: string;
+  latest?: string;
+  update_available: boolean;
+  url?: string;
+  notes?: string;
+  checked_at: string | null;
+}
+
+// --- metrics ---
+
+/** GET /servers/{id}/metrics/history and /resources/{type}/{id}/metrics/history. Columns with no data are absent. */
+export interface MetricsHistory {
+  range: "1h" | "6h" | "24h" | "7d" | "30d";
+  step_seconds: number;
+  from: number;
+  to: number;
+  series: MetricsSeries;
+}
+
+/** Columnar arrays: index i of every column belongs to t[i]. *_max exist only at 15-minute resolution. */
+export interface MetricsSeries {
+  t: number[];
+  cpu?: (number | null)[];
+  cpu_max?: (number | null)[];
+  mem_used?: (number | null)[];
+  mem_used_max?: (number | null)[];
+  mem_total?: (number | null)[];
+  disk_used?: (number | null)[];
+  disk_used_max?: (number | null)[];
+  disk_total?: (number | null)[];
+  load?: (number | null)[];
+  load_max?: (number | null)[];
+}
+
+// --- gitstacks ---
+
+/** Where a Git stack comes from and what its last deployment ran. */
+export interface StackGitSource {
+  /** Without the token: the address is masked unless the caller may see secrets. */
+  repository: string;
+  branch: string;
+  tag: string;
+  base_directory: string;
+  compose_path: string;
+  private_key_id: string;
+  watch_paths: string[];
+  auto_deploy: boolean;
+  accepted_risks: string[];
+  /** Powers over the server the last deployment was refused for. */
+  pending_risks: string[];
+  last_ref: string;
+  last_commit: string;
+  last_commit_message: string;
+  last_deployed_at: string | null;
+}
+
+/** Editable repository settings; an empty repository keeps the stored one. */
+export interface StackGitInput {
+  repository: string;
+  branch: string;
+  tag: string;
+  base_directory: string;
+  compose_path: string;
+  private_key_id: string;
+  watch_paths: string[];
+  auto_deploy: boolean;
+  accepted_risks: string[];
+}
+
+// --- volumes ---
+export type VolumeResourceKind = "applications" | "stacks";
+
+export interface VolumeMount {
+  label: string;
+  kind: "volume" | "bind";
+  source: string;
+  destination: string;
+  included: boolean;
+  reason?: "outside_data_dir" | "system_path" | "invalid_name";
+}
+
+export interface VolumeBackupPolicy {
+  enabled: boolean;
+  cron: string;
+  retention: number;
+  s3: boolean;
+  quiesce: boolean;
+  include_external: boolean;
+}
+
+export interface VolumeBackup {
+  id: string;
+  resource_type: string;
+  resource_id: string;
+  trigger: string;
+  status: "running" | "succeeded" | "failed";
+  file_path: string;
+  size_bytes: number;
+  mounts: VolumeMount[];
+  remote: boolean;
+  message: string;
+  started_at: string;
+  finished_at: string | null;
+}
+
+export interface VolumeOperation {
+  id: string;
+  backup_id: string;
+  kind: string;
+  status: "running" | "succeeded" | "failed";
+  message: string;
+  logs: string;
+  started_at: string;
+  finished_at: string | null;
 }

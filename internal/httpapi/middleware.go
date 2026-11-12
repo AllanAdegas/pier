@@ -5,12 +5,14 @@ import (
 	"context"
 	"net/http"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"pier/internal/identity"
 	"pier/internal/platform/apperr"
+	"pier/internal/platform/i18n"
 )
 
 const (
@@ -38,6 +40,9 @@ func (a *API) authenticate(required access, next http.Handler) http.Handler {
 			return
 		}
 		auditActor(r, principal)
+		if principal.ViaToken && !a.admitToken(w, r, principal.TokenID) {
+			return
+		}
 		if required.sessionOnly && principal.ViaToken {
 			a.writeError(w, r, apperr.Forbidden("Esta operação exige login no painel."))
 			return
@@ -50,8 +55,23 @@ func (a *API) authenticate(required access, next http.Handler) http.Handler {
 			a.writeError(w, r, apperr.Forbidden("Cabeçalho %s ausente.", clientHeader))
 			return
 		}
+		if err := a.authorizeRequest(r, principal, required.ability); err != nil { a.writeError(w,r,err); return }
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), contextKey{}, principal)))
 	})
+}
+
+// admitToken applies the per-token rate limit. Sessions are not limited
+// here: their only guessable entry, the login, has its own limiter.
+func (a *API) admitToken(w http.ResponseWriter, r *http.Request, tokenID string) bool {
+	allowed, wait := a.apiLimiter.take(tokenID)
+	if allowed {
+		return true
+	}
+	seconds := retryAfterSeconds(wait)
+	w.Header().Set("Retry-After", strconv.Itoa(seconds))
+	message := i18n.FromContext(r.Context()).Sprintf("Limite de requisições do token excedido. Tente de novo em %d s.", seconds)
+	writeJSON(w, http.StatusTooManyRequests, errorBody{Error: errorDetail{Code: "rate_limited", Message: message}})
+	return false
 }
 
 func (a *API) resolvePrincipal(r *http.Request) (identity.Principal, error) {

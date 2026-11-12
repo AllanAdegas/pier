@@ -82,16 +82,16 @@ export function homeBody(version: string): string {
   <div class="hero-text">
     <p class="eyebrow">Self-hosted · beta · v${escapeHtml(version)}</p>
     <h1>Seus projetos no ar,<br>no seu próprio servidor.</h1>
-    <p class="hero-lead">O Pier é um painel para publicar aplicações, bancos de dados e serviços em uma VPS sua, com domínio, HTTPS, backup e deploy sem downtime. Sem mensalidade por projeto e sem precisar saber Docker a fundo.</p>
+    <p class="hero-lead">O Pier é um painel para publicar aplicações, bancos de dados e serviços em uma VPS sua, com domínio, HTTPS, backup e deploy com troca após prontidão. Sem mensalidade por projeto e sem precisar saber Docker a fundo.</p>
     <div class="hero-actions">
       <a class="button primary" href="/docs/instalacao/">Instalar agora</a>
       <a class="button" href="/docs/introducao/">Ler a documentação</a>
     </div>
   </div>
   <div class="hero-install">
-    <p class="install-title">Instale a versão estável em um servidor Linux com Docker:</p>
+    <p class="install-title">Instale a versão beta em um servidor Linux com Docker:</p>
     ${installBlock(tag)}
-    <p class="install-note">Ao terminar, o script mostra o endereço do painel e o código para criar sua conta. <a href="/docs/instalacao/">Guia completo da instalação</a>.</p>
+    <p class="install-note">O instalador baixa a imagem GHCR. Enquanto repositório e pacote forem privados, é necessário acesso autorizado; sem imagem disponível, use <code>PIER_BUILD=1 ./install.sh</code>. Ao terminar, o script mostra o endereço do painel e o código para criar sua conta. <a href="/docs/instalacao/">Guia completo da instalação</a>.</p>
   </div>
 </section>
 
@@ -108,7 +108,7 @@ export function homeBody(version: string): string {
 <section class="section split">
   <div>
     <h2>Do seu jeito: painel, terminal ou IA</h2>
-    <p>Tudo o que o painel faz também está na CLI <code>pierctl</code>, pronta para scripts e pipelines de CI. Um agente de IA pode consultar logs e implantar pelo servidor MCP, com as permissões do token que você der a ele.</p>
+    <p>Os fluxos de automação estão na CLI <code>pierctl</code>, pronta para scripts e pipelines de CI. Um agente de IA pode consultar logs e implantar pelo servidor MCP, com as permissões do token que você der a ele.</p>
     <p><a href="/docs/pierctl/">Conheça a pierctl →</a></p>
   </div>
   <div class="code-block">
@@ -122,7 +122,8 @@ pierctl up            # envia a pasta atual e implanta</code></pre>
 
 <section class="section beta">
   <h2>Em beta, com transparência</h2>
-  <p>A versão ${escapeHtml(version)} roda em produção desde novembro de 2026 e passou por testes de instalação, backup e restauração, deploy e rollback, segredos de build, promoção e alertas. Ainda é beta: teste o que for usar antes de colocar algo crítico, e faça o backup da instância logo no primeiro dia.</p>
+  <p>A versão do código é ${escapeHtml(version)}. Os guias descrevem os recursos da linha PIER 0.6 e identificam as integrações pendentes. Ainda é beta: teste o que for usar antes de colocar algo crítico, e faça o backup da instância logo no primeiro dia.</p>
+  <p>Licença Apache-2.0. A automação reduz manutenção rotineira; revisão humana, decisões de segurança e recuperação continuam necessárias. <a href="/docs/comunidade/">Licença e governança</a>.</p>
   <p><a href="/docs/introducao/#o-que-ainda-nao-faz">O que o Pier ainda não faz →</a></p>
 </section>
 </main>`;

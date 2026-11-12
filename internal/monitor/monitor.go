@@ -131,6 +131,15 @@ func (m *Monitor) syncApplications(ctx context.Context, serverID string, groups 
 		return
 	}
 	for _, app := range apps {
+ if m.syncPlacement(ctx,app,serverID) {continue}
+        destinations,e:=m.Applications.PlacementDestinations(ctx,app.ID)
+        if e!=nil {continue}
+        if len(destinations)>0 {
+          if destinations[0]!=serverID {continue}
+          all:=[]docker.Container{};failed:=false
+          for _,id:=range destinations {items,e:=m.listContainers(ctx,id);if e!=nil {failed=true;break};all=append(all,docker.GroupByResource(items)[app.ID]...);if len(docker.GroupByResource(items)[app.ID])==0 {failed=true;break}}
+          status:=docker.Summarize(all);if failed {status=docker.StatusStopped};_ = m.Applications.SetStatus(ctx,app.ID,status);continue
+        }
 		if app.ServerID == serverID {
 			_ = m.Applications.SetStatus(ctx, app.ID, docker.Summarize(groups[app.ID]))
 		}

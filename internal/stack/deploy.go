@@ -21,6 +21,9 @@ const operationTimeout = 30 * time.Minute
 // Deploy brings the stack up in the background; the progress is available
 // through Operation.
 func (s *Service) Deploy(ctx context.Context, id string) error {
+ target, err := s.Get(ctx,id)
+ if err != nil { return err }
+ if err := server.CheckConnectorDeployment(ctx,s.connector,target.ServerID); err != nil { return err }
 	if s.guard != nil {
 		stack, err := s.Get(ctx, id)
 		if err != nil {
@@ -31,6 +34,10 @@ func (s *Service) Deploy(ctx context.Context, id string) error {
 		}
 	}
 	return s.runInBackground(ctx, id, "Deploy da stack", func(ctx context.Context, run *stackRun) error {
+		if err := server.CheckConnectorDeployment(ctx, s.connector, run.stack.ServerID); err != nil { return err }
+		if run.stack.FromGit() {
+			return s.deployGit(ctx, run)
+		}
 		if run.stack.FromDirectory() {
 			return s.deployDirectory(ctx, run)
 		}
@@ -80,6 +87,12 @@ func (s *Service) deployDirectory(ctx context.Context, run *stackRun) error {
 	if err != nil {
 		return err
 	}
+	return s.runFolder(ctx, run, raw, doc)
+}
+
+// runFolder brings up a stack whose compose file is on the server, given the
+// file as read: Pier's env file, the override and then the project.
+func (s *Service) runFolder(ctx context.Context, run *stackRun, raw string, doc document) error {
 	if len(run.project.EnvFiles) > 0 {
 		run.operation.Say("Usando o .env da pasta.")
 	}
@@ -151,9 +164,8 @@ func bringUp(ctx context.Context, run *stackRun, extraArgs ...string) error {
 	if run.stack.FromDirectory() {
 		// The images of a folder are built here, so they can be inspected
 		// before anything starts; "up --build" afterwards reuses the cache.
-		run.operation.Append("$ docker compose build")
-		if err := run.ex.Stream(ctx, run.project.Command("build"), run.operation.Append); err != nil {
-			return docker.Explain(err)
+		if err := buildImages(ctx, run); err != nil {
+			return err
 		}
 	}
 	if err := verifyRoutedServices(ctx, run); err != nil {
@@ -195,6 +207,9 @@ func (s *Service) Operation(id string) oplog.Snapshot {
 }
 
 type stackRun struct {
+	// lockBuild, when set, is taken while images are built: Git stacks build
+	// under the same queue and disk limits as applications.
+	lockBuild func(ctx context.Context) (release func(), err error)
 	stack     Stack
 	ex        executor.Executor
 	target    server.Server
@@ -276,6 +291,11 @@ func (s *Service) cleanup(ctx context.Context, id string, deleteVolumes bool) er
 	// The directory of the stack may hold data written through relative bind
 	// mounts (./data:/var/lib/app); it follows the same choice as the volumes.
 	// For a directory stack it only holds what Pier generated.
+	if stack.FromGit() {
+		if err := removeCheckout(ctx, run); err != nil {
+			return err
+		}
+	}
 	if deleteVolumes || stack.FromDirectory() {
 		return project.RemoveDir(ctx, ex)
 	}
@@ -308,4 +328,21 @@ func (s *Service) reach(ctx context.Context, id string) (*stackRun, error) {
 	stack.proxyEntry = target.Proxy.Entry()
 	stack.proxyLabels = server.ProxyRouteLabels(target)
 	return &stackRun{stack: stack, ex: ex, target: target, project: projectFor(ctx, ex, target, stack)}, nil
+}
+
+// buildImages builds what the compose file builds, apart from "up" so the
+// images can be inspected before anything starts.
+func buildImages(ctx context.Context, run *stackRun) error {
+	if run.lockBuild != nil {
+		release, err := run.lockBuild(ctx)
+		if err != nil {
+			return err
+		}
+		defer release()
+	}
+	run.operation.Append("$ docker compose build")
+	if err := run.ex.Stream(ctx, run.project.Command("build"), run.operation.Append); err != nil {
+		return docker.Explain(err)
+	}
+	return nil
 }

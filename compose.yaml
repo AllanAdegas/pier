@@ -2,7 +2,10 @@
 #
 #   cp .env.example .env        # review PIER_DATA_DIR first
 #   docker network inspect pier-panel >/dev/null 2>&1 || docker network create pier-panel
-#   docker compose up --detach --build
+#   docker compose pull && docker compose up --detach
+#
+# The image is the published one (PIER_VERSION, set by install.sh). To build
+# it from this checkout instead: docker compose up --detach --build
 #
 # Pier drives the host's Docker through its socket, so every path it hands to
 # Docker (compose files, build contexts, the proxy configuration) is resolved
@@ -13,7 +16,7 @@ name: pier
 
 services:
   pier:
-    image: pier:${PIER_VERSION:-latest}
+    image: ghcr.io/allanadegas/pier:${PIER_VERSION:-latest}
     build: .
     container_name: pier
     restart: unless-stopped
@@ -35,6 +38,7 @@ services:
       PIER_DATA_DIR: ${PIER_DATA_DIR:-/data/pier}
       PIER_COOKIE_SECURE: ${PIER_COOKIE_SECURE:-0}
       PIER_DOMAIN: ${PIER_DOMAIN:-}
+      PIER_UPDATE_CHECK: ${PIER_UPDATE_CHECK:-1}
       PIER_BUILD_CPUS: ${PIER_BUILD_CPUS:-1}
       PIER_BUILD_MEMORY: ${PIER_BUILD_MEMORY:-2g}
       PIER_BUILD_MIN_FREE_GB: ${PIER_BUILD_MIN_FREE_GB:-2}

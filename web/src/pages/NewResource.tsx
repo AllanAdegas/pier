@@ -12,9 +12,10 @@ import { DatabaseForm } from "./new/DatabaseForm";
 import { CatalogStackForm } from "./new/CatalogStackForm";
 import { ComposeStackForm } from "./new/ComposeStackForm";
 import { DirectoryStackForm } from "./new/DirectoryStackForm";
+import { GitStackForm } from "./new/GitStackForm";
 import { t } from "../i18n";
 
-type Kind = "git" | "image" | "database" | "template" | "compose" | "directory";
+type Kind = "git" | "image" | "database" | "template" | "compose" | "directory" | "gitstack";
 
 const KINDS: { kind: Kind; icon: IconName; title: string; text: string }[] = [
   { kind: "git", icon: "box", title: t("Aplicação do Git"), text: t("Clona um repositório e constrói com Dockerfile, Nixpacks ou como site estático.") },
@@ -22,6 +23,7 @@ const KINDS: { kind: Kind; icon: IconName; title: string; text: string }[] = [
   { kind: "database", icon: "database", title: t("Banco de dados"), text: t("PostgreSQL, MySQL, MariaDB, MongoDB, Redis e outros, com credenciais geradas.") },
   { kind: "template", icon: "layers", title: t("Serviço do catálogo"), text: t("Mais de 350 ferramentas prontas em um clique: n8n, Grafana, WordPress, Supabase…") },
   { kind: "compose", icon: "layers", title: t("Compose próprio"), text: t("Cole um docker-compose.yaml e gerencie a stack pelo Pier.") },
+  { kind: "gitstack", icon: "layers", title: t("Compose do Git"), text: t("Clona um repositório e sobe o docker-compose.yaml dele, com build no servidor e deploy a cada push.") },
   { kind: "directory", icon: "folder", title: t("Pasta do servidor"), text: t("Suba o compose de uma pasta da máquina. O .env e os arquivos de segredo são usados onde estão, sem cópia.") },
 ];
 
@@ -108,6 +110,9 @@ export function NewResourcePage() {
                       </Match>
                       <Match when={kind() === "compose"}>
                         <ComposeStackForm placement={placement()} />
+                      </Match>
+                      <Match when={kind() === "gitstack"}>
+                        <GitStackForm placement={placement()} />
                       </Match>
                       <Match when={kind() === "directory"}>
                         <DirectoryStackForm placement={placement()} />

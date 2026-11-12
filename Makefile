@@ -8,7 +8,7 @@ BINARY := bin/pier
 GOBUILD := CGO_ENABLED=0 go build -trimpath -ldflags="-s -w"
 WEBUI  := internal/webui/dist
 
-.PHONY: all web build test vet run dev-api dev-web docker-build docker-up docker-down clean
+.PHONY: all web build test vet run dev-api dev-web docker-build docker-up docker-down lint-workflows clean
 
 all: build
 
@@ -40,7 +40,7 @@ dev-api:
 dev-web:
 	cd web && deno task dev
 
-## docker-build: build the container image (pier:latest)
+## docker-build: build the container image locally (ghcr.io/allanadegas/pier:$PIER_VERSION)
 docker-build:
 	docker compose build
 
@@ -51,6 +51,10 @@ docker-up:
 ## docker-down: stop the Pier container; what it deployed keeps running
 docker-down:
 	docker compose down
+
+## lint-workflows: check the GitHub Actions workflows with actionlint (downloads it)
+lint-workflows:
+	go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
 
 clean:
 	rm -rf bin web/dist

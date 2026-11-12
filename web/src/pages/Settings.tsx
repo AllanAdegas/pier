@@ -1,3 +1,4 @@
+import { GitProviders } from "./settings/GitProviders";
 import { createSignal } from "solid-js";
 import { S3Settings } from "./settings/S3Settings";
 import { Button } from "../components/Button";
@@ -21,6 +22,7 @@ export function SettingsPage() {
       <QueryView query={settings}>{(data) => <InstanceForm settings={data()} />}</QueryView>
       <InstanceBackup />
       <S3Settings />
+      <GitProviders />
       <InterfaceLanguage />
       <ProfileForm />
       <PasswordForm />

@@ -61,6 +61,7 @@ func (c *Config) normalize() {
 		c.Storages = []Storage{}
 	}
 	c.normalizeProcesses()
+	c.normalizeEngineExtras()
 }
 
 // Validate normalizes the config and reports every invalid field. Values end
@@ -75,6 +76,7 @@ func (c *Config) Validate() error {
 	c.validateLimits(fields)
 	c.validateStorages(fields)
 	c.validateProcesses(fields)
+	c.validateEngineExtras(fields)
 	return fields.Err()
 }
 

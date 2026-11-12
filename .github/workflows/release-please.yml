@@ -1,0 +1,73 @@
+name: Release
+
+# Every push to main updates (or opens) a release PR from the Conventional
+# Commits since the last tag. Merging that PR tags the release; the image and
+# the site are then published by the reusable workflows below. Tags created
+# with GITHUB_TOKEN do not trigger other workflows, hence the workflow calls.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+      # Dispatches CI on the release PR branch (see the last step).
+      actions: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+      # Pushes made with GITHUB_TOKEN do not start pull_request workflows, so
+      # the release PR would never get its required checks. A dispatched run
+      # on the branch reports the same check names on the PR head commit.
+      - name: Run CI on the release PR
+        if: ${{ steps.release.outputs.pr }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+        run: gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH"
+      # Opt-in: set the repository variable RELEASE_AUTOMERGE=true to release
+      # without anyone pressing the button once CI is green.
+      - name: Auto-merge the release PR
+        if: ${{ steps.release.outputs.pr && vars.RELEASE_AUTOMERGE == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ fromJSON(steps.release.outputs.pr).number }}
+        run: gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --auto --squash
+
+  image:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.release-please.outputs.tag_name }}
+
+  site:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/pages.yml
+    with:
+      ref: ${{ needs.release-please.outputs.tag_name }}

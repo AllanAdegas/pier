@@ -1,9 +1,21 @@
+import { englishServerExtras } from "./en-serverextras";
+import { englishEngineExtras } from "./en-engineextras";
+import { englishRbac } from "./en-rbac";
+import { englishMultiserver } from "./en-multiserver";
+import { englishGitapp } from "./en-gitapp";
+import { englishPreviews } from "./en-previews";
+import { englishAuth } from "./en-auth";
+import { englishTerminal } from "./en-terminal";
 import { englishEngine } from "./en-engine";
 import { englishData } from "./en-data";
 import { englishStack } from "./en-stack";
+import { englishGitstacks } from "./en-gitstacks";
 import { englishServer } from "./en-server";
 import { englishPlatform } from "./en-platform";
 import { englishAlerts } from "./en-alerts";
+import { englishMetrics } from "./en-metrics";
+import { englishUpdates } from "./en-updates";
+import { englishVolumes } from "./en-volumes";
 
 // English catalog: Portuguese source text → English. Every text the
 // interface passes to t(), msg() or <Trans> must be here (i18n.test.ts).
@@ -1030,10 +1042,22 @@ const base: Record<string, string> = {
 
 export const english: Record<string, string> = {
   ...base,
+  ...englishServerExtras,
+  ...englishEngineExtras,
+  ...englishRbac,
+  ...englishMultiserver,
+  ...englishAuth,
   ...englishEngine,
   ...englishData,
   ...englishStack,
+  ...englishGitstacks,
+  ...englishGitapp,
   ...englishServer,
   ...englishPlatform,
   ...englishAlerts,
+  ...englishMetrics,
+  ...englishUpdates,
+  ...englishVolumes,
+ ...englishTerminal,
+  ...englishPreviews,
 };

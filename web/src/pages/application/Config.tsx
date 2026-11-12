@@ -2,6 +2,7 @@ import { useNavigate } from "@solidjs/router";
 import { createSignal, For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { Button, IconButton } from "../../components/Button";
+import { VolumeBackups } from "../../components/VolumeBackups";
 import { ConfirmDelete, deleteQuery, type DeleteOptions } from "../../components/Modal";
 import { Section } from "../../components/Page";
 import { api } from "../../lib/api";
@@ -11,6 +12,7 @@ import type { Application, ApplicationConfig, BuildPack, PrivateKey, Storage } f
 import { t } from "../../i18n";
 import { Checkbox, LinesInput, NumberInput, Select, TextArea, TextInput } from "../../components/Form";
 import { createDomainDnsCheck } from "./DomainDnsStatus";
+import { EngineExtras } from "./EngineExtras";
 import { ProcessesEditor } from "./ProcessesEditor";
 
 const GIT_PACKS: BuildPack[] = ["dockerfile", "nixpacks", "static"];
@@ -54,6 +56,7 @@ export function ConfigTab(props: { application: Application; onSaved: (applicati
   const removeStorage = (index: number) => setConfig("storages", (list) => list.filter((_, position) => position !== index));
 
   return (
+    <div class="stack-lg">
     <form
       class="stack-lg"
       onSubmit={(event) => {
@@ -145,7 +148,10 @@ export function ConfigTab(props: { application: Application; onSaved: (applicati
             <Select
               label={t("Build pack")}
               value={config.build.pack}
-              onValue={(value) => setConfig("build", "pack", value as BuildPack)}
+              onValue={(value) => {
+                setConfig("build", "pack", value as BuildPack);
+                if (value !== "dockerfile") setConfig("build", "target", "");
+              }}
               options={GIT_PACKS.map((value) => ({ value, label: BUILD_PACK_LABEL[value] }))}
             />
             <TextInput
@@ -214,6 +220,10 @@ export function ConfigTab(props: { application: Application; onSaved: (applicati
           />
         </Show>
       </Section>
+
+      <EngineExtras config={config} errors={errors()}
+        onTarget={(target) => setConfig("build", "target", target)}
+        onRuntime={(runtime) => setConfig("runtime", runtime)} />
 
       <Section title={t("Rede")}>
         <div onFocusOut={() => void dns.check(config.network.domains)}>
@@ -429,5 +439,7 @@ export function ConfigTab(props: { application: Application; onSaved: (applicati
         />
       </Show>
     </form>
+    <VolumeBackups kind="applications" id={initial.id} name={initial.name} />
+    </div>
   );
 }
