@@ -240,7 +240,12 @@ func run() error {
 	}
 	terminals := terminal.NewService(connector)
 	defer terminals.Close()
+	apiRateLimit, err := httpapi.ParseAPIRateLimit(os.Getenv("PIER_API_RATE_LIMIT"))
+	if err != nil {
+		return err
+	}
 	api := httpapi.New(httpapi.Dependencies{
+		APIRateLimit: apiRateLimit,
 		Access:       accessService,
 		OIDC:         identity.NewOIDC(db, box, strings.Fields(os.Getenv("PIER_OIDC_ISSUERS")), os.Getenv("PIER_OIDC_CALLBACK")),
 		GitProviders: gitProviders,
