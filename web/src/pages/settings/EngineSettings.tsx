@@ -31,7 +31,7 @@ function AutoDomainForm(props: { settings: AutoDomainSettings }) {
     <Section title={t("Domínio automático")} description={t("Aplicações sem domínio recebem um endereço no próximo deploy. Ele aparece na configuração e pode ser removido.")}>
       <form class="stack" onSubmit={(event) => { event.preventDefault(); void save.run(); }}>
         <Checkbox label={t("Dar um domínio automático a aplicações sem domínio")} checked={settings().enabled} onChange={(enabled) => update({ enabled })} />
-        <TextInput label={t("Domínio base")} mono placeholder="apps.exemplo.com" value={settings().base_domain}
+        <TextInput label={t("Domínio base")} mono placeholder={t("apps.exemplo.com")} value={settings().base_domain}
           hint={t("Vazio usa <app>-<ambiente>-<id>.<IP do servidor>.sslip.io, sem configurar DNS. Com um domínio próprio, aponte *.<domínio> para os servidores.")}
           onValue={(base_domain) => update({ base_domain, https: base_domain ? settings().https : false })} error={save.errors().base_domain} />
         <Checkbox label={t("Emitir certificado HTTPS")} hint={save.errors().https ?? t("Só com domínio base próprio; endereços sslip.io usam HTTP.")}

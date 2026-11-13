@@ -1,62 +1,129 @@
 /**
- * Builds the static site into dist/: the launch page, one page per entry of
- * pages.ts and the assets. Fails on a missing page, an unknown placeholder or
- * an internal link to a page that does not exist.
+ * Builds the static site into dist/: the launch page and one page per entry
+ * of pages.ts in each language (Portuguese at /, English at /en/), the single
+ * 404 page and the assets. Fails on a missing English page, an unknown
+ * placeholder, an internal link to a page or anchor that does not exist, or a
+ * link that leaves the page's language.
  */
 import { fillPlaceholders, placeholders, readVersion } from "./config.ts";
 import { renderMarkdown } from "./markdown.ts";
-import { allPages, docPath } from "./pages.ts";
+import { allPages, contentFile, type DocPage, docPath } from "./pages.ts";
 import { docBody, shell } from "./layout.ts";
 import { homeBody } from "./home.ts";
+import { notFoundBody, notFoundLanguage, notFoundTitle } from "./not_found.ts";
+import { homePath, type Language, languages, type Localized } from "./language.ts";
+import { strings } from "./strings.ts";
+import {
+  allowMissingEnglish,
+  AllowMissingRefused,
+  contentDir as defaultContentDir,
+  missingEnglishFiles,
+  MissingTranslationError,
+  readSource,
+} from "./content.ts";
 
 const root = new URL("../", import.meta.url);
-const contentDir = new URL("content/docs/", root);
 const assetsDir = new URL("assets/", root);
 const distDir = new URL("dist/", root);
 
 export interface BuiltPage {
   path: string;
   html: string;
+  /** Absent on the 404 page, which offers both languages. */
+  language?: Language;
+  /** An English page rendered from the Portuguese text (local development only). */
+  translationPending?: boolean;
 }
 
-export async function buildPages(version: string): Promise<BuiltPage[]> {
-  const values = placeholders(version);
-  const description =
-    "Painel self-hosted para publicar aplicações, bancos e serviços no seu servidor, com domínio, HTTPS, backup e deploy com verificação de prontidão.";
-  const pages: BuiltPage[] = [{
-    path: "/",
+export interface BuildOptions {
+  /** Render missing English pages from Portuguese instead of failing. Local development only. */
+  allowMissingEnglish?: boolean;
+  contentDir?: URL;
+}
+
+interface BuildContext {
+  version: string;
+  values: Record<string, string>;
+  dir: URL;
+  missingEnglish: Set<string>;
+}
+
+function homeAlternates(): Localized {
+  return { pt: homePath("pt"), en: homePath("en") };
+}
+
+function docAlternates(page: DocPage): Localized {
+  return { pt: docPath(page, "pt"), en: docPath(page, "en") };
+}
+
+function homePage(language: Language, context: BuildContext): BuiltPage {
+  const text = strings[language].site;
+  return {
+    path: homePath(language),
+    language,
     html: shell({
-      title: "Pier — seus projetos no ar, no seu servidor",
-      description,
-      path: "/",
-      version,
-      body: homeBody(version),
+      language,
+      title: text.homeTitle,
+      description: text.description,
+      path: homePath(language),
+      version: context.version,
+      body: homeBody(context.version, language),
+      alternates: homeAlternates(),
     }),
-  }];
-  for (const page of allPages) {
-    const source = await Deno.readTextFile(new URL(`${page.slug}.md`, contentDir));
-    const { html, headings } = renderMarkdown(fillPlaceholders(source, values));
-    pages.push({
-      path: docPath(page),
-      html: shell({
-        title: page.title,
-        description: page.description,
-        path: docPath(page),
-        version,
-        body: docBody(page, html, headings),
-      }),
-    });
-  }
-  pages.push({
-    path: "/404.html",
-    html: shell({ title: "Página não encontrada", description, path: "/404", version, body: notFound() }),
-  });
-  return pages;
+  };
 }
 
-function notFound(): string {
-  return `<main id="conteudo" class="home"><section class="section narrow"><h1>Página não encontrada</h1>
-<p>O endereço pode ter mudado. Comece pela <a href="/docs/introducao/">documentação</a> ou volte à <a href="/">página inicial</a>.</p></section></main>`;
+async function docPage(page: DocPage, language: Language, context: BuildContext): Promise<BuiltPage> {
+  const translationPending = language === "en" && context.missingEnglish.has(contentFile(page, "en"));
+  const source = await readSource(page, translationPending ? "pt" : language, context.dir);
+  const { html, headings } = renderMarkdown(fillPlaceholders(source, context.values), strings[language].code);
+  return {
+    path: docPath(page, language),
+    language,
+    translationPending,
+    html: shell({
+      language,
+      title: page.title[language],
+      description: page.description[language],
+      path: docPath(page, language),
+      version: context.version,
+      body: docBody(page, language, { html, headings, translationPending }),
+      alternates: docAlternates(page),
+    }),
+  };
+}
+
+function notFoundPage(version: string): BuiltPage {
+  return {
+    path: "/404.html",
+    html: shell({
+      language: notFoundLanguage,
+      title: notFoundTitle(),
+      description: strings[notFoundLanguage].site.description,
+      path: "/404",
+      version,
+      body: notFoundBody(),
+    }),
+  };
+}
+
+export async function buildPages(version: string, options: BuildOptions = {}): Promise<BuiltPage[]> {
+  const dir = options.contentDir ?? defaultContentDir;
+  const missing = await missingEnglishFiles(dir);
+  if (missing.length > 0 && !options.allowMissingEnglish) throw new MissingTranslationError(missing);
+  const context: BuildContext = {
+    version,
+    values: placeholders(version),
+    dir,
+    missingEnglish: new Set(missing),
+  };
+  const pages: BuiltPage[] = [];
+  for (const language of languages) {
+    pages.push(homePage(language, context));
+    for (const page of allPages) pages.push(await docPage(page, language, context));
+  }
+  pages.push(notFoundPage(version));
+  return pages;
 }
 
 function anchorsOf(html: string): Set<string> {
@@ -65,10 +132,13 @@ function anchorsOf(html: string): Set<string> {
 
 /**
  * Internal links that point to no generated page or asset, or to an anchor
- * the target page does not have: "/docs/x/" and "/docs/x/#secao" and "#secao".
+ * the target page does not have: "/docs/x/", "/en/docs/x/#section" and
+ * "#section". Anchors of a page still waiting for its translation are not
+ * checked, because it shows the Portuguese headings.
  */
 export function brokenLinks(pages: BuiltPage[], assets: string[]): string[] {
   const anchors = new Map(pages.map((page) => [page.path, anchorsOf(page.html)]));
+  const pending = new Set(pages.filter((page) => page.translationPending).map((page) => page.path));
   const assetPaths = new Set(assets.map((name) => `/assets/${name}`));
   const broken: string[] = [];
   for (const page of pages) {
@@ -77,12 +147,33 @@ export function brokenLinks(pages: BuiltPage[], assets: string[]): string[] {
       const target = path ?? page.path;
       if (assetPaths.has(target) && !fragment) continue;
       const targetAnchors = anchors.get(target);
-      if (!targetAnchors || (fragment && !targetAnchors.has(fragment))) {
-        broken.push(`${page.path} → ${match[0].slice(6, -1)}`);
-      }
+      const anchorMissing = fragment && !targetAnchors?.has(fragment) && !pending.has(target);
+      if (!targetAnchors || anchorMissing) broken.push(`${page.path} → ${match[0].slice(6, -1)}`);
     }
   }
   return broken;
+}
+
+function languageOfPath(path: string): Language {
+  return path === "/en/" || path.startsWith("/en/") ? "en" : "pt";
+}
+
+/**
+ * Links from a page to a page in the other language. Only the language
+ * switch may do that, and it is marked with hreflang. Pages waiting for
+ * their translation show Portuguese text and are not checked.
+ */
+export function crossLanguageLinks(pages: BuiltPage[]): string[] {
+  const found: string[] = [];
+  for (const page of pages) {
+    if (!page.language || page.translationPending) continue;
+    for (const [tag] of page.html.matchAll(/<a\s[^>]*>/g)) {
+      const href = tag.match(/\shref="(\/(?!\/|assets\/)[^"#?]*)/)?.[1];
+      if (!href || /\shreflang="/.test(tag)) continue;
+      if (languageOfPath(href) !== page.language) found.push(`${page.path} → ${href}`);
+    }
+  }
+  return found;
 }
 
 async function listAssets(): Promise<string[]> {
@@ -123,15 +214,36 @@ async function write(pages: BuiltPage[], assets: string[], basePath: string) {
   }
 }
 
-if (import.meta.main) {
+function failWith(title: string, problems: string[]): void {
+  if (problems.length > 0) throw new BuildRefused(`${title}:\n  ${problems.join("\n  ")}`);
+}
+
+/** A problem the author must fix: printed without a stack trace. */
+class BuildRefused extends Error {}
+
+async function main() {
   const version = await readVersion();
-  const pages = await buildPages(version);
-  const assets = await listAssets();
-  const broken = brokenLinks(pages, assets);
-  if (broken.length > 0) {
-    console.error(`links internos quebrados:\n  ${broken.join("\n  ")}`);
-    Deno.exit(1);
+  const pages = await buildPages(version, { allowMissingEnglish: allowMissingEnglish(Deno.args) });
+  const pending = pages.filter((page) => page.translationPending).map((page) => page.path);
+  if (pending.length > 0) {
+    console.warn(
+      `translation in progress, shown in Portuguese (local development only):\n  ${pending.join("\n  ")}`,
+    );
   }
+  const assets = await listAssets();
+  failWith("broken internal links", brokenLinks(pages, assets));
+  failWith("links that leave the page's language", crossLanguageLinks(pages));
   await write(pages, assets, Deno.env.get("SITE_BASE_PATH") || "/");
-  console.log(`site do Pier ${version}: ${pages.length} páginas em dist/`);
+  console.log(`Pier site ${version}: ${pages.length} pages in dist/`);
+}
+
+if (import.meta.main) {
+  await main().catch((error) => {
+    if (
+      !(error instanceof MissingTranslationError || error instanceof AllowMissingRefused ||
+        error instanceof BuildRefused)
+    ) throw error;
+    console.error(error.message);
+    Deno.exit(1);
+  });
 }

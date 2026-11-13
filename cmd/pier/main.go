@@ -50,6 +50,11 @@ import (
 	"pier/internal/webui"
 )
 
+// terminal is the language of the messages this command prints, from the
+// locale of the shell that runs it (the panel itself follows the instance and
+// each request).
+var shellLanguage = i18n.FromEnvironment(os.Getenv)
+
 func main() {
 	command := run
 	if len(os.Args) > 1 && os.Args[1] == "mcp" {
@@ -62,7 +67,7 @@ func main() {
 		command = runAdmin
 	}
 	if err := command(); err != nil {
-		fmt.Fprintln(os.Stderr, "pier:", err)
+		fmt.Fprintln(os.Stderr, "pier:", i18n.Localize(err, shellLanguage))
 		os.Exit(1)
 	}
 }

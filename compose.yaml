@@ -54,7 +54,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${PIER_DATA_DIR:-/data/pier}:${PIER_DATA_DIR:-/data/pier}
-      # Folders used by "pasta do servidor" stacks must be visible to Pier at
+      # Folders used by "Server folder" stacks must be visible to Pier at
       # their host path too. Add one line per folder, same path on both sides:
       # - /srv/stacks:/srv/stacks
     networks:

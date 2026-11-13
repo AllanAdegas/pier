@@ -1,138 +1,94 @@
 /**
  * The launch page: what Pier is, how to install the stable release and where
- * to go next. Copy is pt-BR, written for someone who has never used it.
+ * to go next. Written for someone who has never used it; the copy lives in
+ * strings.ts, once per language, with the same claims in both.
  */
-import { escapeHtml } from "./markdown.ts";
+import { codeBlock, escapeHtml } from "./markdown.ts";
 import { repository } from "./config.ts";
+import type { Language } from "./language.ts";
+import { docPath, pageById } from "./pages.ts";
+import { strings } from "./strings.ts";
 
-interface Feature {
-  title: string;
-  text: string;
-  href: string;
+/** Anchor of the "what it does not do yet" section of the introduction, per language. */
+const notYetAnchor: Record<Language, string> = {
+  pt: "o-que-ainda-nao-faz",
+  en: "what-it-does-not-do-yet",
+};
+
+function href(ptSlug: string, language: Language): string {
+  return docPath(pageById(ptSlug), language);
 }
 
-const features: Feature[] = [
-  {
-    title: "Deploy com prontidão",
-    text:
-      "A versão nova sobe ao lado da atual e só assume quando está pronta. Se falhar, a anterior continua no ar.",
-    href: "/docs/aplicacoes/",
-  },
-  {
-    title: "Domínio e HTTPS sozinhos",
-    text: "Informe o domínio: o Pier confere o DNS, configura o proxy e emite o certificado.",
-    href: "/docs/servidores-e-dominios/",
-  },
-  {
-    title: "Bancos com backup",
-    text:
-      "Bancos com senhas geradas, backup agendado e restauração. Volumes de aplicações e stacks têm backup próprio.",
-    href: "/docs/bancos-de-dados/",
-  },
-  {
-    title: "Catálogo com 350+ serviços",
-    text:
-      "n8n, Plausible, Uptime Kuma, Supabase, WordPress… prontos para subir, ou cole seu próprio docker compose.",
-    href: "/docs/stacks/",
-  },
-  {
-    title: "Avisa quando algo dá errado",
-    text:
-      "Container em loop, falta de memória, disco cheio, certificado vencendo, backup que não rodou ou site fora do ar.",
-    href: "/docs/alertas/",
-  },
-  {
-    title: "Feito para automação",
-    text: "CLI pierctl, pier.yaml no repositório, apply declarativo e um servidor MCP para agentes de IA.",
-    href: "/docs/pierctl/",
-  },
-];
-
-const steps = [
-  { title: "Instale", text: "Um script sobe o Pier com Docker no seu servidor Linux." },
-  { title: "Conecte", text: "Aponte um repositório Git, uma imagem Docker ou a pasta do seu computador." },
-  { title: "Publique", text: "Dê um domínio, clique em Implantar e acompanhe o log ao vivo." },
-];
-
-function installBlock(tag: string): string {
+function installBlock(tag: string, language: Language): string {
   const command = `git clone --branch ${tag} --depth 1 ${repository}.git
 cd pier
 ./install.sh`;
-  return `<div class="code-block install">
-  <span class="code-lang">terminal do servidor</span>
-  <button class="copy" type="button" aria-label="Copiar">Copiar</button>
-  <pre><code>${escapeHtml(command)}</code></pre>
-</div>`;
+  return codeBlock(command, strings[language].home.installTerminal, strings[language].code, "install");
 }
 
-function featureCards(): string {
-  return features.map((feature) =>
-    `<a class="card" href="${feature.href}"><h3>${escapeHtml(feature.title)}</h3><p>${
+function featureCards(language: Language): string {
+  return strings[language].home.features.map((feature) =>
+    `<a class="card" href="${href(feature.page, language)}"><h3>${escapeHtml(feature.title)}</h3><p>${
       escapeHtml(feature.text)
     }</p></a>`
   ).join("\n");
 }
 
-function stepList(): string {
-  return steps.map((step, index) =>
+function stepList(language: Language): string {
+  return strings[language].home.steps.map((step, index) =>
     `<li><span class="step-number">${index + 1}</span><div><h3>${escapeHtml(step.title)}</h3><p>${
       escapeHtml(step.text)
     }</p></div></li>`
   ).join("\n");
 }
 
-export function homeBody(version: string): string {
-  const tag = `v${version}`;
+export function homeBody(version: string, language: Language): string {
+  const text = strings[language].home;
+  const safeVersion = escapeHtml(version);
   return `<main id="conteudo" class="home">
 <section class="hero">
   <div class="hero-text">
-    <p class="eyebrow">Self-hosted · beta · v${escapeHtml(version)}</p>
-    <h1>Seus projetos no ar,<br>no seu próprio servidor.</h1>
-    <p class="hero-lead">O Pier é um painel para publicar aplicações, bancos de dados e serviços em uma VPS sua, com domínio, HTTPS, backup e deploy com troca após prontidão. Sem mensalidade por projeto e sem precisar saber Docker a fundo.</p>
+    <p class="eyebrow">${escapeHtml(text.eyebrow(version))}</p>
+    <h1>${text.headlineHtml}</h1>
+    <p class="hero-lead">${escapeHtml(text.lead)}</p>
     <div class="hero-actions">
-      <a class="button primary" href="/docs/instalacao/">Instalar agora</a>
-      <a class="button" href="/docs/introducao/">Ler a documentação</a>
+      <a class="button primary" href="${href("instalacao", language)}">${escapeHtml(text.installNow)}</a>
+      <a class="button" href="${href("introducao", language)}">${escapeHtml(text.readDocs)}</a>
     </div>
   </div>
   <div class="hero-install">
-    <p class="install-title">Instale a versão beta em um servidor Linux com Docker:</p>
-    ${installBlock(tag)}
-    <p class="install-note">O instalador baixa a imagem GHCR. Enquanto repositório e pacote forem privados, é necessário acesso autorizado; sem imagem disponível, use <code>PIER_BUILD=1 ./install.sh</code>. Ao terminar, o script mostra o endereço do painel e o código para criar sua conta. <a href="/docs/instalacao/">Guia completo da instalação</a>.</p>
+    <p class="install-title">${escapeHtml(text.installTitle)}</p>
+    ${installBlock(`v${version}`, language)}
+    <p class="install-note">${text.installNoteHtml(href("instalacao", language))}</p>
   </div>
 </section>
 
 <section class="section">
-  <h2>Como funciona</h2>
-  <ol class="steps">${stepList()}</ol>
+  <h2>${escapeHtml(text.howItWorks)}</h2>
+  <ol class="steps">${stepList(language)}</ol>
 </section>
 
 <section class="section">
-  <h2>O que vem pronto</h2>
-  <div class="cards">${featureCards()}</div>
+  <h2>${escapeHtml(text.included)}</h2>
+  <div class="cards">${featureCards(language)}</div>
 </section>
 
 <section class="section split">
   <div>
-    <h2>Do seu jeito: painel, terminal ou IA</h2>
-    <p>Os fluxos de automação estão na CLI <code>pierctl</code>, pronta para scripts e pipelines de CI. Um agente de IA pode consultar logs e implantar pelo servidor MCP, com as permissões do token que você der a ele.</p>
-    <p><a href="/docs/pierctl/">Conheça a pierctl →</a></p>
+    <h2>${escapeHtml(text.automationTitle)}</h2>
+    <p>${text.automationTextHtml}</p>
+    <p><a href="${href("pierctl", language)}">${escapeHtml(text.automationLink)}</a></p>
   </div>
-  <div class="code-block">
-    <span class="code-lang">sh</span>
-    <button class="copy" type="button" aria-label="Copiar">Copiar</button>
-    <pre><code>pierctl login https://pier.exemplo.com --token-stdin
-pierctl app deploy api --wait
-pierctl up            # envia a pasta atual e implanta</code></pre>
-  </div>
+  ${codeBlock(text.automationExample, "sh", strings[language].code)}
 </section>
 
 <section class="section beta">
-  <h2>Em beta, com transparência</h2>
-  <p>A versão do código é ${
-    escapeHtml(version)
-  }. Estes guias acompanham o desenvolvimento da linha PIER 0.6; a tag publicada indicada acima pode ainda não conter os recursos novos. Confira as notas da release antes de instalar. As limitações de integração e validação aparecem em cada guia. Ainda é beta: teste o que for usar antes de colocar algo crítico, e faça o backup da instância logo no primeiro dia.</p>
-  <p>Licença Apache-2.0. A automação reduz manutenção rotineira; revisão humana, decisões de segurança e recuperação continuam necessárias. <a href="/docs/comunidade/">Licença e governança</a>.</p>
-  <p><a href="/docs/introducao/#o-que-ainda-nao-faz">O que o Pier ainda não faz →</a></p>
+  <h2>${escapeHtml(text.betaTitle)}</h2>
+  <p>${text.betaTextHtml(safeVersion)}</p>
+  <p>${text.licenseHtml(href("comunidade", language))}</p>
+  <p><a href="${href("introducao", language)}#${notYetAnchor[language]}">${
+    escapeHtml(text.notYetLink)
+  }</a></p>
 </section>
 </main>`;
 }

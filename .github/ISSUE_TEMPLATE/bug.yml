@@ -1,37 +1,43 @@
 name: Bug
-description: Algo não funciona como o esperado / Something does not work as expected
+description: Something does not work as expected / Algo não funciona como o esperado
 labels: [bug]
 body:
   - type: markdown
     attributes:
       value: |
-        Obrigado por relatar. **Não cole segredos** (senhas, tokens, chaves, `.env`). Vulnerabilidades: use o relato privado, não esta issue.
+        Thanks for reporting. **Do not paste secrets** (passwords, tokens, keys, `.env`). Vulnerabilities: use private reporting, not this issue. Write in English or Portuguese.
+
+        Obrigado por relatar. **Não cole segredos** (senhas, tokens, chaves, `.env`). Vulnerabilidades: use o relato privado, não esta issue. Escreva em inglês ou português.
   - type: input
     id: version
     attributes:
-      label: Versão do Pier
-      description: Saída de `curl http://127.0.0.1:8700/api/v1/version`.
+      label: Pier version / Versão do Pier
+      description: Output of / Saída de `curl http://127.0.0.1:8700/api/v1/version`.
       placeholder: "0.6.0"
     validations:
       required: true
   - type: dropdown
     id: install
     attributes:
-      label: Como foi instalado
-      options: [install.sh (imagem publicada), install.sh com PIER_BUILD=1, Binário compilado do código, Outro]
+      label: How it was installed / Como foi instalado
+      options:
+        - install.sh (published image / imagem publicada)
+        - install.sh with PIER_BUILD=1 / install.sh com PIER_BUILD=1
+        - Binary built from source / Binário compilado do código
+        - Other / Outro
     validations:
       required: true
   - type: textarea
     id: what
     attributes:
-      label: O que aconteceu
-      description: E o que você esperava que acontecesse.
+      label: What happened / O que aconteceu
+      description: And what you expected to happen. / E o que você esperava que acontecesse.
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
-      label: Como reproduzir
+      label: How to reproduce / Como reproduzir
       placeholder: |
         1. ...
         2. ...
@@ -40,6 +46,6 @@ body:
   - type: textarea
     id: logs
     attributes:
-      label: Logs e ambiente
-      description: "`docker compose logs --tail 100 pier`, sistema operacional, versão do Docker. Remova segredos."
+      label: Logs and environment / Logs e ambiente
+      description: "`docker compose logs --tail 100 pier`, operating system, Docker version. Remove secrets. / Sistema operacional, versão do Docker. Remova segredos."
       render: shell

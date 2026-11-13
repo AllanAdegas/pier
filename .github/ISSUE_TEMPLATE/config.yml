@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Dúvida de uso / Question
+  - name: Question / Dúvida de uso
     url: https://github.com/AllanAdegas/pier/discussions/new?category=q-a
-    about: Perguntas vão para as Discussions. / Questions go to Discussions.
-  - name: Vulnerabilidade / Security vulnerability
+    about: Questions go to Discussions. / Perguntas vão para as Discussions.
+  - name: Security vulnerability / Vulnerabilidade
     url: https://github.com/AllanAdegas/pier/security/advisories/new
-    about: Relate em particular; nunca em issue pública. / Report privately, never in a public issue.
+    about: Report privately, never in a public issue. / Relate em particular; nunca em issue pública.

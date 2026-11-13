@@ -35,7 +35,10 @@ func (s *Service) SendPasswordReset(ctx context.Context, to, link string) error 
 		config := maps.Clone(c.Config)
 		config["to"] = to
 		config["require_tls"] = "true"
-		return s.senders[KindEmail].Send(ctx, config, Event{Title: i18n.Instance().Text("Pier — redefinir senha"), Message: i18n.Instance().Sprintf("Para redefinir sua senha, abra o link em até 30 minutos:\n%s\nSe você não pediu, ignore esta mensagem.", link)})
+		// The reset is asked from the sign-in page, so the e-mail speaks the
+		// language of that page (FromContext falls back to the instance's).
+		language := i18n.FromContext(ctx)
+		return s.senders[KindEmail].Send(ctx, config, Event{Title: language.Text("Pier — redefinir senha"), Message: language.Sprintf("Para redefinir sua senha, abra o link em até 30 minutos:\n%s\nSe você não pediu, ignore esta mensagem.", link)})
 	}
 	return errors.New("no enabled email channel")
 }

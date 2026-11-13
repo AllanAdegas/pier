@@ -4,6 +4,7 @@ import { createResource, createSignal, For, Show } from "solid-js";
 import { useParams } from "@solidjs/router";
 import { api, errorMessage } from "../../lib/api";
 import { t } from "../../i18n";
+import { formatDateTime } from "../../lib/format";
 import { grantableRoles, type Role } from "./can";
 import { accessSummary, allowed, refreshAccess } from "./permissions";
 
@@ -54,7 +55,7 @@ export function TeamPage() {
         <button disabled={busy()} type="submit">{t("Criar convite")}</button>
       </form>
       <Show when={token()}><p>{t("Copie o token agora. Ele aparece somente nesta resposta.")}</p><output>{token()}</output><button onClick={() => setToken("")}>{t("Ocultar token")}</button></Show>
-      <For each={invites()}>{invite => <div><span>{invite.email} · {labels[invite.role]} · {new Date(invite.expires_at * 1000).toLocaleString()}</span><button disabled={busy() || !!invite.revoked_at || !!invite.consumed_at} onClick={() => run(() => api.delete(`${base()}/invites/${encodeURIComponent(invite.id)}`))}>{t("Revogar convite")}</button></div>}</For>
+      <For each={invites()}>{invite => <div><span>{invite.email} · {labels[invite.role]} · {formatDateTime(new Date(invite.expires_at * 1000).toISOString())}</span><button disabled={busy() || !!invite.revoked_at || !!invite.consumed_at} onClick={() => run(() => api.delete(`${base()}/invites/${encodeURIComponent(invite.id)}`))}>{t("Revogar convite")}</button></div>}</For>
     </section></Show>
     <section><h2>{t("Aceitar convite")}</h2><form onSubmit={e => { e.preventDefault(); void run(async () => { await api.post("/access/accept", { token: acceptToken() }); setAcceptToken(""); await refreshAccess(); }); }}>
       <label>{t("Token do convite")}<input type="password" required value={acceptToken()} onInput={e => setAcceptToken(e.currentTarget.value)} /></label>

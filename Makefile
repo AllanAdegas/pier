@@ -8,7 +8,7 @@ BINARY := bin/pier
 GOBUILD := CGO_ENABLED=0 go build -trimpath -ldflags="-s -w"
 WEBUI  := internal/webui/dist
 
-.PHONY: all web build test vet run dev-api dev-web docker-build docker-up docker-down lint-workflows clean
+.PHONY: all web build test vet run dev-api dev-web docker-build docker-up docker-down lint-workflows docpairs clean
 
 all: build
 
@@ -55,6 +55,10 @@ docker-down:
 ## lint-workflows: check the GitHub Actions workflows with actionlint (downloads it)
 lint-workflows:
 	go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+
+## docpairs: check that documents and the installer exist in English and Portuguese
+docpairs:
+	go test ./tools/docpairs/...
 
 clean:
 	rm -rf bin web/dist

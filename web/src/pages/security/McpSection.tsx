@@ -5,6 +5,7 @@ import { CopyField, Section } from "../../components/Page";
 import type { ApiToken } from "../../lib/types";
 import { TokenForm } from "./TokenForm";
 import { t } from "../../i18n";
+import { docsUrl } from "../../lib/docs";
 
 const TOKEN_PLACEHOLDER = "<token>";
 
@@ -54,10 +55,13 @@ export function McpSection(props: { onTokenCreated: () => void }) {
         />
         <Alert tone="info">{t("Logs de deploy e de containers chegam ao agente e podem conter instruções de terceiros. Dê ao token só o que a IA precisa: Leitura para consultar, Deploy para implantar e reiniciar. Escrita raramente é necessária.")}
         </Alert>
+        <p class="small">
+          <a href={docsUrl("ia-mcp")} target="_blank" rel="noopener noreferrer">{t("Documentação de IA e MCP")}</a>
+        </p>
       </div>
       <Show when={adding()}>
         <TokenForm
-          initialName="agente-ia"
+          initialName={t("agente-ia")}
           initialAbilities={["read", "deploy"]}
           onClose={() => setAdding(false)}
           onSaved={(created) => {

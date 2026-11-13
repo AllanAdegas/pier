@@ -187,8 +187,8 @@ function TokensSection(props: { version: number }) {
                     <div class="grow stack-sm" style={{ gap: "0" }}>
                       <strong class="truncate">{token.name}</strong>
                       <span class="small muted">
-                        {token.last_used_at ? t("Usado {name}", { name: formatRelative(token.last_used_at) }) : t("Nunca usado")} · criado em{" "}
-                        {formatDateTime(token.created_at)}
+                        {token.last_used_at ? t("Usado {name}", { name: formatRelative(token.last_used_at) }) : t("Nunca usado")} ·{" "}
+                        {t("criado em {date}", { date: formatDateTime(token.created_at) })}
                       </span>
                     </div>
                     <For each={token.abilities}>{(ability) => <span class="tag">{ability}</span>}</For>

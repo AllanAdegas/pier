@@ -17,6 +17,7 @@ import { englishAlerts } from "./en-alerts";
 import { englishMetrics } from "./en-metrics";
 import { englishUpdates } from "./en-updates";
 import { englishVolumes } from "./en-volumes";
+import { englishLocalization } from "./en-localization";
 
 // English catalog: Portuguese source text → English. Every text the
 // interface passes to t(), msg() or <Trans> must be here (i18n.test.ts).
@@ -1060,6 +1061,7 @@ export const english: Record<string, string> = {
   ...englishMetrics,
   ...englishUpdates,
   ...englishVolumes,
- ...englishTerminal,
+  ...englishTerminal,
   ...englishPreviews,
+  ...englishLocalization,
 };

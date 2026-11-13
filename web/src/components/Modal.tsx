@@ -23,7 +23,7 @@ export function Modal(props: { title: string; onClose: () => void; wide?: boolea
   };
   onMount(() => {
     document.addEventListener("keydown", onKeyDown);
-    const firstControl = dialog?.querySelector<HTMLElement>("input, select, textarea, button:not([aria-label='Fechar'])");
+    const firstControl = dialog?.querySelector<HTMLElement>(".modal-body :is(input, select, textarea, button)");
     (firstControl ?? dialog)?.focus();
   });
   onCleanup(() => {

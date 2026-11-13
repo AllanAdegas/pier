@@ -1,6 +1,7 @@
 import { createSignal, Show } from "solid-js";
 import { t } from "../i18n";
 import { api } from "../lib/api";
+import { docsUrl } from "../lib/docs";
 import { createQuery } from "../lib/query";
 import type { UpdateStatus } from "../lib/types";
 import { Button } from "./Button";
@@ -32,6 +33,9 @@ export function UpdateBanner() {
             <summary>{t("Como atualizar")}</summary>
             <p class="small">{t("Na pasta onde o Pier foi instalado, rode (os dados são mantidos):")}</p>
             <pre class="log" style={{ height: "auto", margin: "0" }}>{upgradeCommands(current().latest ?? "")}</pre>
+            <p class="small">
+              <a href={docsUrl("atualizar")} target="_blank" rel="noopener noreferrer">{t("Guia de atualização")}</a>
+            </p>
             <Show when={current().notes}>
               <p class="small muted" style={{ "white-space": "pre-wrap" }}>{current().notes}</p>
             </Show>

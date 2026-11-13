@@ -92,7 +92,7 @@ Na aplicação ou stack, abra **Backups de volumes**. Os volumes aparecem após 
 
 Use **Parar os containers durante o backup** quando precisar de dados consistentes: a aplicação fica indisponível enquanto o arquivo é gerado, inclusive nas execuções agendadas. Sem essa opção, um arquivo pode mudar durante a cópia. Para bancos ativos, prefira o backup lógico do banco.
 
-O backup é um `.tar.gz` dos volumes/diretórios selecionados; não é o backup cifrado da instância. Proteja o arquivo e o destino externo. Para restaurar, escolha um backup concluído e digite o nome exato do recurso. A restauração para o recurso, substitui o conteúdo dos volumes e inicia os containers ao final. Ela não mescla arquivos nem é uma migração automática para outro servidor. Teste em dados descartáveis antes de restaurar produção.
+O backup é um `.tar.gz` dos volumes/diretórios selecionados; não é o backup cifrado da instância. Proteja o arquivo e o destino externo. Para restaurar, escolha um backup concluído e digite o nome exato do recurso. A restauração interrompe o recurso, substitui o conteúdo dos volumes e inicia os containers ao final. Ela não mescla arquivos nem é uma migração automática para outro servidor. Teste em dados descartáveis antes de restaurar produção.
 
 Acompanhe a operação até concluir e confira os arquivos da aplicação. Backup no mesmo disco não protege contra perda do servidor.
 

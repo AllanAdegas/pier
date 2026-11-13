@@ -46,6 +46,22 @@ pierctl app deploy api --wait
 
 A ordem de precedência é: flags (`--url`, `--token`, `--context`), depois variáveis (`PIER_URL`, `PIER_TOKEN`, `PIER_CONTEXT`), depois o contexto salvo.
 
+## Idioma
+
+A `pierctl` fala português e inglês: ajuda, tabelas, mensagens, confirmações e erros. A escolha segue esta ordem:
+
+1. `--lang pt` ou `--lang en`;
+2. a variável `PIERCTL_LANG`;
+3. `LC_ALL`, depois `LC_MESSAGES`, depois `LANG`: um valor que começa com `pt` (como `pt_BR.UTF-8`) é português, qualquer outro é inglês;
+4. sem nada definido, inglês.
+
+```sh
+export PIERCTL_LANG=pt     # sempre em português
+pierctl --lang en status   # só este comando em inglês
+```
+
+A CLI envia o idioma ao Pier (`Accept-Language`), então os erros que vêm do servidor chegam no mesmo idioma. Em `-o json` e `-o yaml` os nomes dos campos não mudam com o idioma, nem os valores do campo `action` do `apply` (`criado`, `atualizado`, `sem mudanças`, `removido`), que scripts leem. Só o marcador de segredo oculto segue o idioma (`[oculto]` / `[hidden]`).
+
 ## Comandos
 
 | Grupo | Para quê |

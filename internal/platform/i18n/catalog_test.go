@@ -198,3 +198,70 @@ func TestTranslationsKeepTheFormatVerbs(t *testing.T) {
 		}
 	}
 }
+
+// portugueseOnlyWord are words an English message would not contain, so one
+// is enough to tell that a text that cannot be translated is in Portuguese.
+var portugueseOnlyWord = regexp.MustCompile(`(?i)(?:^|[\s(])(não|muito|muita|informe|arquivo|senha|frase-senha|servidor|banco|inválid[oa]|encontrad[oa]|foi|para|com|sem|uma?|pel[oa]|ainda|nenhuma?|deve|pode|já|está|são|ser|seu|sua|ao|aos|dos|das|uso)(?:$|[\s,.:;)])`)
+
+// untranslatableSinks build texts that never reach the catalog: fmt.Errorf
+// and errors.New are printed as written, and so are the help texts of a flag
+// set. People-facing text there must use i18n.Errorf or Language.Text.
+var untranslatableSinks = map[string]int{
+	"fmt.Errorf": 0, "errors.New": 0, "fmt.Println": 0, "fmt.Printf": 0, "fmt.Fprintf": 1, "fmt.Fprintln": 1,
+	"flags.String": 2, "flags.Bool": 2, "flags.Int": 2, "flags.Duration": 2,
+	"flag.String": 2, "flag.Bool": 2, "flag.Int": 2, "flag.Duration": 2,
+}
+
+func TestPortugueseNeverGoesThroughUntranslatableCalls(t *testing.T) {
+	var found []string
+	files := token.NewFileSet()
+	for _, root := range sourceRoots {
+		err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+			if err != nil || entry.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+				return err
+			}
+			file, err := parser.ParseFile(files, path, nil, 0)
+			if err != nil {
+				return err
+			}
+			ast.Inspect(file, func(node ast.Node) bool {
+				call, isCall := node.(*ast.CallExpr)
+				if !isCall {
+					return true
+				}
+				position, isSink := untranslatableSinks[callName(call.Fun)]
+				if !isSink || position >= len(call.Args) {
+					return true
+				}
+				if text, isConstant := constantString(call.Args[position]); isConstant &&
+					(accented.MatchString(text) || portugueseOnlyWord.MatchString(text)) {
+					found = append(found, files.Position(call.Pos()).String()+"\n\t"+strconv.Quote(text))
+				}
+				return true
+			})
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	sort.Strings(found)
+	if len(found) > 0 {
+		t.Errorf("%d Portuguese texts in calls that never translate (use i18n.Errorf or Language.Text):\n%s",
+			len(found), strings.Join(found, "\n"))
+	}
+}
+
+func TestTheUntranslatableGuardTellsPortugueseFromEnglish(t *testing.T) {
+	for _, text := range []string{"frase-senha muito longa", "informe --password-file", "uso: pier restore", "não foi possível"} {
+		if !accented.MatchString(text) && !portugueseOnlyWord.MatchString(text) {
+			t.Errorf("%q should read as Portuguese", text)
+		}
+	}
+	for _, text := range []string{"create data dir: %w", "invalid PEM", "send e-mail via %s: %w", "PIER_URL (e.g. http://x.com) and PIER_TOKEN",
+		"no enabled email channel", "set PIER_URL and PIER_TOKEN (a Pier API token)"} {
+		if accented.MatchString(text) || portugueseOnlyWord.MatchString(text) {
+			t.Errorf("%q should read as English", text)
+		}
+	}
+}

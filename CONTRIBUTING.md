@@ -1,74 +1,88 @@
-# Contribuindo com o Pier
+English | [Português](CONTRIBUTING.pt-BR.md)
 
-Obrigado por querer ajudar. O Pier é software livre sob [Apache-2.0](LICENSE) e foi pensado para continuar andando **sem depender de uma pessoa**: o CI decide se uma mudança é segura, o release-please publica as versões e o Dependabot cuida das dependências. Veja como as decisões são tomadas em [GOVERNANCE.md](GOVERNANCE.md). Ao participar, você concorda com o [Código de Conduta](CODE_OF_CONDUCT.md).
+# Contributing to Pier
 
-*English summary at the end.*
+Thank you for wanting to help. Pier is free software under [Apache-2.0](LICENSE) and was designed to keep going **without depending on one person**: CI decides whether a change is safe, release-please publishes versions and Dependabot looks after dependencies. See how decisions are made in [GOVERNANCE.md](GOVERNANCE.md). By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
-## Antes de começar
+## Before you start
 
-- **Bug ou ideia:** abra uma issue pelos formulários (bug, funcionalidade). Dúvidas de uso vão para as **Discussions**, não para issues.
-- **Vulnerabilidade:** nunca em issue pública. Veja [SECURITY.md](SECURITY.md).
-- Mudanças grandes: abra uma issue ou discussão antes, para alinhar o desenho e evitar retrabalho.
+- **Bug or idea:** open an issue through the forms (bug, feature). Usage questions go to **Discussions**, not to issues.
+- **Vulnerability:** never in a public issue. See [SECURITY.md](SECURITY.md).
+- Large changes: open an issue or discussion first, to align on the design and avoid rework.
 
-## Ambiente de desenvolvimento
+## Development environment
 
-Requisitos: Go 1.27.4+, Deno 2.9.5+ e, para o que mexe com containers, Docker com o plugin compose.
+Requirements: Go 1.27.4+, Deno 2.9.5+ and, for anything that touches containers, Docker with the compose plugin.
 
 ```sh
 git clone https://github.com/AllanAdegas/pier.git && cd pier
-make dev-api      # backend em 127.0.0.1:8700, dados em ./.data
-make dev-web      # interface com recarga em :5173 (em outro terminal)
-make run          # ou: compila tudo num binário e inicia em :8700
+make dev-api      # backend at 127.0.0.1:8700, data in ./.data
+make dev-web      # interface with reload at :5173 (in another terminal)
+make run          # or: build everything into one binary and start at :8700
 ```
 
-O painel pede o código de configuração que aparece no log (`setup_code=...`) para criar a primeira conta.
+The panel asks for the setup code that appears in the log (`setup_code=...`) to create the first account.
 
-## Testes
+## Tests
 
 ```sh
-make test         # go vet, go test, typecheck e testes da interface
-go test -race ./...                       # o mesmo que o CI roda
+make test         # go vet, go test, typecheck and interface tests
+go test -race ./...                       # the same thing CI runs
 cd web && deno task typecheck && deno task test
 cd site && deno task test
+make docpairs     # only the English/Portuguese pair checks
 ```
 
-Regras:
+Rules:
 
-- Todo comportamento novo vem com teste. Backend: `_test.go` com os fakes existentes (`internal/platform/executor`, SQLite temporário, `httptest`). Nenhum teste fala com a rede, com a nuvem ou com o GitHub de verdade.
-- Textos da interface são em português e precisam de tradução no catálogo inglês (`web/src/i18n/`, `internal/platform/i18n/`); os testes de catálogo falham se faltar ou sobrar uma entrada.
-- Identificadores, arquivos e comentários em inglês.
-- Segurança primeiro: toda rota declara a permissão que exige (`read`, `deploy`, `write`), valida a entrada e nunca devolve nem registra segredos.
-- Dependências novas: só licenças compatíveis com Apache-2.0 (MIT, BSD, Apache-2.0, ISC), versão exata, registradas em `THIRD_PARTY_NOTICES.md`.
+- Every new behavior comes with a test. Backend: `_test.go` using the existing fakes (`internal/platform/executor`, temporary SQLite, `httptest`). No test talks to the real network, the cloud or GitHub.
+- Every user-visible text exists in English and in Portuguese (see [Languages / Idiomas](#languages--idiomas)); the catalog and pair tests fail when something is missing.
+- Identifiers, files and comments in English.
+- Security first: every route declares the permission it requires (`read`, `deploy`, `write`), validates input and never returns or logs secrets.
+- New dependencies: only licenses compatible with Apache-2.0 (MIT, BSD, Apache-2.0, ISC), exact version, recorded in `THIRD_PARTY_NOTICES.md`.
 
-## Commits e Pull Requests
+## Languages / Idiomas
 
-O repositório usa [Conventional Commits](https://www.conventionalcommits.org/pt-br/). Como os merges são *squash*, **o título do PR vira o commit**, e o CI o valida:
+Pier ships in English and in Portuguese (pt-BR): the panel UI, the website, the documentation, the installer and the CLI. Every change that adds or alters text a user can see delivers both languages **in the same PR**. Portuguese is the source language in code (`t("Texto em português")`); English comes from catalogs and from paired files.
+
+| What | Where it lives | What the test requires |
+|---|---|---|
+| Panel UI | Portuguese in code (`t("...")`); English in `web/src/i18n/en*.ts` | `cd web && deno task test`: fails when an entry is missing or stale |
+| API messages, notifications and e-mails | Portuguese in code; English in `internal/platform/i18n/english*.go` | `go test ./internal/platform/i18n/...` |
+| Website and guides | `site/content/docs/<pt-slug>.md` and `site/content/docs/en/<en-slug>.md`; titles in `site/src/pages.ts` | `cd site && deno task test`: same pages, same section headings, same code blocks |
+| README, CONTRIBUTING, CODE_OF_CONDUCT, GOVERNANCE, SECURITY, RELEASE_NOTES | `NAME.md` (English, primary) and `NAME.pt-BR.md` (Portuguese), each linking to the other on the first line | `go test ./tools/docpairs/...`: fails when a pair or link is missing, or when the English file contains Portuguese text |
+| Installer | `install.sh`: every message has a `pt` and an `en` string | `go test ./tools/docpairs/...` |
+| `pierctl` CLI | [pier-cli](https://github.com/AllanAdegas/pier-cli) repository: Portuguese in code, English in the catalog | the catalog completeness test, in pier-cli |
+
+`CHANGELOG.md` (generated by release-please) and `THIRD_PARTY_NOTICES.md` are not translated.
+
+**How to add a documentation page:**
+
+1. Write `site/content/docs/<pt-slug>.md` and `site/content/docs/en/<en-slug>.md`. Use the same placeholders (`{{version}}`, `{{tag}}`, `{{repo}}`, `{{cliRepo}}`), the same code blocks (commands are not translated; only comments and prose) and the same `##`/`###` heading structure, in the same order.
+2. Register both in `site/src/pages.ts` (title and description in each language).
+3. In internal links, the English page points to `/en/docs/<en-slug>/#english-anchor`; the anchor is the English heading, lowercase and hyphenated.
+4. Quoted buttons, tabs and fields must match the interface text exactly in each language (look the text up in `web/src/i18n/en*.ts`).
+5. Run `cd site && deno task test`.
+
+## Commits and Pull Requests
+
+The repository uses [Conventional Commits](https://www.conventionalcommits.org/). Since merges are *squash* merges, **the PR title becomes the commit**, and CI validates it:
 
 ```
-feat(api): adiciona previews por pull request
-fix(deploy): evita rollback duplicado
-docs: explica o backup externo
+feat(api): add previews per pull request
+fix(deploy): avoid duplicate rollback
+docs: explain external backup
 ```
 
-Tipos: `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`, `revert`. Use `!` após o tipo (ou `BREAKING CHANGE:` no corpo) para quebra de compatibilidade.
+Types: `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`, `revert`. Use `!` after the type (or `BREAKING CHANGE:` in the body) for a breaking change.
 
-Para ser aceito, um PR precisa: CI verde (Go, interface, site, gitleaks, govulncheck, CodeQL), título convencional e o formulário do PR preenchido.
+To be accepted, a PR needs: green CI (Go, interface, site, gitleaks, govulncheck, CodeQL), a conventional title and the PR form filled in.
 
-## Como os releases acontecem (sem ninguém apertar botão)
+## How releases happen (with nobody pressing a button)
 
-1. Cada merge em `main` atualiza um PR de release (`chore(main): release X.Y.Z`) com o `CHANGELOG.md` e a nova versão em `internal/version/version.go`, calculados dos commits.
-2. Quando esse PR é mesclado, o release-please cria a tag `vX.Y.Z` e a Release no GitHub.
-3. O workflow publica a imagem multi-arquitetura `ghcr.io/allanadegas/pier:X.Y.Z` (e `latest`) com SBOM e atestado de procedência, e atualiza o site no GitHub Pages.
-4. Quem usa o Pier vê o aviso de atualização no painel e roda o comando de upgrade mostrado nele.
+1. Each merge into `main` updates a release PR (`chore(main): release X.Y.Z`) with the `CHANGELOG.md` and the new version in `internal/version/version.go`, computed from the commits.
+2. When that PR is merged, release-please creates the tag `vX.Y.Z` and the GitHub Release.
+3. The workflow publishes the multi-architecture image `ghcr.io/allanadegas/pier:X.Y.Z` (and `latest`) with an SBOM and a provenance attestation, and updates the website on GitHub Pages.
+4. People using Pier see the update notice in the panel and run the upgrade command it shows.
 
-Você nunca edita a versão nem o `CHANGELOG.md` à mão.
-
-## English summary
-
-Pier is Apache-2.0 and is designed to keep working without a dedicated maintainer: CI gates merges, release-please publishes releases, Dependabot updates dependencies (see [GOVERNANCE.md](GOVERNANCE.md)).
-
-- **Setup:** Go 1.27.4+, Deno 2.9.5+, Docker (optional). `make dev-api` + `make dev-web`, or `make run`.
-- **Tests:** `make test` (go vet, `go test`, web typecheck and tests); CI also runs `go test -race`, site tests, gitleaks, govulncheck and CodeQL. New behaviour needs tests; tests never touch real networks or clouds. UI text is Portuguese with an English catalog entry (catalog tests enforce it); code, comments and identifiers are English.
-- **Commits:** Conventional Commits; PRs are squash-merged and the PR title is the commit message (checked by CI).
-- **Releases:** automatic. Merging the release PR opened by release-please tags `vX.Y.Z`, publishes `ghcr.io/allanadegas/pier:X.Y.Z` (amd64 + arm64, SBOM, provenance) and the site. Never bump versions or edit `CHANGELOG.md` by hand.
-- **Security issues:** report privately, see [SECURITY.md](SECURITY.md).
+You never edit the version or `CHANGELOG.md` by hand.
