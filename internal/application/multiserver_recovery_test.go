@@ -201,3 +201,32 @@ func TestJournalRetainsRemovedServerAsUnresolvedTarget(t *testing.T) {
 		t.Fatalf("removed target silently forgotten: %+v %v", got, err)
 	}
 }
+
+func TestResumeEarlyFailureRetainsUnresolvedCrashStep(t *testing.T) {
+	for _, state := range []string{StepReleasing, StepRestoreFailed} {
+		t.Run(state, func(t *testing.T) {
+			p := newPlacementFixture(t, recoveryConfig(), "srv2")
+			ctx := context.Background()
+			j := p.multi.journal
+			previous := digestRef("acme/old", "a")
+			for _, err := range []error{j.begin(ctx, p.app.ID, "origin", []string{"srv1", "srv2"}), j.setImage(ctx, p.app.ID, digestRef("acme/web", "c")), j.step(ctx, p.app.ID, "srv1", state, &previous), j.interrupt(ctx, p.app.ID, RolloutReleasing, ""), j.claim(ctx, p.app.ID, "resume", false)} {
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			deployment := Deployment{ID: "resume", ApplicationID: p.app.ID, Trigger: TriggerRolloutResume}
+			if err := p.store.insertDeployment(ctx, deployment); err != nil {
+				t.Fatal(err)
+			}
+			p.servers["srv1"].On("docker network inspect", "", 1)
+			log := &deployLog{store: p.store, hub: p.deployer.hub, deploymentID: deployment.ID}
+			if err := p.deployer.recoverRollout(ctx, deployment, p.app, log); err == nil {
+				t.Fatal("expected network failure")
+			}
+			got, _, err := j.load(ctx, p.app.ID)
+			if err != nil || got.State != RolloutInterrupted || got.Servers[0].State != state || got.Servers[0].PreviousImage != previous {
+				t.Fatalf("unresolved crash state discarded: %+v %v", got, err)
+			}
+		})
+	}
+}

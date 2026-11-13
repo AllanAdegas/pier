@@ -276,7 +276,7 @@ func (r *rollout) compensate(ctx context.Context, failedID string, cause error) 
 	var outcome error
 	if len(r.released) == 0 {
 		outcome = i18n.Errorf("o deploy falhou em %s; os servidores continuam na versão anterior: %w", failedName, cause)
-		r.setJournalState(ctx, RolloutFailed, outcome)
+		r.finishCompensation(ctx, outcome)
 		return outcome
 	}
 	if err := r.journal().setState(context.WithoutCancel(ctx), r.app.ID, RolloutCompensating, ""); err != nil {
@@ -291,8 +291,28 @@ func (r *rollout) compensate(ctx context.Context, failedID string, cause error) 
 	} else {
 		outcome = i18n.Errorf("o deploy falhou em %s; os servidores já atualizados voltaram para a versão anterior: %w", failedName, cause)
 	}
-	r.setJournalState(ctx, RolloutFailed, outcome)
+	r.finishCompensation(ctx, outcome)
 	return outcome
+}
+
+// finishCompensation must not discard an unresolved step from an earlier crash.
+// A resumed release can fail before releaseOn adds that server to released.
+func (r *rollout) finishCompensation(ctx context.Context, cause error) {
+	cleanup := context.WithoutCancel(ctx)
+	journal, _, err := r.journal().load(cleanup, r.app.ID)
+	if err != nil {
+		// Keep the active state recoverable if its outcome cannot be established.
+		return
+	}
+	for _, step := range journal.Servers {
+		if step.State == StepReleasing || step.State == StepReleased || step.State == StepRestoreFailed {
+			if err := r.journal().interrupt(cleanup, r.app.ID, RolloutCompensating, r.log.mask(describeFailure(cause))); err != nil {
+				r.log.Info("Não foi possível registrar o estado do rollout: %s", err)
+			}
+			return
+		}
+	}
+	r.setJournalState(ctx, RolloutFailed, cause)
 }
 
 // restoreReleased puts the previous version back on every released server,
