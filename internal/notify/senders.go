@@ -89,8 +89,11 @@ func (emailSender) Send(ctx context.Context, config map[string]string, event Eve
 	for i := range recipients {
 		recipients[i] = strings.TrimSpace(recipients[i])
 	}
-	message := "From: " + config["from"] + "\r\n" +
-		"To: " + strings.Join(recipients, ", ") + "\r\n" +
+	if hasLineBreak(config["from"]) || hasLineBreak(strings.Join(recipients, ",")) {
+		return fmt.Errorf("e-mail addresses must not contain line breaks")
+	}
+	message := "From: " + sanitizeHeader(config["from"]) + "\r\n" +
+		"To: " + sanitizeHeader(strings.Join(recipients, ", ")) + "\r\n" +
 		"Subject: " + sanitizeHeader(event.Title) + "\r\n" +
 		"MIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n" +
 		event.Message + "\r\n"
@@ -153,6 +156,8 @@ func sendMail(ctx context.Context, address, host string, auth smtp.Auth, from st
 	}
 	return client.Quit()
 }
+
+func hasLineBreak(value string) bool { return strings.ContainsAny(value, "\r\n") }
 
 func sanitizeHeader(value string) string {
 	return strings.NewReplacer("\r", " ", "\n", " ").Replace(value)

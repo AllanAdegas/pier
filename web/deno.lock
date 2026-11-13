@@ -4,6 +4,8 @@
     "jsr:@std/assert@1": "1.0.19",
     "jsr:@std/internal@^1.0.12": "1.0.14",
     "npm:@solidjs/router@~0.15.4": "0.15.4_solid-js@1.9.18",
+    "npm:@xterm/addon-fit@0.10.0": "0.10.0_@xterm+xterm@5.5.0",
+    "npm:@xterm/xterm@5.5.0": "5.5.0",
     "npm:prettier@3.3.3": "3.3.3",
     "npm:solid-js@^1.9.18": "1.9.18",
     "npm:typescript@*": "5.9.3",
@@ -485,6 +487,15 @@
     "@types/estree@1.0.10": {
       "integrity": "sha512-lTyOMnOcmRBzdCv6/4zUZCrEhV0xrqQiUZBZtVcbmLHBXKLnN8q89v/wKRF/Q0HbwVsqbIG3o5HDoFl9sduM+g=="
     },
+    "@xterm/addon-fit@0.10.0_@xterm+xterm@5.5.0": {
+      "integrity": "sha512-UFYkDm4HUahf2lnEyHvio51TNGiLK66mqP2JoATy7hRZeXaGMRDr00JiSF7m63vR5WKATF605yEggJKsw0JpMQ==",
+      "dependencies": [
+        "@xterm/xterm"
+      ]
+    },
+    "@xterm/xterm@5.5.0": {
+      "integrity": "sha512-hqJHYaQb5OptNunnyAnkHyM8aCjZ1MEIDTQu1iIbbTD/xops91NB5yq1ZK/dC2JDbVWtF23zUtl9JE2NqwT87A=="
+    },
     "babel-plugin-jsx-dom-expressions@0.40.11_@babel+core@7.29.13": {
       "integrity": "sha512-k7TkOv7uVYnrq/bYyVvG5cWOC9IObAGfmyW3aMkG8l2sq2qt/5THkUBja69PMLEGGi8G+fXB2Fh7eS4OwZRBoQ==",
       "dependencies": [
@@ -793,6 +804,8 @@
     "packageJson": {
       "dependencies": [
         "npm:@solidjs/router@~0.15.4",
+        "npm:@xterm/addon-fit@0.10.0",
+        "npm:@xterm/xterm@5.5.0",
         "npm:solid-js@^1.9.18",
         "npm:typescript@^5.9.3",
         "npm:vite-plugin-solid@^2.11.15",

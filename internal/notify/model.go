@@ -47,6 +47,9 @@ type Event struct {
 	Message    string    `json:"message"`
 	Resource   string    `json:"resource"`
 	OccurredAt time.Time `json:"occurred_at"`
+
+	// ResourceType says what Resource is (database, application, stack); empty when not set.
+	ResourceType string `json:"resource_type,omitempty"`
 }
 
 // Failure reports whether the event describes something that went wrong.

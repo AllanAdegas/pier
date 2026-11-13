@@ -17,6 +17,8 @@ const (
 	ProviderGitHub GitProvider = "github"
 	ProviderGitLab GitProvider = "gitlab"
 	ProviderGitea  GitProvider = "gitea"
+	// ProviderBitbucket is Bitbucket Cloud (signed webhooks, X-Hub-Signature).
+	ProviderBitbucket GitProvider = "bitbucket"
 )
 
 // WebhookResult tells the caller what the webhook did.
@@ -44,6 +46,9 @@ func parsePush(body []byte) (pushEvent, bool) {
 	if err := json.Unmarshal(body, &event); err != nil {
 		return pushEvent{}, false
 	}
+	if event.Ref == "" {
+		return parseBitbucketPush(body)
+	}
 	return event, true
 }
 
@@ -57,6 +62,9 @@ func verifyWebhook(provider GitProvider, secret string, header http.Header, body
 		return validHMAC(secret, body, header.Get("X-Gitea-Signature"))
 	case ProviderGitLab:
 		return constantTimeEqual(header.Get("X-Gitlab-Token"), secret)
+	case ProviderBitbucket:
+		signature, found := strings.CutPrefix(header.Get("X-Hub-Signature"), "sha256=")
+		return found && validHMAC(secret, body, signature)
 	}
 	return false
 }
@@ -71,6 +79,8 @@ func isPushEvent(provider GitProvider, header http.Header) bool {
 	case ProviderGitLab:
 		event := header.Get("X-Gitlab-Event")
 		return event == "Push Hook" || event == "Tag Push Hook"
+	case ProviderBitbucket:
+		return header.Get("X-Event-Key") == "repo:push"
 	}
 	return false
 }

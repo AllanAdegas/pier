@@ -1,0 +1,347 @@
+// Command openapi maintains a local, source-derived OpenAPI inventory.
+package main
+
+import (
+	"bytes"
+	"go/ast"
+	"go/format"
+	"go/parser"
+	"go/token"
+	"os"
+	"path/filepath"
+	"reflect"
+	"sort"
+	"strconv"
+	"strings"
+)
+
+type M = map[string]any
+type scope struct {
+	pkg     string
+	imports map[string]string
+}
+type typ struct {
+	expr ast.Expr
+	s    scope
+}
+type fun struct {
+	decl *ast.FuncDecl
+	s    scope
+}
+type route struct {
+	params                           *ast.FieldList
+	Pattern, Access, Handler, Source string
+	body                             ast.Node
+	s                                scope
+}
+
+var fs = token.NewFileSet()
+var types = map[string]typ{}
+var funcs = map[string]fun{}
+var schemas = M{}
+var globalVars = map[string]binding{}
+var constantExpr = map[string]binding{}
+var enumValues = map[string][]any{}
+var routes []route
+var unresolved []string
+
+func source(n ast.Node) string {
+	var b bytes.Buffer
+	if n != nil {
+		_ = format.Node(&b, fs, n)
+	}
+	return b.String()
+}
+func key(s scope, name string) string { return s.pkg + "." + name }
+func refName(e ast.Expr, s scope) string {
+	switch n := e.(type) {
+	case *ast.Ident:
+		return key(s, n.Name)
+	case *ast.SelectorExpr:
+		if p, ok := n.X.(*ast.Ident); ok {
+			return s.imports[p.Name] + "." + n.Sel.Name
+		}
+	case *ast.StarExpr:
+		return refName(n.X, s)
+	}
+	return ""
+}
+func schema(e ast.Expr, s scope) M {
+	switch n := e.(type) {
+	case *ast.StarExpr:
+		return M{"anyOf": []any{schema(n.X, s), M{"type": "null"}}}
+	case *ast.ArrayType:
+		if n.Len == nil && (source(n.Elt) == "byte" || source(n.Elt) == "uint8") {
+			return M{"type": "string", "contentEncoding": "base64"}
+		}
+		return M{"type": "array", "items": schema(n.Elt, s)}
+	case *ast.MapType:
+		return M{"type": "object", "additionalProperties": schema(n.Value, s)}
+	case *ast.InterfaceType:
+		return M{"type": []string{"object", "array", "string", "number", "boolean", "null"}, "description": "Arbitrary JSON supplied by the underlying engine/provider."}
+	case *ast.StructType:
+		props := M{}
+		required := []string{}
+		for _, f := range n.Fields.List {
+			tag := ""
+			if f.Tag != nil {
+				value, _ := strconv.Unquote(f.Tag.Value)
+				tag = reflect.StructTag(value).Get("json")
+			}
+			if tag == "-" {
+				continue
+			}
+			if len(f.Names) == 0 {
+				if name := strings.Split(tag, ",")[0]; name != "" {
+					props[name] = schema(f.Type, s)
+					continue
+				}
+				embeddedType := f.Type
+				if ptr, ok := embeddedType.(*ast.StarExpr); ok {
+					embeddedType = ptr.X
+				}
+				embedded := schema(embeddedType, s)
+				if ref, ok := embedded["$ref"].(string); ok {
+					embedded, _ = schemas[strings.TrimPrefix(ref, "#/components/schemas/")].(M)
+				}
+				if fields, ok := embedded["properties"].(M); ok {
+					for k, v := range fields {
+						props[k] = v
+					}
+				}
+				continue
+			}
+			parts := strings.Split(tag, ",")
+			name := parts[0]
+			if name == "" {
+				if !f.Names[0].IsExported() {
+					continue
+				}
+				name = f.Names[0].Name
+			}
+			props[name] = schema(f.Type, s)
+			if !strings.Contains(tag, "omitempty") {
+				required = append(required, name)
+			}
+		}
+		out := M{"type": "object", "properties": props}
+		if len(required) > 0 {
+			out["x-json-always-serialized"] = required
+		}
+		return out
+	case *ast.Ident:
+		switch n.Name {
+		case "string":
+			return M{"type": "string"}
+		case "bool":
+			return M{"type": "boolean"}
+		case "float32", "float64":
+			return M{"type": "number"}
+		case "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "byte":
+			return M{"type": "integer"}
+		case "any":
+			return schema(&ast.InterfaceType{}, s)
+		}
+	}
+	name := refName(e, s)
+	if name == "time.Time" {
+		return M{"type": "string", "format": "date-time"}
+	}
+	if name == "json.RawMessage" {
+		return schema(&ast.InterfaceType{}, s)
+	}
+	if name == "time.Duration" {
+		return M{"type": "integer", "description": "Duration in nanoseconds."}
+	}
+	if t, ok := types[name]; ok {
+		id := strings.ReplaceAll(name, "/", "_")
+		if _, exists := schemas[id]; !exists {
+			schemas[id] = M{"type": "object"}
+			schemas[id] = schema(t.expr, t.s)
+			if values := enumValues[name]; len(values) > 0 {
+				schemas[id].(M)["enum"] = values
+			}
+		}
+		return M{"$ref": "#/components/schemas/" + id}
+	}
+	return M{"type": "string", "description": "Go scalar: " + source(e)}
+}
+func parseRepo() error {
+	return filepath.WalkDir("internal", func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		f, err := parser.ParseFile(fs, path, nil, 0)
+		if err != nil {
+			return err
+		}
+		s := scope{pkg: strings.TrimPrefix(filepath.Dir(path), "internal/"), imports: map[string]string{}}
+		// Package names, rather than directories, match imported selectors.
+		s.pkg = f.Name.Name
+		for _, i := range f.Imports {
+			v, _ := strconv.Unquote(i.Path.Value)
+			n := filepath.Base(v)
+			if i.Name != nil {
+				n = i.Name.Name
+			}
+			s.imports[n] = n
+			if strings.HasPrefix(v, "pier/internal/") {
+				s.imports[n] = filepath.Base(v)
+			}
+		}
+		for _, d := range f.Decls {
+			switch n := d.(type) {
+			case *ast.GenDecl:
+				for _, sp := range n.Specs {
+					if v, ok := sp.(*ast.ValueSpec); ok {
+						for i, n := range v.Names {
+							if i < len(v.Values) {
+								constantExpr[key(s, n.Name)] = binding{v.Values[i], s}
+							}
+						}
+						for j, n := range v.Names {
+							if v.Type != nil {
+								globalVars[key(s, n.Name)] = binding{v.Type, s}
+								if j < len(v.Values) {
+									if lit, ok := v.Values[j].(*ast.BasicLit); ok && lit.Kind == token.STRING {
+										value, _ := strconv.Unquote(lit.Value)
+										enumValues[refName(v.Type, s)] = append(enumValues[refName(v.Type, s)], value)
+									}
+								}
+							} else if j < len(v.Values) {
+								if t, ts, yes := infer(v.Values[j], map[string]binding{}, s, 0); yes {
+									globalVars[key(s, n.Name)] = binding{t, ts}
+								}
+							}
+						}
+					}
+					if t, ok := sp.(*ast.TypeSpec); ok {
+						types[key(s, t.Name.Name)] = typ{t.Type, s}
+					}
+				}
+			case *ast.FuncDecl:
+				name := key(s, n.Name.Name)
+				if n.Recv != nil {
+					name = refName(n.Recv.List[0].Type, s) + "." + n.Name.Name
+				}
+				funcs[name] = fun{n, s}
+			}
+		}
+		return nil
+	})
+}
+func eval(e ast.Expr, env map[string]string) string {
+	switch n := e.(type) {
+	case *ast.BasicLit:
+		v, _ := strconv.Unquote(n.Value)
+		return v
+	case *ast.Ident:
+		if v := env[n.Name]; v != "" {
+			return v
+		}
+		if b, ok := constantExpr["httpapi."+n.Name]; ok {
+			return eval(b.e, env)
+		}
+		return ""
+	case *ast.SelectorExpr:
+		if b, ok := constantExpr[source(n)]; ok {
+			return eval(b.e, env)
+		}
+		return ""
+	case *ast.BinaryExpr:
+		l, r := eval(n.X, env), eval(n.Y, env)
+		if l != "" && r != "" {
+			return l + r
+		}
+	}
+	return ""
+}
+func scanRoutes() {
+	for _, f := range funcs {
+		if f.s.pkg != "httpapi" {
+			continue
+		}
+		env := map[string]string{}
+		ast.Inspect(f.decl.Body, func(n ast.Node) bool {
+			if v, ok := n.(*ast.ValueSpec); ok {
+				for i, name := range v.Names {
+					if i < len(v.Values) {
+						env[name.Name] = eval(v.Values[i], env)
+					}
+				}
+			}
+			if a, ok := n.(*ast.AssignStmt); ok && len(a.Lhs) == 1 && len(a.Rhs) == 1 {
+				if id, ok := a.Lhs[0].(*ast.Ident); ok {
+					env[id.Name] = eval(a.Rhs[0], env)
+				}
+			}
+			c, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			sel, ok := c.Fun.(*ast.SelectorExpr)
+			if !ok {
+				return true
+			}
+			name := sel.Sel.Name
+			if (name != "route" && name != "public" && name != "HandleFunc") || len(c.Args) < 2 {
+				return true
+			}
+			pat := eval(c.Args[1], env)
+			idx := 2
+			acc := "public"
+			if name == "HandleFunc" {
+				pat = eval(c.Args[0], env)
+				idx = 1
+			}
+			if name == "route" {
+				acc = source(c.Args[2])
+				idx = 3
+			}
+			pats := []string{pat}
+			if pat == "" {
+				expr := source(c.Args[1])
+				pats = dynamicPatterns(f, c.Args[1])
+				if len(pats) == 0 {
+					unresolved = append(unresolved, f.decl.Name.Name+": "+expr)
+					return true
+				}
+			}
+			for _, p := range pats {
+				if !strings.Contains(p, " ") {
+					unresolved = append(unresolved, f.decl.Name.Name+": "+source(c.Args[1]))
+					continue
+				}
+				h := c.Args[idx]
+				body := ast.Node(h)
+				hs := f.s
+				hn := source(h)
+				if se, ok := h.(*ast.SelectorExpr); ok {
+					if fn, yes := funcs["httpapi.API."+se.Sel.Name]; yes {
+						body = fn.decl.Body
+						hs = fn.s
+					}
+				}
+				if call, ok := h.(*ast.CallExpr); ok {
+					if se, yes := call.Fun.(*ast.SelectorExpr); yes {
+						if se.Sel.Name == "volumeResource" {
+							se, _ = call.Args[1].(*ast.SelectorExpr)
+						}
+						if se != nil {
+							if fn, yes := funcs["httpapi.API."+se.Sel.Name]; yes {
+								body = fn.decl.Body
+								hs = fn.s
+							}
+						}
+					}
+				}
+				routes = append(routes, route{f.decl.Type.Params, p, acc, hn, fs.Position(c.Pos()).Filename, body, hs})
+			}
+			return true
+		})
+	}
+	sort.Slice(routes, func(i, j int) bool { return routes[i].Pattern < routes[j].Pattern })
+}

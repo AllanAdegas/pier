@@ -1,3 +1,4 @@
+import { PlacementTab } from "./application/Placement";
 import { useNavigate, useParams, useSearchParams } from "@solidjs/router";
 import { For, Match, Show, Switch } from "solid-js";
 import { Button } from "../components/Button";
@@ -10,6 +11,7 @@ import { api } from "../lib/api";
 import { resourceStatus } from "../lib/format";
 import { createAction, createQuery } from "../lib/query";
 import type { Application, Container, Deployment } from "../lib/types";
+import { PreviewsTab } from "./application/Previews";
 import { AutomationTab } from "./application/Automation";
 import { ConfigTab } from "./application/Config";
 import { DeploysTab } from "./application/Deploys";
@@ -22,7 +24,9 @@ const TABS = [
   { id: "deploys", label: "Deploys" },
   { id: "logs", label: "Logs" },
   { id: "config", label: t("Configuração") },
+  { id: "placement", label: t("Destinos") },
   { id: "env", label: t("Variáveis") },
+  { id: "previews", label: "Previews" },
   { id: "automation", label: t("Automação") },
 ];
 
@@ -108,6 +112,8 @@ export function ApplicationPage() {
             />
             <Tabs tabs={TABS} selected={tab()} onSelect={(id) => setSearch({ tab: id })} />
             <Switch>
+ <Match when={tab() === "placement"}><PlacementTab application={app()} /></Match>
+              <Match when={tab() === "previews"}><PreviewsTab applicationId={app().id} /></Match>
               <Match when={tab() === "overview"}>
                 <OverviewTab application={app()} containers={containers.data() ?? []} deployments={deployments.data() ?? []} />
               </Match>

@@ -131,6 +131,9 @@ func (m *Monitor) syncApplications(ctx context.Context, serverID string, groups 
 		return
 	}
 	for _, app := range apps {
+		if m.syncPlacement(ctx, app, serverID) {
+			continue
+		}
 		if app.ServerID == serverID {
 			_ = m.Applications.SetStatus(ctx, app.ID, docker.Summarize(groups[app.ID]))
 		}

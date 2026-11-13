@@ -20,7 +20,7 @@ export function EnvEditor(props: { basePath: string; allowBuildTime?: boolean; n
   );
   const application = createQuery(
     () => props.basePath.startsWith("/applications/") && props.basePath,
-    (base) => api.get<Application>(base),
+    (base) => api.get<Application>(base.replace(/\/previews$/, "")),
   );
   const databases = createQuery(
     () => application.data()?.environment_id,

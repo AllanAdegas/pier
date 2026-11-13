@@ -138,7 +138,7 @@ func TestValidationRejectsUnsafeDatabaseSettings(t *testing.T) {
 			t.Errorf("expected an error on %q, got %v", field, appErr.Fields)
 		}
 	}
-	database := create(t, service, EngineRedis)
+	database := create(t, service, EngineClickHouse)
 	config := database.Config
 	config.Backup = BackupPolicy{Enabled: true, Cron: "0 3 * * *"}
 	if _, err := service.Update(ctx, database.ID, UpdateInput{Name: "x", Config: config}); err == nil {

@@ -30,6 +30,8 @@ func builderFor(pack BuildPack) (builder, error) {
 		return guardedBuilder{staticBuilder{}}, nil
 	case PackNixpacks:
 		return guardedBuilder{nixpacksBuilder{}}, nil
+	case PackRailpack:
+		return guardedBuilder{railpackBuilder{}}, nil
 	case PackImage:
 		return imageBuilder{}, nil
 	}
@@ -74,7 +76,13 @@ func (j *job) dockerBuild(ctx context.Context, dockerfile string) (string, error
 	args := []string{"docker", "buildx", "build", "--builder", builderName, "--load", "--progress", "plain", "--tag", image, "--file", dockerfile,
 		"--label", docker.LabelManaged + "=true", "--label", docker.LabelID + "=" + j.app.ID}
 
+	if j.app.Config.Build.Pack == PackDockerfile && j.app.Config.Build.Target != "" {
+		args = append(args, "--target", j.app.Config.Build.Target)
+	}
 	buildArgs := j.buildArgs()
+	if j.app.Config.Build.Pack == PackRailpack {
+		buildArgs = j.railpackBuildArgs()
+	}
 	args = append(args, buildArgs...)
 	args = append(args, j.contextDir())
 
@@ -164,7 +172,7 @@ type imageBuilder struct{}
 func (imageBuilder) build(ctx context.Context, j *job) (string, error) {
 	image := j.app.Config.Source.Image
 	j.log.Command("docker pull " + image)
-	if err := j.ex.Stream(ctx, shell.Join("docker", "pull", image), j.log.Output); err != nil {
+	if err := j.pullImage(ctx, image); err != nil {
 		// A registry outage or rate limit must not block a deploy whose image
 		// is already on the server.
 		if ctx.Err() != nil || !docker.ImageExists(ctx, j.ex, image) {

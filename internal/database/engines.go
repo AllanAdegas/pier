@@ -143,6 +143,7 @@ var catalog = []engineSpec{
 		},
 		Environment: func(c Credentials) map[string]string { return map[string]string{"REDISCLI_AUTH": c.Password} },
 		Healthcheck: `redis-cli ping | grep -q PONG`,
+		Dump:        keyValueDump(EngineRedis),
 	},
 	{
 		Engine: EngineKeyDB, Label: "KeyDB", DefaultImage: "eqalpha/keydb:latest", Port: 6379,
@@ -153,6 +154,7 @@ var catalog = []engineSpec{
 		},
 		Environment: func(c Credentials) map[string]string { return map[string]string{"REDISCLI_AUTH": c.Password} },
 		Healthcheck: `keydb-cli ping | grep -q PONG`,
+		Dump:        keyValueDump(EngineKeyDB),
 	},
 	{
 		Engine: EngineDragonfly, Label: "Dragonfly", Port: 6379,
@@ -164,6 +166,7 @@ var catalog = []engineSpec{
 		},
 		Environment: func(c Credentials) map[string]string { return map[string]string{"REDISCLI_AUTH": c.Password} },
 		Healthcheck: `redis-cli ping | grep -q PONG`,
+		Dump:        keyValueDump(EngineDragonfly),
 	},
 	{
 		Engine: EngineClickHouse, Label: "ClickHouse", DefaultImage: "clickhouse/clickhouse-server:latest",

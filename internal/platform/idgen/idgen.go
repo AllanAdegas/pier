@@ -27,7 +27,7 @@ func New() string {
 // Password returns a random alphanumeric secret of the given length.
 func Password(length int) string {
 	const charset = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
-	out := make([]byte, length)
+	out := make([]byte, boundedLength(length))
 	for i := range out {
 		out[i] = pick(charset)
 	}
@@ -38,7 +38,7 @@ func Password(length int) string {
 // that demands it. The symbols are safe inside URLs, shells and YAML.
 func PasswordWithSymbols(length int) string {
 	const charset = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789-_.~+*"
-	out := make([]byte, length)
+	out := make([]byte, boundedLength(length))
 	for i := range out {
 		out[i] = pick(charset)
 	}
@@ -51,8 +51,20 @@ func Token(n int) string { return hex.EncodeToString(randomBytes(n)) }
 // Base64 returns n random bytes base64-encoded.
 func Base64(n int) string { return base64.StdEncoding.EncodeToString(randomBytes(n)) }
 
+// maxLength bounds every generated value: callers ask for at most 128.
+const maxLength = 4096
+
+// boundedLength fails fast on a programming error instead of allocating
+// whatever size a caller passes.
+func boundedLength(n int) int {
+	if n < 0 || n > maxLength {
+		panic("idgen: length out of range")
+	}
+	return n
+}
+
 func randomBytes(n int) []byte {
-	buf := make([]byte, n)
+	buf := make([]byte, boundedLength(n))
 	// crypto/rand.Read never fails on supported platforms (it panics instead).
 	_, _ = rand.Read(buf)
 	return buf

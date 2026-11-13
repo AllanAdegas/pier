@@ -38,7 +38,7 @@ A nova versão conta como pronta assim:
 - **com health check:** quando o Docker a marca como saudável;
 - **sem health check:** quando passa 6 segundos rodando sem reiniciar.
 
-Se ela não ficar pronta, é descartada e **a anterior continua no ar**. O log mostra o motivo e, quando reconhece o erro, uma explicação com a correção. Exemplos: falta de memória, script de início ausente, disco cheio, porta errada.
+Se ela não ficar pronta, é descartada e a versão anterior é preservada. Com portas fixas do host, não é possível manter as duas simultaneamente: há uma interrupção para liberar a porta, e o Pier tenta reiniciar os containers originais se a tentativa falhar. Essa compensação não desfaz migrações ou alterações externas e pode exigir intervenção se o Docker não conseguir iniciar a versão anterior. O log mostra o motivo e, quando reconhece o erro, uma explicação com a correção. Exemplos: falta de memória, script de início ausente, disco cheio, porta errada.
 
 Deploys da mesma aplicação nunca rodam em paralelo. De aplicações diferentes, rodam até `PIER_DEPLOY_CONCURRENCY` ao mesmo tempo (padrão 2).
 
@@ -122,7 +122,7 @@ Na aba **Automação**:
 
 **Promover** leva a imagem exata, identificada pelo digest, que está rodando numa aplicação, por exemplo `api-staging`, para outra, como `api`. A imagem não é reconstruída: produção recebe o mesmo artefato testado, com as **variáveis da aplicação de destino**.
 
-A promoção funciona entre aplicações do mesmo servidor e respeita o congelamento do ambiente de destino.
+A promoção funciona no mesmo servidor e, quando há digest publicado acessível, entre servidores. Respeita o congelamento do ambiente de destino. Veja [múltiplos servidores](/docs/multisservidor/).
 
 ```sh
 pierctl promote api-staging --to api --wait
@@ -131,3 +131,12 @@ pierctl promote api-staging --to api --wait
 ## Configuração no repositório
 
 Um arquivo `pier.yaml` na raiz do código pode definir porta, build, health check, comando de release, limites e processos. Ele vale para cada deploy. Veja [pier.yaml e apply](/docs/pier-yaml/).
+
+
+## Configuração avançada e destinos
+
+Para Railpack, estágio do Dockerfile, reinício, encerramento gracioso, variáveis compartilhadas e clonagem, siga [Build e configuração](/docs/build-e-configuracao/). Para servidor de build separado, registry privado e uma aplicação em vários destinos, veja [Registry e múltiplos servidores](/docs/multisservidor/).
+
+### Binds e privilégios do host
+
+Binds de diretórios do servidor e opções perigosas exigem um proprietário da **instância**, além da política Docker explícita. Ser administrador ou proprietário apenas do projeto não autoriza gravar essa configuração, mesmo com a política ligada. Prefira volumes nomeados do recurso. A permissão de deploy de uma configuração já autorizada permanece sujeita à política vigente.

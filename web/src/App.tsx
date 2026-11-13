@@ -1,3 +1,5 @@
+import { TeamPage } from "./pages/access/Team";
+import { GitProvidersPage } from "./pages/settings/GitProviders";
 import { Route, Router } from "@solidjs/router";
 import { Match, onMount, Switch } from "solid-js";
 import { Toasts } from "./components/Feedback";
@@ -19,6 +21,8 @@ import { SettingsPage } from "./pages/Settings";
 import { StackPage } from "./pages/StackPage";
 import { NotFoundPage } from "./pages/NotFound";
 import { MonitoringPage } from "./pages/Monitoring";
+import { CloudServersPage } from "./pages/server/CloudServers";
+import { LogDrainsPage } from "./pages/server/LogDrains";
 import { t } from "./i18n";
 
 export function App() {
@@ -42,6 +46,7 @@ export function App() {
             <Route path="/" component={DashboardPage} />
             <Route path="/projects" component={ProjectsPage} />
             <Route path="/projects/:id" component={ProjectDetailPage} />
+            <Route path="/projects/:id/access" component={TeamPage} />
             <Route path="/projects/:id/new" component={NewResourcePage} />
             <Route path="/applications/:id" component={ApplicationPage} />
             <Route path="/databases/:id" component={DatabasePage} />
@@ -51,11 +56,14 @@ export function App() {
             <Route path="/servers" component={ServersPage} />
             <Route path="/monitoring" component={MonitoringPage} />
             <Route path="/servers/:id" component={ServerDetailPage} />
+            <Route path="/infrastructure/cloud" component={CloudServersPage} />
+            <Route path="/infrastructure/log-drains" component={LogDrainsPage} />
             <Route path="/clusters" component={ClustersPage} />
             <Route path="/clusters/:id" component={ClusterPage} />
             <Route path="/security" component={SecurityPage} />
             <Route path="/notifications" component={NotificationsPage} />
             <Route path="/settings" component={SettingsPage} />
+            <Route path="/settings/git-provider" component={GitProvidersPage} />
             <Route path="*" component={NotFoundPage} />
           </Router>
         </Match>

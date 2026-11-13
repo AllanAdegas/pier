@@ -2,14 +2,14 @@ Atualizar o Pier é trocar a versão do código e rodar o instalador de novo. Os
 
 ## Versões
 
-O Pier segue o [versionamento semântico](https://semver.org/lang/pt-BR/). Cada versão estável é uma tag `vX.Y.Z` no repositório, com as notas em [Releases]({{repo}}/releases). A versão estável atual é a **{{version}}**.
+O Pier segue o [versionamento semântico](https://semver.org/lang/pt-BR/). Cada versão beta é uma tag `vX.Y.Z` no repositório, com as notas em [Releases]({{repo}}/releases). A versão beta atual é a **{{version}}**.
 
 Enquanto o número começar com `0.`, uma versão nova pode mudar comportamentos. Leia as notas antes de atualizar.
 
 ## Antes de atualizar
 
 1. Faça um [backup da instância](/docs/backup/) e guarde fora do servidor.
-2. Copie o banco do Pier. As migrations não têm volta, então esta cópia é o seu caminho para voltar à versão anterior:
+2. Pare o painel com `docker compose stop pier` e copie o banco do Pier. Não copie um SQLite ativo sem coordenar seu WAL. As migrations não têm volta, então esta cópia é o seu caminho para voltar à versão anterior:
 
    ```sh
    . ./.env
@@ -28,7 +28,7 @@ git checkout vX.Y.Z
 ./install.sh
 ```
 
-O instalador reconstrói a imagem e recria o container. O `.env` é mantido. O painel fica fora do ar por alguns segundos, mas as aplicações continuam respondendo.
+O instalador baixa a imagem GHCR da versão selecionada e recria o container. O pacote precisa estar publicado e acessível à sua conta; veja [acesso privado](/docs/instalacao/#acesso-enquanto-o-projeto-e-privado). Para construir o código localmente, use `PIER_BUILD=1 ./install.sh`. O `.env` é mantido. O painel fica fora do ar por alguns segundos, mas as aplicações continuam respondendo.
 
 Confira a versão em execução:
 

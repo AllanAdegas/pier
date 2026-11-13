@@ -12,6 +12,7 @@ import (
 	"pier/internal/platform/executor"
 	"pier/internal/platform/i18n"
 	"pier/internal/platform/shell"
+	"pier/internal/registry"
 	"pier/internal/server"
 )
 
@@ -32,17 +33,21 @@ type KeyVault interface {
 
 // job is the working state of one deployment being executed.
 type job struct {
-	app        Application
-	deployment Deployment
-	server     server.Server
-	ex         executor.Executor
-	log        *deployLog
-	env        []envvar.Variable
-	domains    DomainChecker
+	app         Application
+	deployment  Deployment
+	server      server.Server
+	ex          executor.Executor
+	log         *deployLog
+	env         []envvar.Variable
+	domains     DomainChecker
+	gitProvider GitCredentials
+	registries  *registry.Service
 }
 
 // Deployer executes deployments: fetch source, build image, release.
 type Deployer struct {
+	multi     *MultiServer
+	images    *registry.Service
 	store     *Store
 	env       *envvar.Store
 	connector Connector
@@ -52,6 +57,11 @@ type Deployer struct {
 	logger    *slog.Logger
 	archives  archiveStore
 	domains   DomainChecker
+	// previewReporter tells the Git provider about previews; nil reports nothing.
+	previewReporter PreviewReporter
+	gitProvider     GitCredentials
+	// deploymentReporter sets commit statuses; nil reports nothing.
+	deploymentReporter DeploymentReporter
 }
 
 // SetArchiveDir sets where uploaded source archives wait for their deployment.
@@ -122,6 +132,11 @@ func (d *Deployer) finish(ctx context.Context, deployment Deployment, status Dep
 	if err := d.store.finishDeployment(ctx, deployment.ID, status, failure); err != nil {
 		d.logger.Error("finish deployment", "deployment", deployment.ID, "error", err)
 	}
+	d.reportDeploymentFinished(ctx, deployment, status)
+	if deployment.Trigger == TriggerPreview {
+		d.finishPreview(ctx, deployment, status, failure)
+		return
+	}
 	switch status {
 	case DeploymentFinished:
 		d.events.Publish(notify.Event{
@@ -139,9 +154,18 @@ func (d *Deployer) finish(ctx context.Context, deployment Deployment, status Dep
 }
 
 func (d *Deployer) execute(ctx context.Context, deployment Deployment, log *deployLog) error {
+	if deployment.Trigger == TriggerPreview {
+		return d.executePreview(ctx, deployment, log)
+	}
 	app, err := d.store.Get(ctx, deployment.ApplicationID)
 	if err != nil {
 		return i18n.Errorf("carregar aplicação: %w", err)
+	}
+	if err := d.checkDeployPolicy(ctx, app); err != nil {
+		return err
+	}
+	if handled, err := d.placementHook(ctx, deployment, app, log); handled {
+		return err
 	}
 	log.repository(app.Config.Source.Repository)
 	variables, err := d.env.ListForDeploy(ctx, envvar.Owner{Type: envvar.OwnerApplication, ID: app.ID}, app.EnvironmentID, app.ServerID)
@@ -152,6 +176,9 @@ func (d *Deployer) execute(ctx context.Context, deployment Deployment, log *depl
 		log.redact(variable.Value)
 	}
 	log.Info("Iniciando deploy de %q (%s).", app.Name, deployment.Trigger)
+	if err := server.CheckConnectorDeployment(ctx, d.connector, app.ServerID); err != nil {
+		return err
+	}
 	ex, target, err := d.connector.Executor(ctx, app.ServerID)
 	if err != nil {
 		return i18n.Errorf("conectar ao servidor: %w", err)
@@ -161,7 +188,10 @@ func (d *Deployer) execute(ctx context.Context, deployment Deployment, log *depl
 	if err := docker.EnsureNetwork(ctx, ex); err != nil {
 		return err
 	}
-	j := &job{app: app, deployment: deployment, server: target, ex: ex, log: log, env: variables, domains: d.domains}
+	if err := d.engineDeployPreflight(ctx, &app, target, ex, log); err != nil {
+		return err
+	}
+	j := &job{app: app, deployment: deployment, server: target, ex: ex, log: log, env: variables, domains: d.domains, gitProvider: d.gitProvider, registries: d.images}
 	defer func() {
 		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cleanupTimeout)
 		defer cancel()
@@ -195,6 +225,9 @@ func (d *Deployer) execute(ctx context.Context, deployment Deployment, log *depl
 // produceImage returns the image to run: the one being rolled back to, or a
 // freshly built (or pulled) one.
 func (d *Deployer) produceImage(ctx context.Context, j *job) (string, error) {
+	if err := d.ensureRegistryImage(ctx, j); err != nil {
+		return "", err
+	}
 	if j.deployment.Trigger == TriggerPromotion {
 		return j.promotedImage(ctx)
 	}
@@ -255,7 +288,11 @@ func (d *Deployer) checkout(ctx context.Context, j *job) error {
 	}
 	j.deployment.CommitSHA, j.deployment.CommitMessage = sha, message
 	j.log.Info("Commit %s — %s", shortSHA(sha), message)
-	return d.store.setDeploymentCommit(ctx, j.deployment.ID, sha, message)
+	if err := d.store.setDeploymentCommit(ctx, j.deployment.ID, sha, message); err != nil {
+		return err
+	}
+	d.reportDeploymentStarted(ctx, j)
+	return nil
 }
 
 // pruneImages keeps only the images of the most recent successful

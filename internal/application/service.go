@@ -40,11 +40,15 @@ type UpdateInput struct {
 
 // Service implements the application use cases.
 type Service struct {
+	multi      *MultiServer
 	store      *Store
 	env        *envvar.Store
 	connector  Connector
 	dispatcher *Dispatcher
 	guard      DeployGuard
+	previews   *PreviewService
+	// commits expands abbreviated commits of Bitbucket pull requests.
+	commits CommitResolver
 }
 
 // DeployGuard decides whether an environment accepts deployments now (a
@@ -57,6 +61,9 @@ type DeployGuard interface {
 func (s *Service) SetDeployGuard(guard DeployGuard) { s.guard = guard }
 
 func (s *Service) checkDeploy(ctx context.Context, app Application) error {
+	if err := server.CheckConnectorDeployment(ctx, s.connector, app.ServerID); err != nil {
+		return err
+	}
 	if s.guard == nil {
 		return nil
 	}
@@ -100,6 +107,9 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Application, e
 	if err := mergeFieldErrors(fields, app.Config.Validate()); err != nil {
 		return Application{}, err
 	}
+	if err := s.store.checkDockerOptionsPolicy(ctx, app.Config); err != nil {
+		return Application{}, err
+	}
 	if err := s.store.insert(ctx, app, idgen.Token(24)); err != nil {
 		return Application{}, err
 	}
@@ -122,6 +132,9 @@ func (s *Service) Update(ctx context.Context, id string, input UpdateInput) (App
 	if err := mergeFieldErrors(fields, app.Config.Validate()); err != nil {
 		return Application{}, err
 	}
+	if err := s.store.checkDockerOptionsPolicy(ctx, app.Config); err != nil {
+		return Application{}, err
+	}
 	if err := s.store.update(ctx, app); err != nil {
 		return Application{}, notFound(err, "Aplicação")
 	}
@@ -140,7 +153,18 @@ func (s *Service) Delete(ctx context.Context, id string, deleteVolumes, force bo
 		return err
 	}
 	defer resume()
-	if err := s.removeFromServer(ctx, app, deleteVolumes); err != nil && !force {
+	targets, err := s.placementTargets(ctx, app)
+	if err != nil {
+		return err
+	}
+	cleanup := s.removePreviewsFromServer(ctx, app)
+	for _, target := range targets {
+		view := app
+		view.ServerID = target
+		cleanup = errors.Join(cleanup, s.removeFromServer(ctx, view, deleteVolumes))
+	}
+
+	if err := cleanup; err != nil && !force {
 		return apperr.Unavailable("Não foi possível limpar o servidor (%s). Use a remoção forçada para "+
 			"apagar apenas o registro.", err)
 	}
@@ -313,7 +337,7 @@ func (s *Service) Containers(ctx context.Context, id string) ([]ApplicationConta
 
 // Stop stops the running containers without removing them.
 func (s *Service) Stop(ctx context.Context, id string) error {
-	return s.operate(ctx, id, docker.StatusStopped, docker.Stop)
+	return s.operate(ctx, id, docker.StatusStopped, stopApplicationContainers)
 }
 
 // Start starts containers previously stopped.
@@ -323,12 +347,15 @@ func (s *Service) Start(ctx context.Context, id string) error {
 
 // Restart restarts the containers in place (no new build).
 func (s *Service) Restart(ctx context.Context, id string) error {
-	return s.operate(ctx, id, docker.StatusRunning, docker.Restart)
+	return s.operate(ctx, id, docker.StatusRunning, restartApplicationContainers)
 }
 
 type containerOperation func(ctx context.Context, ex executor.Executor, containers []docker.Container) error
 
 func (s *Service) operate(ctx context.Context, id, resultingStatus string, operation containerOperation) error {
+	if handled, err := s.placementOperate(ctx, id, resultingStatus, operation); handled {
+		return err
+	}
 	ex, containers, err := s.reach(ctx, id)
 	if err != nil {
 		return err
@@ -390,6 +417,16 @@ func (s *Service) HandleGitPush(ctx context.Context, id string, provider GitProv
 	secret, err := s.WebhookSecret(ctx, id)
 	if err != nil || !verifyWebhook(provider, secret, header, body) {
 		return WebhookResult{}, apperr.Unauthorized("Assinatura do webhook inválida.")
+	}
+	return s.handleGitEvent(ctx, id, provider, header, body)
+}
+
+// handleGitEvent reacts to a webhook event already authenticated, by the
+// application secret or by the GitHub App.
+func (s *Service) handleGitEvent(ctx context.Context, id string, provider GitProvider,
+	header http.Header, body []byte) (WebhookResult, error) {
+	if isPullRequestEvent(provider, header) {
+		return s.handlePullRequest(ctx, id, provider, body)
 	}
 	if !isPushEvent(provider, header) {
 		return WebhookResult{Reason: i18n.FromContext(ctx).Text("Evento ignorado: apenas push dispara deploy.")}, nil

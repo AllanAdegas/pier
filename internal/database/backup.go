@@ -294,7 +294,7 @@ func (s *Service) deleteBackup(ctx context.Context, backupID string) error {
 		return err
 	}
 	var running int
-	if err := s.store.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM database_operations WHERE backup_id=? AND status='running'`, backupID).Scan(&running); err != nil {
+	if err := s.store.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM database_operations WHERE backup_id=? AND (status='running' OR resume_containers!='[]')`, backupID).Scan(&running); err != nil {
 		return err
 	}
 	if running > 0 {

@@ -2,13 +2,7 @@ package application
 
 import (
 	"context"
-	"encoding/base64"
-	"errors"
-	"fmt"
-	"net/url"
 	"path"
-	"strings"
-	"time"
 
 	"pier/internal/platform/i18n"
 	"pier/internal/platform/shell"
@@ -46,86 +40,12 @@ echo "PIER_COMMIT $(git log -1 --format='%H %s')"`
 // fetchSource clones the repository into the build directory and returns the
 // commit that was checked out.
 func (j *job) fetchSource(ctx context.Context, privateKey string) (sha, message string, err error) {
-	release, acquireErr := acquireBuild(ctx, j.app.ServerID, j.log)
-	if acquireErr != nil {
-		return "", "", acquireErr
-	}
-	defer release()
-	source := j.app.Config.Source
-	buildDir := j.server.BuildDir(j.deployment.ID)
-	if _, err := j.ex.Run(ctx, shell.Join("mkdir", "-p", buildDir)); err != nil {
-		return "", "", fmt.Errorf("create build directory: %w", err)
-	}
-	envPath := path.Join(buildDir, "clone.env")
-	secretPaths := []string{envPath}
-	defer func() {
-		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
-		defer cancel()
-		if cleanupErr := removeBuildCredentials(cleanupCtx, j.ex, secretPaths...); cleanupErr != nil {
-			err = errors.Join(err, cleanupErr)
-		}
-	}()
 	ref, commit := j.checkoutRef()
-	values := map[string]string{
-		"PIER_REPOSITORY": source.Repository, "PIER_BRANCH": ref,
-		"PIER_COMMIT": commit, "GIT_TERMINAL_PROMPT": "0",
-	}
-	if parsed, parseErr := url.Parse(source.Repository); parseErr == nil && parsed.User != nil {
-		password, _ := parsed.User.Password()
-		authorization := "Basic " + base64.StdEncoding.EncodeToString([]byte(parsed.User.Username()+":"+password))
-		j.log.redact(password)
-		j.log.redact(authorization)
-		parsed.User = nil
-		values["PIER_REPOSITORY"] = parsed.String()
-		// Git's process-only config also applies to relative submodule URLs.
-		values["GIT_CONFIG_COUNT"] = "1"
-		values["GIT_CONFIG_KEY_0"] = "http." + parsed.Scheme + "://" + parsed.Host + "/.extraHeader"
-		values["GIT_CONFIG_VALUE_0"] = "Authorization: " + authorization
-	}
-	content, envErr := dockerEnvFile(values)
-	if envErr != nil {
-		return "", "", envErr
-	}
-	if err := j.ex.WriteFile(ctx, envPath, content, 0o600); err != nil {
-		return "", "", err
-	}
-	args := []string{"docker", "run", "--rm", "--volume", buildDir + ":/work", "--env-file", envPath}
-	if privateKey != "" {
-		keyPath := path.Join(buildDir, deployKey)
-		secretPaths = append(secretPaths, keyPath)
-		if err := j.ex.WriteFile(ctx, keyPath, []byte(privateKey), 0o600); err != nil {
-			return "", "", err
-		}
-		trustDir := path.Join(j.server.ResourceDir("application", j.app.ID), "git")
-		if _, err := j.ex.Run(ctx, shell.Join("mkdir", "-p", trustDir)); err != nil {
-			return "", "", err
-		}
-		args = append(args, "--volume", keyPath+":/tmp/deploy_key:ro", "--volume", trustDir+":/trust")
-	}
-	args = append(args, "--entrypoint", "sh", gitImage, "-c", cloneScript)
-
-	j.log.Command(fmt.Sprintf("git clone --depth 1 --branch %s %s", ref, withoutCredentials(source.Repository)))
-	hostKeyFailed := false
-	sink := func(line string) {
-		if strings.Contains(line, "REMOTE HOST IDENTIFICATION HAS CHANGED") || strings.Contains(line, "Host key verification failed") {
-			hostKeyFailed = true
-		}
-		if commit, found := strings.CutPrefix(line, commitMarker); found {
-			sha, message, _ = strings.Cut(commit, " ")
-			return
-		}
-		j.log.Output(line)
-	}
-	if err := j.ex.Stream(ctx, shell.Join(args...), sink); err != nil {
-		if hostKeyFailed {
-			return "", "", i18n.Errorf("a chave SSH do host Git mudou ou não é confiável. Confirme a chave com o administrador do repositório e redefina a confiança Git da aplicação antes de tentar novamente: %w", err)
-		}
-		return "", "", i18n.Errorf("git clone falhou: %w", err)
-	}
-	if sha == "" {
-		return "", "", i18n.Errorf("git clone não informou o commit obtido")
-	}
-	return sha, message, nil
+	return CloneGitProvider(ctx, j.gitProvider, "application", j.deployment.ApplicationID, j.ex, CloneRequest{
+		Repository: j.app.Config.Source.Repository, Ref: ref, Commit: commit, PrivateKey: privateKey,
+		ServerID: j.app.ServerID, BuildDir: j.server.BuildDir(j.deployment.ID),
+		TrustDir: path.Join(j.server.ResourceDir("application", j.app.ID), "git"),
+	}, j.log)
 }
 
 // checkoutRef is what the clone checks out: the tag requested for this
@@ -141,38 +61,23 @@ func (j *job) checkoutRef() (ref, commit string) {
 	return j.app.Config.Source.Branch, j.app.Config.Source.Commit
 }
 
-// containmentScript prints "outside" when a path, once symbolic links are
-// resolved, leaves the checkout. Arguments: the checkout, then the paths.
-const containmentScript = `src=$(readlink -f -- "$1") || exit 1
-shift
-for target in "$@"; do
-  resolved=$(readlink -f -- "$target") || exit 1
-  case "$resolved/" in "$src/"*) ;; *) echo outside; exit 0 ;; esac
-done
-# Check every nested link, including dangling links and symlinked directories.
-find "$src" -type l -exec sh -c '
-  src=$1; link=$2
-  resolved=$(readlink -f -- "$link") || { printf "outside:%s\n" "$link"; exit; }
-  case "$resolved/" in "$src/"*) ;; *) printf "outside:%s\n" "$link" ;; esac
-' sh "$src" {} \;`
-
 // ensureInsideSource checks the build paths and every nested symlink before
 // handing the checkout to a builder that could follow links to host files.
 func (j *job) ensureInsideSource(ctx context.Context) error {
-	checkout := path.Join(j.server.BuildDir(j.deployment.ID), sourceDir)
 	targets := []string{j.contextDir()}
 	if j.app.Config.Build.Pack == PackDockerfile {
 		targets = append(targets, path.Join(j.contextDir(), j.app.Config.Build.DockerfilePath))
 	}
-	command := shell.Join(append([]string{"sh", "-c", containmentScript, "sh", checkout}, targets...)...)
-	output, err := j.ex.Run(ctx, command)
+	verdict, err := VerifyContained(ctx, j.ex, CheckoutPath(j.server.BuildDir(j.deployment.ID)), targets...)
 	if err != nil {
-		return i18n.Errorf("o diretório base ou o Dockerfile não existe no repositório: %w", err)
+		return err
 	}
-	if link, found := strings.CutPrefix(strings.TrimSpace(output), "outside:"); found {
-		return i18n.Errorf("o link simbólico %s aponta para fora do repositório ou não pode ser resolvido", strings.SplitN(link, "\n", 2)[0])
-	}
-	if strings.TrimSpace(output) == "outside" {
+	switch {
+	case verdict.Missing != nil:
+		return i18n.Errorf("o diretório base ou o Dockerfile não existe no repositório: %w", verdict.Missing)
+	case verdict.Escaping != "":
+		return i18n.Errorf("o link simbólico %s aponta para fora do repositório ou não pode ser resolvido", verdict.Escaping)
+	case verdict.PathEscapes:
 		return i18n.Errorf("o diretório base ou o Dockerfile aponta, por link simbólico, para fora do repositório")
 	}
 	return nil

@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	rbac "pier/internal/access"
 	"strings"
 	"testing"
 	"time"
@@ -35,8 +37,14 @@ func platformAPI(t *testing.T) *API {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
+	return platformAPIWith(t, db, dir)
+}
+
+// platformAPIWith builds the platform fixture over an existing database.
+func platformAPIWith(t *testing.T, db *sql.DB, dir string) *API {
+	t.Helper()
 	box, _ := secretbox.New("platform-test-instance-key")
-	return New(Dependencies{Identity: identity.NewService(identity.NewStore(db), time.Hour), Instance: &instance.Service{DB: db, DataDir: dir, Key: "platform-test-instance-key", Box: box}, Audit: &audit.Store{DB: db}, Monitoring: &monitor.State{DB: db}, Settings: settings.NewStore(db), Projects: project.NewService(db), Applications: application.NewService(application.NewStore(db, box), nil, nil, nil), Stacks: stack.NewService(db, nil, nil, nil), Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), SessionTTL: time.Hour})
+	return New(Dependencies{Access: testAccess(t, db), Identity: identity.NewService(identity.NewStore(db), time.Hour), Instance: &instance.Service{DB: db, DataDir: dir, Key: "platform-test-instance-key", Box: box}, Audit: &audit.Store{DB: db}, Monitoring: &monitor.State{DB: db}, Settings: settings.NewStore(db), Projects: project.NewService(db), Applications: application.NewService(application.NewStore(db, box), nil, nil, nil), Stacks: stack.NewService(db, nil, nil, nil), Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), SessionTTL: time.Hour})
 }
 func TestLimiterMemoryIsBoundedWithoutSweepingAndWindowsExpire(t *testing.T) {
 	l := newRateLimiter(2, time.Minute)
@@ -180,6 +188,7 @@ func TestAuditRecordsActorMaskedBodyRouteAndSensitiveRead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	grantRole(t, a, user.ID, rbac.Owner)
 	token, secret, err := a.Identity.CreateToken(context.Background(), user.ID, "ci", []identity.Ability{identity.AbilityWrite})
 	if err != nil {
 		t.Fatal(err)
@@ -232,6 +241,7 @@ func TestPublishedUptimeURLCannotEscapeOriginOrPublishedPath(t *testing.T) {
 func TestMonitoringRoutesEnforceAbilitiesAndBoundBodies(t *testing.T) {
 	a := platformAPI(t)
 	user, _ := a.Identity.CreateUser(context.Background(), "Alice", "alice@example.com", "test-password-long")
+	grantRole(t, a, user.ID, rbac.Owner)
 	_, read, _ := a.Identity.CreateToken(context.Background(), user.ID, "read", []identity.Ability{identity.AbilityRead})
 	_, write, _ := a.Identity.CreateToken(context.Background(), user.ID, "write", []identity.Ability{identity.AbilityWrite})
 	mux := http.NewServeMux()
@@ -295,6 +305,7 @@ func TestMonitoringUptimeLifecycleBindsToExistingPublishedResource(t *testing.T)
 	a.registerMonitoringRoutes(mux)
 	// Exercise the authenticated routing boundary and the real State store.
 	user, _ := a.Identity.CreateUser(ctx, "Alice", "alice@example.com", "test-password-long")
+	grantRole(t, a, user.ID, rbac.Owner)
 	_, secret, _ := a.Identity.CreateToken(ctx, user.ID, "write", []identity.Ability{identity.AbilityWrite})
 	send := func(method, path, body string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest(method, path, strings.NewReader(body))
@@ -362,6 +373,7 @@ func TestUnfreezeReasonIsAuditedEvenWhenAnUnusedFieldExceedsCaptureLimit(t *test
 		t.Fatal(err)
 	}
 	user, _ := a.Identity.CreateUser(ctx, "Alice", "alice@example.com", "test-password-long")
+	grantRole(t, a, user.ID, rbac.Owner)
 	_, secret, _ := a.Identity.CreateToken(ctx, user.ID, "write", []identity.Ability{identity.AbilityWrite})
 	body, _ := json.Marshal(map[string]any{"unused": strings.Repeat("x", 10000), "protected": false, "frozen": false, "reason": "incident resolved"})
 	mux := http.NewServeMux()

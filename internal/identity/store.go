@@ -87,7 +87,7 @@ func (s *Store) updatePassword(ctx context.Context, id, passwordHash string) err
 }
 
 func (s *Store) deleteUser(ctx context.Context, id string) error {
-	result, err := s.db.ExecContext(ctx, `DELETE FROM users WHERE id = ? AND (SELECT COUNT(*) FROM users) > 1`, id)
+	result, err := s.db.ExecContext(ctx, `DELETE FROM users WHERE id = ? AND (SELECT COUNT(*) FROM users) > 1 AND NOT EXISTS (SELECT 1 FROM access_instance_roles WHERE user_id=users.id AND role='owner' AND (SELECT COUNT(*) FROM access_instance_roles WHERE role='owner')<=1) AND NOT EXISTS (SELECT 1 FROM access_memberships m WHERE m.user_id=users.id AND m.role='owner' AND (SELECT COUNT(*) FROM access_memberships n WHERE n.project_id=m.project_id AND n.role='owner')<=1)`, id)
 	if err != nil {
 		return err
 	}
@@ -102,21 +102,6 @@ func (s *Store) deleteUser(ctx context.Context, id string) error {
 		return apperr.Conflict("A instância precisa de pelo menos um usuário.")
 	}
 	return nil
-}
-
-func (s *Store) insertSession(ctx context.Context, tokenHash, userID string, expiresAt time.Time) error {
-	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO sessions (token_hash, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)`,
-		tokenHash, userID, sqlite.FormatTime(expiresAt), sqlite.FormatTime(time.Now()))
-	return err
-}
-
-func (s *Store) sessionUserID(ctx context.Context, tokenHash string, now time.Time) (string, error) {
-	var userID string
-	err := s.db.QueryRowContext(ctx,
-		`SELECT user_id FROM sessions WHERE token_hash = ? AND expires_at > ?`,
-		tokenHash, sqlite.FormatTime(now)).Scan(&userID)
-	return userID, sqlite.NotFoundIfNoRows(err)
 }
 
 func (s *Store) deleteSession(ctx context.Context, tokenHash string) error {

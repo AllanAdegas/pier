@@ -46,7 +46,8 @@ A restauração é feita com o Pier **parado**, para não haver duas cópias esc
    ```sh
    sudo install -d -m 700 /root/restauracao
    sudo cp pier-2026-11-11.pierbak /root/restauracao/instancia.pierbak
-   printf '%s' 'sua frase-senha' | sudo tee /root/restauracao/frase > /dev/null
+   # Crie /root/restauracao/frase com um editor seguro; não exponha a frase no histórico.
+   sudo chmod 600 /root/restauracao/frase
    ```
 
 3. Rode a restauração com a mesma imagem do Pier. O comando usa o diretório de dados do `.env`:
@@ -87,7 +88,17 @@ Cada banco PostgreSQL, MySQL, MariaDB ou MongoDB tem backup agendado, cópia par
 
 ## Volumes das aplicações
 
-O Pier ainda não faz backup de volumes. Se uma aplicação guarda arquivos num volume, como uploads, copie a pasta do volume com uma ferramenta própria. Duas opções: uma tarefa agendada que envia os arquivos para um armazenamento externo, ou um serviço do catálogo de backup.
+Na aplicação ou stack, abra **Backups de volumes**. Os volumes aparecem após o primeiro deploy. Configure agenda, retenção, cópia S3 e quais diretórios devem entrar. Por padrão, diretórios externos ao caminho de dados do Pier ficam de fora; caminhos de sistema continuam proibidos.
+
+Use **Parar os containers durante o backup** quando precisar de dados consistentes: a aplicação fica indisponível enquanto o arquivo é gerado, inclusive nas execuções agendadas. Sem essa opção, um arquivo pode mudar durante a cópia. Para bancos ativos, prefira o backup lógico do banco.
+
+O backup é um `.tar.gz` dos volumes/diretórios selecionados; não é o backup cifrado da instância. Proteja o arquivo e o destino externo. Para restaurar, escolha um backup concluído e digite o nome exato do recurso. A restauração para o recurso, substitui o conteúdo dos volumes e inicia os containers ao final. Ela não mescla arquivos nem é uma migração automática para outro servidor. Teste em dados descartáveis antes de restaurar produção.
+
+Acompanhe a operação até concluir e confira os arquivos da aplicação. Backup no mesmo disco não protege contra perda do servidor.
+
+## Redis, KeyDB e Dragonfly
+
+Esses bancos têm backup de snapshot RDB no mesmo fluxo de retenção, download e cópia S3. A restauração é no próprio banco, com substituição do conjunto de dados e indisponibilidade. Ela remove arquivos de persistência anteriores que poderiam prevalecer sobre o snapshot. Não trate o arquivo como restauração universal entre versões ou engines. ClickHouse não ganha restauração por esse fluxo.
 
 ## Uma rotina que funciona
 

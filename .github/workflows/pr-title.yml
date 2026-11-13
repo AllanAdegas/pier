@@ -1,0 +1,40 @@
+name: PR title
+
+# Squash merges use the PR title as the commit message, and release-please
+# reads Conventional Commits to decide the next version.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number whose title is checked
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  conventional-title:
+    name: Conventional Commits title
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check the title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          PR_NUMBER: ${{ inputs.pr }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            case "$PR_NUMBER" in ''|*[!0-9]*) echo "Invalid pull request number" >&2; exit 1 ;; esac
+            TITLE=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json title --jq .title)
+          fi
+          pattern='^(feat|fix|perf|refactor|docs|test|build|ci|chore|revert)(\([a-z0-9._/-]+\))?!?: .+'
+          if ! printf '%s' "$TITLE" | grep -Eq "$pattern"; then
+            echo "The PR title must follow Conventional Commits, e.g. 'feat(api): add previews'." >&2
+            echo "Got: $TITLE" >&2
+            exit 1
+          fi

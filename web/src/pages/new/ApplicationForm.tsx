@@ -10,13 +10,16 @@ import type { Placement } from "../NewResource";
 import { t } from "../../i18n";
 import { NumberInput, Select, TextInput } from "../../components/Form";
 import { createDomainDnsCheck } from "../application/DomainDnsStatus";
+import { GitRepositoryPicker, linkPickedRepository } from "../settings/GitRepositoryPicker";
+import type { GitHubPick } from "../settings/gitLinks";
 
-const GIT_PACKS: BuildPack[] = ["dockerfile", "nixpacks", "static"];
+const GIT_PACKS: BuildPack[] = ["dockerfile", "railpack", "nixpacks", "static"];
 
 const PACK_HINT: Record<string, string> = {
   dockerfile: t("Usa o Dockerfile do repositório."),
   nixpacks: t("Detecta a linguagem e gera a imagem sozinho. Exige o Nixpacks instalado no servidor."),
   static: t("Serve os arquivos do repositório com nginx (porta 80)."),
+  railpack: t("Sucessor do Nixpacks: detecta a linguagem e gera a imagem. O Pier instala a versão fixada no servidor."),
 };
 
 /**
@@ -49,6 +52,7 @@ export function ApplicationForm(props: { placement: Placement; source: "git" | "
     () => api.get<PrivateKey[]>("/keys"),
   );
   const usesSsh = () => repository().trim() !== "" && !repository().trim().startsWith("http");
+  const [githubPick, setGithubPick] = createSignal<GitHubPick | null>(null);
 
   const create = createAction(
     async () => {
@@ -61,6 +65,7 @@ export function ApplicationForm(props: { placement: Placement; source: "git" | "
         name: name(),
         config,
       });
+      await linkPickedRepository("applications", application.id, githubPick(), repository());
       return api.post<Deployment>(`/applications/${application.id}/deploy`);
     },
     {
@@ -95,6 +100,7 @@ export function ApplicationForm(props: { placement: Placement; source: "git" | "
           />
         }
       >
+        <GitRepositoryPicker onPick={(pick, url) => { setGithubPick(pick); if (url) setRepository(url); }} />
         <TextInput
           label={t("Repositório")}
           required

@@ -9,12 +9,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
 
 // Local runs commands on the machine where Pier itself is running.
-type Local struct{}
+type Local struct {
+	// interactive counts the open pseudo-terminal sessions.
+	interactive atomic.Int32
+}
 
 // NewLocal creates a local executor.
 func NewLocal() *Local { return &Local{} }

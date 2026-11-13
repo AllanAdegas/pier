@@ -2,6 +2,8 @@ package database
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"path"
 	"pier/internal/docker"
 	"pier/internal/platform/i18n"
@@ -12,7 +14,7 @@ import (
 )
 
 func (s *Service) recoverOperations(ctx context.Context) error {
-	rows, err := s.store.db.QueryContext(ctx, `SELECT id,backup_id,database_id,kind FROM database_operations WHERE status='running'`)
+	rows, err := s.store.db.QueryContext(ctx, `SELECT id,backup_id,database_id,kind FROM database_operations WHERE status='running' OR (status='failed' AND resume_containers!='[]')`)
 	if err != nil {
 		return err
 	}
@@ -32,8 +34,11 @@ func (s *Service) recoverOperations(ctx context.Context) error {
 		return err
 	}
 	for _, op := range ops {
-		if err := s.recoverOperation(ctx, op.id, op.backup, op.database, op.kind); err != nil {
-			if _, saveErr := s.store.db.ExecContext(ctx, `UPDATE database_operations SET status='failed',message=?,finished_at=? WHERE id=?`, i18n.Instance().Sprintf("A limpeza da operação interrompida falhou: %s", err), sqlite.FormatTime(time.Now()), op.id); saveErr != nil {
+		recoveryCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Minute)
+		err := s.recoverOperation(recoveryCtx, op.id, op.backup, op.database, op.kind)
+		cancel()
+		if err != nil {
+			if _, saveErr := s.store.db.ExecContext(ctx, `UPDATE database_operations SET status='failed',message=?,finished_at=? WHERE id=?`, i18n.Instance().Sprintf("Interrompido pela reinicialização do Pier. A recuperação falhou: %s", err), sqlite.FormatTime(time.Now()), op.id); saveErr != nil {
 				return saveErr
 			}
 		}
@@ -75,6 +80,27 @@ func (s *Service) recoverOperation(ctx context.Context, operationID, backupID, d
 	}
 	if _, err := ex.Run(ctx, shell.Join("rm", "-f", b.FilePath+".restore-"+operationID, path.Join(server.BackupDir(db.ID), ".restore-"+operationID))); err != nil {
 		return err
+	}
+	if kind == "restore" && isKeyValue(db.Engine) {
+		var journal string
+		if err := s.store.db.QueryRowContext(ctx, "SELECT resume_containers FROM database_operations WHERE id=?", operationID).Scan(&journal); err != nil {
+			return err
+		}
+		var ids []string
+		if err := json.Unmarshal([]byte(journal), &ids); err != nil {
+			return err
+		}
+		// Never rediscover a replacement container by resource name.
+		containers := make([]docker.Container, 0, len(ids))
+		for _, id := range ids {
+			containers = append(containers, docker.Container{ID: id})
+		}
+		if err := docker.Start(ctx, ex, containers); err != nil {
+			return fmt.Errorf("não foi possível iniciar o banco novamente: %w", err)
+		}
+		if _, err := s.store.db.ExecContext(ctx, "UPDATE database_operations SET resume_containers='[]' WHERE id=?", operationID); err != nil {
+			return err
+		}
 	}
 	return nil
 }

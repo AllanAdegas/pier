@@ -228,9 +228,9 @@ func TestHostPortMappingReplacesInsteadOfRolling(t *testing.T) {
 	if deployment.Status != DeploymentFinished {
 		t.Fatalf("status = %s (%s)", deployment.Status, deployment.Error)
 	}
-	// Two containers cannot bind the same host port, so the old one goes first.
-	if removeOld, up := indexOf(fixture.ex.Commands, "docker rm -f oldid"), indexOf(fixture.ex.Commands, "compose"); removeOld == -1 || removeOld > up {
-		t.Errorf("old container must be removed before the new one starts: rm=%d up=%d", removeOld, up)
+	// Stop the old container before binding its host port; retain it for recovery.
+	if removeOld, up := indexOf(fixture.ex.Commands, "docker stop oldid"), indexOf(fixture.ex.Commands, "up --detach"); removeOld == -1 || removeOld > up {
+		t.Errorf("old container must be stopped before the new one starts: rm=%d up=%d", removeOld, up)
 	}
 }
 

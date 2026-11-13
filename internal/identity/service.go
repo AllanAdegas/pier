@@ -7,6 +7,7 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"errors"
+	"log/slog"
 	"net/mail"
 	"slices"
 	"strings"
@@ -17,6 +18,7 @@ import (
 
 	"pier/internal/platform/apperr"
 	"pier/internal/platform/idgen"
+	"pier/internal/platform/secretbox"
 	"pier/internal/platform/sqlite"
 )
 
@@ -37,6 +39,10 @@ type Service struct {
 	// would own it. It lives in memory only and is logged at boot.
 	setupMu   sync.Mutex
 	setupCode string
+	// box seals TOTP secrets; without it the second factor is unavailable.
+	box        *secretbox.Box
+	challenges *challenger
+	resets     resetDelivery
 }
 
 // SetupRequest carries the first user and the code that proves access to
@@ -54,8 +60,12 @@ const setupCodeLength = 12
 
 // NewService creates the service.
 func NewService(store *Store, sessionTTL time.Duration) *Service {
-	return &Service{store: store, sessionTTL: sessionTTL, now: time.Now}
+	return &Service{store: store, sessionTTL: sessionTTL, now: time.Now, challenges: newChallenger(),
+		resets: resetDelivery{slots: make(chan struct{}, maxPendingResets), logger: slog.New(slog.DiscardHandler)}}
 }
+
+// SetSecretBox enables the second factor, whose secrets are sealed at rest.
+func (s *Service) SetSecretBox(box *secretbox.Box) { s.box = box }
 
 // NeedsSetup reports whether the instance still has no user.
 func (s *Service) NeedsSetup(ctx context.Context) (bool, error) {
@@ -183,68 +193,63 @@ func (s *Service) ChangePassword(ctx context.Context, userID, current, next stri
 	if err != nil {
 		return err
 	}
-	if err := s.store.updatePassword(ctx, userID, string(hash)); err != nil {
+	return s.replacePassword(ctx, userID, string(hash))
+}
+
+// replacePassword stores a new hash and closes every session and pending
+// reset link of the user: whoever knew the old password is out.
+func (s *Service) replacePassword(ctx context.Context, userID, passwordHash string) error {
+	if err := s.store.updatePassword(ctx, userID, passwordHash); err != nil {
+		return err
+	}
+	if err := s.store.deleteUserResets(ctx, userID); err != nil {
 		return err
 	}
 	return s.store.deleteUserSessions(ctx, userID)
 }
 
-// Login checks credentials and opens a session, returning its secret token.
-func (s *Service) Login(ctx context.Context, email, password string) (string, User, error) {
-	const invalid = "E-mail ou senha inválidos."
+const invalidCredentials = "E-mail ou senha inválidos."
+
+// Login checks credentials. Without a second factor it opens a session;
+// with one, it returns the challenge CompleteLogin expects with the code.
+func (s *Service) Login(ctx context.Context, email, password string, client Client) (LoginOutcome, error) {
 	record, err := s.store.userByEmail(ctx, normalizeEmail(email))
 	if errors.Is(err, sqlite.ErrNotFound) {
 		// Spend the same time as a real comparison so timing does not reveal accounts.
 		_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
-		return "", User{}, apperr.Unauthorized(invalid)
+		return LoginOutcome{}, apperr.Unauthorized(invalidCredentials)
 	}
 	if err != nil {
-		return "", User{}, err
+		return LoginOutcome{}, err
 	}
 	if bcrypt.CompareHashAndPassword([]byte(record.PasswordHash), []byte(password)) != nil {
-		return "", User{}, apperr.Unauthorized(invalid)
+		return LoginOutcome{}, apperr.Unauthorized(invalidCredentials)
 	}
-	token, err := s.OpenSession(ctx, record.ID)
+	enabled, err := s.twoFactorEnabled(ctx, record.ID)
 	if err != nil {
-		return "", User{}, err
+		return LoginOutcome{}, err
+	}
+	if enabled {
+		challenge := s.challenges.issue(record.ID, record.PasswordHash, s.now())
+		return LoginOutcome{User: record.User, Challenge: challenge, ChallengeTTL: challengeTTL}, nil
+	}
+	return s.openVerifiedSession(ctx, record, client)
+}
+
+// openVerifiedSession opens the session once every factor was checked.
+func (s *Service) openVerifiedSession(ctx context.Context, record userRecord, client Client) (LoginOutcome, error) {
+	token, err := s.StartSession(ctx, record.ID, client)
+	if err != nil {
+		return LoginOutcome{}, err
 	}
 	// The password may have changed while it was being checked. A password
 	// change updates the hash before it closes the sessions, so either that
 	// deletion already sees this session or the hash read here is the new one.
 	if current, err := s.store.userByID(ctx, record.ID); err != nil || current.PasswordHash != record.PasswordHash {
 		_ = s.Logout(ctx, token)
-		return "", User{}, apperr.Unauthorized(invalid)
+		return LoginOutcome{}, apperr.Unauthorized(invalidCredentials)
 	}
-	return token, record.User, nil
-}
-
-// OpenSession creates a session for an already-verified user.
-func (s *Service) OpenSession(ctx context.Context, userID string) (string, error) {
-	now := s.now()
-	_ = s.store.deleteExpiredSessions(ctx, now)
-	token := idgen.Token(32)
-	if err := s.store.insertSession(ctx, hashToken(token), userID, now.Add(s.sessionTTL)); err != nil {
-		return "", err
-	}
-	return token, nil
-}
-
-// Logout closes a session.
-func (s *Service) Logout(ctx context.Context, sessionToken string) error {
-	return s.store.deleteSession(ctx, hashToken(sessionToken))
-}
-
-// AuthenticateSession resolves a browser session cookie.
-func (s *Service) AuthenticateSession(ctx context.Context, sessionToken string) (Principal, error) {
-	userID, err := s.store.sessionUserID(ctx, hashToken(sessionToken), s.now())
-	if err != nil {
-		return Principal{}, unauthorizedIfMissing(err)
-	}
-	record, err := s.store.userByID(ctx, userID)
-	if err != nil {
-		return Principal{}, unauthorizedIfMissing(err)
-	}
-	return Principal{User: record.User, Abilities: AllAbilities}, nil
+	return LoginOutcome{SessionToken: token, User: record.User}, nil
 }
 
 // AuthenticateToken resolves an API bearer token.

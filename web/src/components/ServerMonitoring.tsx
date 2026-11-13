@@ -2,6 +2,7 @@ import { createMemo, createSignal, For, Show } from "solid-js";
 import { Button } from "./Button";
 import { Alert, QueryView, StatusBadge } from "./Feedback";
 import { TextInput } from "./Form";
+import { MetricsHistory } from "./charts/MetricsHistory";
 import { containerStatus, formatBytes } from "../lib/format";
 import { createMonitoringQuery } from "../lib/monitoring";
 import type { ServerMetrics } from "../lib/types";
@@ -99,6 +100,7 @@ export function ServerMonitoring(props: { serverId: string }) {
           </div>
         )}
       </QueryView>
+      <MetricsHistory path={`/servers/${props.serverId}/metrics/history`} hostCpu />
     </div>
   );
 }

@@ -77,6 +77,9 @@ func (a *API) createApplication(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	if err := a.authorizeHostOptions(r, input.Config); err != nil {
+		return err
+	}
 	if _, err := a.Projects.GetEnvironment(r.Context(), input.EnvironmentID); err != nil && input.EnvironmentID != "" {
 		return err
 	}
@@ -93,6 +96,9 @@ func (a *API) createApplication(w http.ResponseWriter, r *http.Request) error {
 func (a *API) updateApplication(w http.ResponseWriter, r *http.Request) error {
 	input, err := decode[application.UpdateInput](w, r)
 	if err != nil {
+		return err
+	}
+	if err := a.authorizeHostOptions(r, input.Config); err != nil {
 		return err
 	}
 	app, err := a.Applications.Update(r.Context(), r.PathValue("id"), input)
@@ -186,6 +192,8 @@ type webhookResponse struct {
 	GitHubURL string `json:"github_url"`
 	GitLabURL string `json:"gitlab_url"`
 	GiteaURL  string `json:"gitea_url"`
+	// BitbucketURL is the Bitbucket Cloud webhook (repo:push, pull requests).
+	BitbucketURL string `json:"bitbucket_url"`
 }
 
 func (a *API) getWebhook(w http.ResponseWriter, r *http.Request) error {
@@ -211,7 +219,7 @@ func (a *API) webhookResponse(r *http.Request, secret string) webhookResponse {
 	base := a.publicURL(r) + "/webhooks/applications/" + r.PathValue("id") + "/"
 	return webhookResponse{
 		Secret: secret, DeployURL: base + "deploy", GitHubURL: base + "github",
-		GitLabURL: base + "gitlab", GiteaURL: base + "gitea",
+		GitLabURL: base + "gitlab", GiteaURL: base + "gitea", BitbucketURL: base + "bitbucket",
 	}
 }
 
@@ -488,7 +496,7 @@ func (a *API) deployHook(w http.ResponseWriter, r *http.Request) error {
 func (a *API) gitPushHook(w http.ResponseWriter, r *http.Request) error {
 	provider := application.GitProvider(r.PathValue("provider"))
 	switch provider {
-	case application.ProviderGitHub, application.ProviderGitLab, application.ProviderGitea:
+	case application.ProviderGitHub, application.ProviderGitLab, application.ProviderGitea, application.ProviderBitbucket:
 	default:
 		return apperr.NotFound("Provedor de webhook")
 	}

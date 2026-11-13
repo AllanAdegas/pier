@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 
 	"pier/internal/config"
+	"pier/internal/platform/executor"
 	"pier/internal/platform/i18n"
 	"pier/internal/platform/shell"
 )
@@ -31,8 +32,13 @@ var serverBuilds = struct {
 	queues map[string]*buildQueue
 }{queues: make(map[string]*buildQueue)}
 
+// buildNotifier is told when a build waits for the one before it.
+type buildNotifier interface {
+	Info(format string, args ...any)
+}
+
 // acquireBuild serializes builds by server, with cancellation while queued.
-func acquireBuild(ctx context.Context, serverID string, log *deployLog) (func(), error) {
+func acquireBuild(ctx context.Context, serverID string, log buildNotifier) (func(), error) {
 	serverBuilds.Lock()
 	queue := serverBuilds.queues[serverID]
 	if queue == nil {
@@ -70,6 +76,20 @@ func acquireBuild(ctx context.Context, serverID string, log *deployLog) (func(),
 	return func() { <-queue.token; drop() }, nil
 }
 
+// AcquireBuild waits for the build slot of a server (one build at a time) and
+// returns the function that gives it back. note is told when it has to wait.
+func AcquireBuild(ctx context.Context, serverID string, note func(string)) (func(), error) {
+	return acquireBuild(ctx, serverID, buildWaitNote(note))
+}
+
+type buildWaitNote func(string)
+
+func (n buildWaitNote) Info(format string, args ...any) {
+	if n != nil {
+		n(i18n.Instance().Sprintf(format, args...))
+	}
+}
+
 type guardedBuilder struct{ builder }
 
 func (b guardedBuilder) build(ctx context.Context, j *job) (string, error) {
@@ -85,7 +105,12 @@ func (b guardedBuilder) build(ctx context.Context, j *job) (string, error) {
 }
 
 // checkBuildDisk asks Docker for its actual root, including custom data-root.
-func (j *job) checkBuildDisk(ctx context.Context) error {
+func (j *job) checkBuildDisk(ctx context.Context) error { return CheckBuildDisk(ctx, j.ex) }
+
+// CheckBuildDisk refuses a build when the Docker data directory of the server
+// is below the configured free space. Other resources that build on the
+// server (stacks with build sections) apply the same limit.
+func CheckBuildDisk(ctx context.Context, ex executor.Executor) error {
 	limits := buildLimits.Load()
 	if limits.MinFreeGB == 0 {
 		return nil
@@ -93,7 +118,7 @@ func (j *job) checkBuildDisk(ctx context.Context) error {
 	// The daemon root may not be mounted inside the Pier container. Probe the
 	// daemon's filesystem through a read-only bind, which also works over SSH.
 	command := `root=$(docker info --format '{{.DockerRootDir}}') && test -n "$root" && docker run --rm --volume "$root:/docker-root:ro" --entrypoint sh ` + gitImage + ` -c 'df -Pk /docker-root' | awk 'NR==2 {print $4}'`
-	output, err := j.ex.Run(ctx, command)
+	output, err := ex.Run(ctx, command)
 	if err != nil {
 		return i18n.Errorf("não foi possível verificar o espaço livre no diretório do Docker: %w", err)
 	}

@@ -109,7 +109,7 @@ func TestForceCannotHideDestructionFailure(t *testing.T) {
 func TestRestoreScriptsAndUnsupportedEngines(t *testing.T) {
 	for _, spec := range catalog {
 		script, query, ok := restoreScript(spec.Engine)
-		if ok != (spec.Dump != nil) {
+		if ok != (spec.Dump != nil && !isKeyValue(spec.Engine)) {
 			t.Errorf("support mismatch %s", spec.Engine)
 		}
 		if ok && (script == "" || query == "") {

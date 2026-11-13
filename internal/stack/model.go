@@ -43,6 +43,9 @@ type Stack struct {
 	// is empty: the stack's name made readable, plus the start of its id.
 	ComposeProject string  `json:"compose_project"`
 	Routes         []Route `json:"routes"`
+	// Git is set when the compose file comes from a repository. Directory is
+	// then the checkout kept on the server and ComposeFile the file in it.
+	Git *GitSource `json:"git"`
 	// proxyEntry is how browsers reach the proxy of the stack's server; set
 	// when the server is reached, never stored.
 	proxyEntry  compose.ProxyEntry
@@ -59,6 +62,10 @@ type Stack struct {
 // a compose file can carry credentials inline, so it is left out.
 func (s Stack) WithoutSecrets() Stack {
 	s.Compose = ""
+	if s.Git != nil {
+		hidden := s.Git.WithoutSecrets()
+		s.Git = &hidden
+	}
 	return s
 }
 
@@ -80,6 +87,8 @@ type CreateInput struct {
 	ComposeFile   string  `json:"compose_file"`
 	ProjectName   string  `json:"project_name"`
 	Routes        []Route `json:"routes"`
+	// Git makes the stack run the compose file of a repository.
+	Git *GitInput `json:"git"`
 	// Env holds variables to define right away (the ones a template requires).
 	Env map[string]string `json:"env"`
 }
@@ -92,6 +101,8 @@ type UpdateInput struct {
 	Directory   string  `json:"directory"`
 	ComposeFile string  `json:"compose_file"`
 	Routes      []Route `json:"routes"`
+	// Git changes the repository settings of a Git stack.
+	Git *GitInput `json:"git"`
 }
 
 // TemplateRoute tells which service of a template is meant to be published.

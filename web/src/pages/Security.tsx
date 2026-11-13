@@ -8,6 +8,7 @@ import { formatDateTime, formatRelative } from "../lib/format";
 import { createAction, createQuery } from "../lib/query";
 import { currentUser } from "../lib/state";
 import type { ApiToken, PrivateKey, User } from "../lib/types";
+import { AccountSecurity } from "./security/AccountSecurity";
 import { AuditSection } from "./security/AuditSection";
 import { McpSection } from "./security/McpSection";
 import { TokenForm } from "./security/TokenForm";
@@ -19,6 +20,7 @@ export function SecurityPage() {
   return (
     <div class="page">
       <PageHeader title={t("Segurança")} description={t("Chaves SSH, tokens de API, acesso de IA e quem pode entrar no painel.")} />
+      <AccountSecurity />
       <KeysSection />
       <TokensSection version={tokensVersion()} />
       <McpSection onTokenCreated={() => setTokensVersion(tokensVersion() + 1)} />

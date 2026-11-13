@@ -25,6 +25,7 @@ const maxRepoConfigBytes = 64 << 10
 type repoConfig struct {
 	Build struct {
 		Pack             *BuildPack `yaml:"pack"`
+		Target *string `yaml:"target"`
 		Dockerfile       *string    `yaml:"dockerfile"`
 		PublishDirectory *string    `yaml:"publish_directory"`
 		SPA              *bool      `yaml:"spa"`
@@ -32,6 +33,10 @@ type repoConfig struct {
 		BuildCommand     *string    `yaml:"build_command"`
 		StartCommand     *string    `yaml:"start_command"`
 	} `yaml:"build"`
+	Runtime struct {
+		RestartPolicy *string `yaml:"restart_policy"`
+		StopGraceSeconds *int `yaml:"stop_grace_seconds"`
+	} `yaml:"runtime"`
 	Port   *int `yaml:"port"`
 	Health struct {
 		Enabled            *bool   `yaml:"enabled"`
@@ -65,8 +70,9 @@ type repoProcess struct {
 // repoConfigSchema lists the accepted keys per mapping path ("" is the root,
 // "processes[]" each process).
 var repoConfigSchema = map[string][]string{
-	"":                   {"build", "port", "health", "release", "limits", "processes", "watch_paths"},
-	"build":              {"pack", "dockerfile", "publish_directory", "spa", "install_command", "build_command", "start_command"},
+	"":                   {"build", "port", "health", "release", "limits", "processes", "watch_paths", "runtime"},
+	"build":              {"pack", "dockerfile", "publish_directory", "spa", "install_command", "build_command", "start_command", "target"},
+	"runtime": {"restart_policy", "stop_grace_seconds"},
 	"health":             {"enabled", "path", "command", "interval_seconds", "timeout_seconds", "retries", "start_period_seconds"},
 	"release":            {"command"},
 	"limits":             {"cpus", "memory"},
@@ -105,7 +111,7 @@ func overlayRepoConfig(content []byte, config Config) (Config, []string, error) 
 		return Config{}, nil, repoSyntaxError(err)
 	}
 	if pack := file.Build.Pack; pack != nil && !slices.Contains(GitPacks, *pack) {
-		return Config{}, nil, i18n.Errorf("pier.yaml, linha %d: build.pack aceita dockerfile, nixpacks ou static", lines["build.pack"])
+		return Config{}, nil, i18n.Errorf("pier.yaml, linha %d: build.pack aceita dockerfile, nixpacks, railpack ou static", lines["build.pack"])
 	}
 	merged, fields := file.apply(config)
 	if err := merged.Validate(); err != nil {
@@ -206,4 +212,4 @@ func repoValidationError(err error, lines map[string]int) error {
 }
 
 // GitPacks are the build packs that build from source code.
-var GitPacks = []BuildPack{PackDockerfile, PackNixpacks, PackStatic}
+var GitPacks = []BuildPack{PackDockerfile, PackNixpacks, PackStatic, PackRailpack}

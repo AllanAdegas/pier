@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "build": "deno run --allow-read --allow-write=dist src/build.ts",
+    "build": "deno run --allow-read --allow-env=SITE_BASE_PATH --allow-write=dist src/build.ts",
     "serve": "deno task build && deno run --allow-net --allow-read=dist --allow-env=PORT src/serve.ts",
     "test": "deno test --allow-read src/"
   },
@@ -9,5 +9,7 @@
     "@std/http": "jsr:@std/http@1.1.4",
     "@std/assert": "jsr:@std/assert@1.0.19"
   },
-  "fmt": { "lineWidth": 110 }
+  "fmt": {
+    "lineWidth": 110
+  }
 }

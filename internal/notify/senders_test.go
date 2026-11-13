@@ -62,3 +62,14 @@ func TestSMTPRequiresTLSBeforeSendingMail(t *testing.T) {
 		t.Fatalf("sent before TLS: %s", line)
 	}
 }
+
+func TestEmailRefusesLineBreaksInAddresses(t *testing.T) {
+	for _, field := range []string{"from", "to"} {
+		config := map[string]string{"host": "127.0.0.1", "port": "1", "from": "pier@example.com", "to": "ops@example.com"}
+		config[field] = "ops@example.com\r\nBcc: attacker@example.com"
+		err := emailSender{}.Send(context.Background(), config, Event{Title: "t", Message: "m"})
+		if err == nil || !strings.Contains(err.Error(), "line breaks") {
+			t.Errorf("%s with a line break was not refused before connecting: %v", field, err)
+		}
+	}
+}

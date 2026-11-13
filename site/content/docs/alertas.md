@@ -57,4 +57,11 @@ Em **Infraestrutura › Monitoramento**, cada servidor mostra:
 - disco do diretório de dados e swap;
 - tempo ligado, carga média e containers.
 
-As leituras atualizam a cada 15 segundos com a página aberta. São fotos do momento, não um histórico. Os limites dos alertas de capacidade são editados na mesma tela.
+As leituras atualizam a cada 15 segundos com a página aberta. Os limites dos alertas de capacidade são editados na mesma tela.
+
+
+## Histórico de métricas
+
+Os gráficos de servidor e de recursos permitem escolher uma janela de tempo. O Pier coleta amostras em segundo plano; a página não precisa ficar aberta. As amostras de um minuto são mantidas por 24 horas; os períodos mais longos usam agregações de 15 minutos, mantidas por 30 dias. As séries agregadas mostram média e máximo quando disponíveis.
+
+Uma lacuna significa leitura ausente, servidor inacessível ou métrica não suportada; não significa consumo zero. Recursos com vários containers são agregados. Em aplicações com [múltiplos destinos](/docs/multisservidor/), CPU e memória somam explicitamente os destinos configurados, sem depender da ordem de coleta. Cada campo só tem total se todos os destinos tiverem aquela leitura; coleta parcial deixa uma lacuna. Métricas de host continuam separadas, e CPU de containers pode ultrapassar 100% ao usar vários cores. Pontos antigos, anteriores a essa correção, podem representar apenas um destino; valores sobrescritos não podem ser recuperados. Não substitui monitoramento externo do próprio Pier. Para logs em armazenamento externo, veja [operações do servidor](/docs/operacoes/#envio-de-logs).

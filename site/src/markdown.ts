@@ -25,13 +25,23 @@ export function escapeHtml(text: string): string {
     .replaceAll("'", "&#39;");
 }
 
+/** Plain text of rendered inline HTML: tags removed until none is left, stray angle brackets dropped. */
+export function stripTags(html: string): string {
+  let text = html;
+  for (let previous = ""; previous !== text;) {
+    previous = text;
+    text = text.replace(/<[^<>]*>/g, "");
+  }
+  return text.replace(/[<>]/g, "");
+}
+
 /** "Domínio e HTTPS" → "dominio-e-https". */
 export function slugify(text: string): string {
   return text
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
-    .replace(/<[^>]+>/g, "")
+    .replace(/[<>]/g, "")
     .replace(/&[a-z#0-9]+;/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
@@ -58,7 +68,7 @@ export function renderMarkdown(source: string): RenderedPage {
         const inner = this.parser.parseInline(token.tokens);
         const id = uniqueId(slugify(token.text) || "secao", usedIds);
         if (token.depth === 2 || token.depth === 3) {
-          headings.push({ id, text: inner.replace(/<[^>]+>/g, ""), depth: token.depth });
+          headings.push({ id, text: stripTags(inner), depth: token.depth });
         }
         return `<h${token.depth} id="${id}"><a class="anchor" href="#${id}" aria-hidden="true" tabindex="-1">#</a>${inner}</h${token.depth}>\n`;
       },

@@ -13,12 +13,12 @@ import (
 func healthyChecksFake(now time.Time) *executor.Fake {
 	return executor.NewFake().On("docker version", "24.0.9", 0).On("docker compose version", "2.20.0", 0).
 		On("DockerRootDir", "/var/lib/docker", 0).On("df -Pk /var/lib/docker", "/dev/x 40000000 1000000 39000000 3% /var/lib/docker", 0).
-		On("daemon.json", `{"log-driver":"local"}`, 0).On("date +%s", strconv.FormatInt(now.Unix(), 10), 0)
+		On("docker buildx version", "github.com/docker/buildx v0.30.0", 0).On("daemon.json", `{"log-driver":"local"}`, 0).On("date +%s", strconv.FormatInt(now.Unix(), 10), 0)
 }
 func TestServerChecksPassForSupportedHost(t *testing.T) {
 	now := time.Unix(1_800_000_000, 0)
 	checks, version := collectChecks(context.Background(), healthyChecksFake(now), DefaultProxySettings(), func() time.Time { return now })
-	if version != "24.0.9" || len(checks) != 6 {
+	if version != "24.0.9" || len(checks) != 7 {
 		t.Fatalf("checks=%+v version=%s", checks, version)
 	}
 	for _, check := range checks {
@@ -34,7 +34,7 @@ func TestServerChecksReportActionableProblems(t *testing.T) {
 		On("docker ps", "foreign\tnginx:1\t0.0.0.0:80->80/tcp", 0).On("daemon.json", "{}", 0).
 		On("date +%s", strconv.FormatInt(now.Add(31*time.Second).Unix(), 10), 0)
 	checks, _ := collectChecks(context.Background(), fake, DefaultProxySettings(), func() time.Time { return now })
-	statuses := []string{"error", "error", "warning", "warning", "info", "warning"}
+	statuses := []string{"error", "error", "warning", "warning", "info", "warning", "pass"}
 	for i, check := range checks {
 		if check.Status != statuses[i] || check.Fix == "" {
 			t.Errorf("check=%+v", check)

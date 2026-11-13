@@ -1,6 +1,7 @@
 // Global client state: the session, the theme and transient toasts.
 
 import { createSignal } from "solid-js";
+import { resetAccess } from "../pages/access/permissions";
 import { api, handleSessionExpired } from "./api";
 import type { AuthStatus, User } from "./types";
 import type { Tone } from "./format";
@@ -17,6 +18,7 @@ export { phase, currentUser };
 
 export async function refreshSession(): Promise<void> {
   const status = await api.get<AuthStatus>("/auth/status");
+  if (currentUser()?.id !== status.user?.id || !status.authenticated) resetAccess();
   setCurrentUser(status.user);
   if (status.needs_setup) {
     setPhase("setup");
@@ -26,18 +28,21 @@ export async function refreshSession(): Promise<void> {
 }
 
 export function signIn(user: User): void {
+  resetAccess();
   setCurrentUser(user);
   setPhase("authenticated");
 }
 
 export async function signOut(): Promise<void> {
   await api.post("/auth/logout");
+  resetAccess();
   setCurrentUser(null);
   setPhase("anonymous");
 }
 
 handleSessionExpired(() => {
   if (phase() === "authenticated") {
+    resetAccess();
     setCurrentUser(null);
     setPhase("anonymous");
     notify(t("Sua sessão expirou. Entre novamente."), "danger");

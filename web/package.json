@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "@solidjs/router": "~0.15.4",
-    "solid-js": "^1.9.18"
+    "solid-js": "^1.9.18",
+    "@xterm/xterm": "5.5.0",
+    "@xterm/addon-fit": "0.10.0"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

@@ -263,8 +263,8 @@ func Restore(ctx context.Context, archive, passphrase, dataDir string) error {
 		return err
 	}
 	defer os.RemoveAll(stage)
-	for name, b := range files {
-		if err = os.WriteFile(filepath.Join(stage, name), b, 0600); err != nil {
+	for _, name := range []string{"pier.db", "secret.key"} {
+		if err = os.WriteFile(filepath.Join(stage, name), files[name], 0600); err != nil {
 			return err
 		}
 	}

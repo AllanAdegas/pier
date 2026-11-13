@@ -1,3 +1,4 @@
+import { TerminalButton } from "../../components/Terminal";
 import { A } from "@solidjs/router";
 import { Show } from "solid-js";
 import { IconButton } from "../../components/Button";
@@ -28,6 +29,7 @@ export /** One container with its owner, state and actions. */
 function ContainerRow(props: {
   container: DockerContainer;
   placement: string;
+ terminalBase?: string;
   /** In the per-project view the group already names the compose project. */
   hideComposeTag?: boolean;
   act: Action<[DockerContainer, string], unknown>;
@@ -63,6 +65,7 @@ function ContainerRow(props: {
         <span class="tag">compose: {props.container.compose_project}</span>
       </Show>
       <StatusBadge status={containerStatus(props.container)} />
+ <Show when={props.terminalBase && props.container.state === "running"}><TerminalButton endpoint={`${props.terminalBase}/containers/${props.container.id}/terminal`} /></Show>
       <div class="row" style={{ gap: "var(--space-1)" }}>
         <Show
           when={props.container.state === "running"}

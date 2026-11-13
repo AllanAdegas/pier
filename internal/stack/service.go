@@ -11,7 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"pier/internal/compose"
+	"pier/internal/application"
+ "pier/internal/compose"
 	"pier/internal/docker"
 	"pier/internal/envvar"
 	"pier/internal/platform/apperr"
@@ -35,6 +36,9 @@ type Service struct {
 	operations *oplog.Registry
 	guard      DeployGuard
 	domains    DomainChecker
+	git        gitStore
+	keys       KeyVault
+ gitProvider application.GitCredentials
 }
 
 // DeployGuard decides whether an environment accepts deployments now (a
@@ -70,7 +74,15 @@ func (s *Service) List(ctx context.Context, environmentID string) ([]Stack, erro
 		}
 		stacks = append(stacks, stack)
 	}
-	return stacks, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rows.Close()
+	sources, err := s.git.loadAll(ctx, environmentID)
+	for index := range stacks {
+		stacks[index].Git = sources[stacks[index].ID]
+	}
+	return stacks, err
 }
 
 // Get returns one stack.
@@ -80,7 +92,10 @@ func (s *Service) Get(ctx context.Context, id string) (Stack, error) {
 	if errors.Is(err, sql.ErrNoRows) {
 		return Stack{}, apperr.NotFound("Stack")
 	}
-	return stack, err
+	if err != nil {
+		return Stack{}, err
+	}
+	return stack, s.attachGit(ctx, &stack)
 }
 
 // SetStatus records the runtime status observed on the server.
@@ -102,6 +117,13 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Stack, error) 
 		Status:      docker.StatusStopped, CreatedAt: now, UpdatedAt: now,
 	}
 	fields := apperr.Fields{}
+	if input.Git != nil {
+		if err := s.git.available(); err != nil {
+			return Stack{}, err
+		}
+		source := s.newGitSource(ctx, *input.Git, fields)
+		stack.Git = &source
+	}
 	if stack.EnvironmentID == "" {
 		fields.Add("environment_id", "Selecione o ambiente.")
 	}
@@ -140,6 +162,9 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Stack, error) 
 	if err != nil {
 		return Stack{}, err
 	}
+	if err := s.saveNewGitSource(ctx, stack); err != nil {
+		return Stack{}, err
+	}
 	if err := s.env.SetMissing(ctx, owner(stack.ID), input.Env); err != nil {
 		return Stack{}, err
 	}
@@ -149,6 +174,9 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Stack, error) 
 // resolveSource finds the compose file of a stack being created. resolved is
 // false when the source has a problem already reported on fields.
 func (s *Service) resolveSource(ctx context.Context, stack *Stack, fields apperr.Fields) (raw string, resolved bool, err error) {
+	if stack.FromGit() {
+		return s.resolveGitSource(ctx, stack, fields)
+	}
 	if stack.FromDirectory() {
 		if stack.Template != "" || stack.Compose != "" {
 			fields.Add("directory", "Escolha uma única origem: catálogo, compose ou pasta.")
@@ -205,7 +233,11 @@ func (s *Service) Update(ctx context.Context, id string, input UpdateInput) (Sta
 	stack.Routes = input.Routes
 	fields := apperr.Fields{}
 	raw, resolved := input.Compose, true
-	if stack.FromDirectory() {
+	if stack.FromGit() {
+		if raw, resolved, err = s.updateGitSource(ctx, &stack, input.Git, fields); err != nil {
+			return Stack{}, err
+		}
+	} else if stack.FromDirectory() {
 		if directory := strings.TrimSpace(input.Directory); directory != "" {
 			stack.Directory = directory
 		}
@@ -229,6 +261,9 @@ func (s *Service) Update(ctx context.Context, id string, input UpdateInput) (Sta
 		compose_file = ?, routes = ?, updated_at = ? WHERE id = ?`, stack.Name, stack.Description, stack.Compose,
 		stack.Directory, stack.ComposeFile, string(routes), sqlite.FormatTime(time.Now()), id)
 	if err != nil {
+		return Stack{}, err
+	}
+	if err := s.saveGitSource(ctx, stack); err != nil {
 		return Stack{}, err
 	}
 	return stack, s.generate(ctx, id, raw)
@@ -255,6 +290,9 @@ func validate(stack *Stack, raw string, resolved bool, fields apperr.Fields) err
 		stack.Routes = []Route{}
 	}
 	if !resolved {
+		if stack.FromGit() {
+			checkRoutes(stack, nil, fields)
+		}
 		return fields.Err()
 	}
 	doc, err := parseCompose(raw)
@@ -267,11 +305,18 @@ func validate(stack *Stack, raw string, resolved bool, fields apperr.Fields) err
 		fields.Set(field, appErr.Text())
 		return fields.Err()
 	}
-	services := doc.serviceNames()
+	checkRoutes(stack, doc.serviceNames(), fields)
+	return fields.Err()
+}
+
+// checkRoutes validates the routes of a stack and canonicalizes their
+// domains. services lists what the compose file declares; nil skips the check
+// that a routed service exists (the file is not available yet).
+func checkRoutes(stack *Stack, services []string, fields apperr.Fields) {
 	for index := range stack.Routes {
 		route := &stack.Routes[index]
 		field := fmt.Sprintf("routes.%d", index)
-		if !slices.Contains(services, route.Service) {
+		if services != nil && !slices.Contains(services, route.Service) {
 			fields.Add(field, "O serviço %q não existe no compose.", route.Service)
 		}
 		if route.Port < 1 || route.Port > 65535 {
@@ -284,7 +329,6 @@ func validate(stack *Stack, raw string, resolved bool, fields apperr.Fields) err
 		}
 		route.Domain = parsed.String()
 	}
-	return fields.Err()
 }
 
 // SourceView is the compose file of a stack as it is right now.
@@ -312,6 +356,9 @@ func (s *Service) Source(ctx context.Context, id string) (SourceView, error) {
 	}
 	project := projectFor(ctx, ex, target, stack)
 	content, err := readSource(ctx, ex, project.BaseFile)
+	if err != nil && stack.FromGit() {
+		return SourceView{}, errNotCloned
+	}
 	if err != nil {
 		return SourceView{}, apperr.Unavailable("Não foi possível ler %s: %s", project.BaseFile, lastLine(err))
 	}
@@ -341,6 +388,9 @@ func (s *Service) document(ctx context.Context, id string) (Stack, string, docum
 // Services lists the service names declared in the compose of a stack.
 func (s *Service) Services(ctx context.Context, id string) ([]string, error) {
 	_, _, doc, err := s.document(ctx, id)
+	if errors.Is(err, errNotCloned) {
+		return []string{}, nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -379,6 +429,9 @@ func (v VariableStatus) WithoutSecrets() VariableStatus {
 // before a deployment fails on them.
 func (s *Service) Variables(ctx context.Context, id string) ([]VariableStatus, error) {
 	stack, _, doc, err := s.document(ctx, id)
+	if errors.Is(err, errNotCloned) {
+		return []VariableStatus{}, nil
+	}
 	if err != nil {
 		return nil, err
 	}

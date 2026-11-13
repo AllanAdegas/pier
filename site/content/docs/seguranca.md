@@ -8,7 +8,7 @@ O Pier usa o socket do Docker do servidor local e acessa os outros servidores po
 - use senhas fortes, com 10 caracteres ou mais;
 - dê acesso só a quem já teria acesso root aos servidores.
 
-Nesta versão, todo usuário do painel é administrador. Não há papéis.
+O acesso é controlado por [papéis de projeto e de instância](/docs/equipe/). A capacidade do token é limitada também pelo papel atual do usuário. Contas com operações privilegiadas sobre Docker e servidores precisam continuar sendo confiáveis.
 
 ## Tokens de API
 
@@ -18,7 +18,7 @@ Em **Segurança › Tokens de API**, crie tokens para scripts, CI e IA. Cada tok
 |---|---|
 | `read` | Consultar recursos, estados e logs. Não vê segredos |
 | `deploy` | Tudo do `read`, mais implantar, reiniciar e operar |
-| `write` | Tudo. **Equivale a root nos servidores** |
+| `write` | Configurar dentro do escopo permitido pelo papel. Operações de Docker/host autorizadas podem equivaler a root |
 
 Dê a cada uso o mínimo necessário. Um pipeline de CI que só implanta precisa de `deploy`, não de `write`. O valor do token aparece uma única vez, ao ser criado.
 

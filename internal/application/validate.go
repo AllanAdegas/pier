@@ -61,6 +61,7 @@ func (c *Config) normalize() {
 		c.Storages = []Storage{}
 	}
 	c.normalizeProcesses()
+	c.normalizeEngineExtras()
 }
 
 // Validate normalizes the config and reports every invalid field. Values end
@@ -75,6 +76,8 @@ func (c *Config) Validate() error {
 	c.validateLimits(fields)
 	c.validateStorages(fields)
 	c.validateProcesses(fields)
+	c.validateEngineExtras(fields)
+	c.validateDockerOptions(fields)
 	return fields.Err()
 }
 
@@ -119,7 +122,7 @@ func (c *Config) validateSource(fields apperr.Fields) {
 
 func (c *Config) validateBuild(fields apperr.Fields) {
 	switch c.Build.Pack {
-	case PackDockerfile, PackNixpacks, PackStatic, PackImage:
+	case PackDockerfile, PackNixpacks, PackStatic, PackImage, PackRailpack:
 	default:
 		fields.Add("build.pack", "Build pack desconhecido.")
 	}

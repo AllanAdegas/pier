@@ -115,7 +115,7 @@ var englishEngine = map[string]string{
 	"Tag fora do padrão %s: nada a fazer.": "Tag does not match %s: nothing to do.",
 	"Deploy da tag %s enfileirado.":        "Deployment of tag %s queued.",
 	"Padrão de tag inválido: use letras, números, '.', '-', '/' e curingas, ex.: v*.":                                                      "Invalid tag pattern: use letters, numbers, '.', '-', '/' and wildcards, e.g. v*.",
-	"pier.yaml, linha %d: build.pack aceita dockerfile, nixpacks ou static":                                                                "pier.yaml, line %d: build.pack accepts dockerfile, nixpacks or static",
+	"pier.yaml, linha %d: build.pack aceita dockerfile, nixpacks, railpack ou static": "pier.yaml, line %d: build.pack accepts dockerfile, nixpacks, railpack or static",
 	"pier.yaml, linha %d: o arquivo deve ser um mapa de campos, ex.: port: 3000":                                                           "pier.yaml, line %d: the file must be a map of fields, e.g. port: 3000",
 	"pier.yaml, linha %d: %s não aceita campos aninhados":                                                                                  "pier.yaml, line %d: %s does not accept nested fields",
 	"pier.yaml, linha %d: %q só pode ser configurado no painel (origem, servidor, ambiente, domínios e segredos nunca vêm do repositório)": "pier.yaml, line %d: %q can only be configured in the panel (source, server, environment, domains and secrets never come from the repository)",

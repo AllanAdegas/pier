@@ -242,6 +242,7 @@ func (a *API) registerStackRoutes(mux *http.ServeMux) {
 	a.route(mux, "GET /api/v1/stacks/{id}/source", canRead, a.stackSource)
 	a.route(mux, "GET /api/v1/stacks/{id}/variables", canRead, a.stackVariables)
 	a.registerEnvRoutes(mux, "stacks", envvar.OwnerStack)
+	a.registerStackGitRoutes(mux)
 }
 
 // listStackTemplates returns the catalog without the compose files: with

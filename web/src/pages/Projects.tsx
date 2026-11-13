@@ -11,6 +11,7 @@ import { createAction, createQuery } from "../lib/query";
 import type { Environment, Project, Resources } from "../lib/types";
 import { Checkbox } from "../components/Form";
 import { t } from "../i18n";
+import { SharedVariables } from "../components/SharedVariables";
 import { TextArea, TextInput } from "../components/Form";
 
 function ProjectForm(props: { project?: Project; onClose: () => void; onSaved: (project: Project) => void }) {
@@ -225,6 +226,7 @@ export function ProjectDetailPage() {
                 </Show>
               )}
             </QueryView>
+            <SharedVariables projectId={data().id} environmentId={environmentId()} />
 
             <Show when={dialog() === "edit"}>
               <ProjectForm

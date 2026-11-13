@@ -22,12 +22,15 @@ func (a *API) registerAuthRoutes(mux *http.ServeMux) {
 	a.route(mux, "GET /api/v1/tokens", sessionOnly, a.listTokens)
 	a.route(mux, "POST /api/v1/tokens", sessionOnly, a.createToken)
 	a.route(mux, "DELETE /api/v1/tokens/{id}", sessionOnly, a.deleteToken)
+	a.registerAccountRoutes(mux)
 }
 
 type authStatusResponse struct {
 	NeedsSetup    bool           `json:"needs_setup"`
 	Authenticated bool           `json:"authenticated"`
 	User          *identity.User `json:"user"`
+	// PasswordReset tells the login page whether to offer "forgot password".
+	PasswordReset bool `json:"password_reset"`
 }
 
 func (a *API) authStatus(w http.ResponseWriter, r *http.Request) error {
@@ -35,7 +38,8 @@ func (a *API) authStatus(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	response := authStatusResponse{NeedsSetup: needsSetup}
+	response := authStatusResponse{NeedsSetup: needsSetup,
+		PasswordReset: a.Identity.PasswordResetAvailable(r.Context(), a.accountPublicURL(r))}
 	if principal, err := a.resolvePrincipal(r); err == nil {
 		response.Authenticated = true
 		response.User = &principal.User
@@ -62,10 +66,11 @@ func (a *API) setup(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	if a.Access != nil { if err := a.Access.Bootstrap(r.Context()); err != nil { return err } }
 	if err := a.Settings.AdoptLanguage(r.Context(), i18n.FromContext(r.Context())); err != nil {
 		return err
 	}
-	token, err := a.Identity.OpenSession(r.Context(), user.ID)
+	token, err := a.Identity.StartSession(r.Context(), user.ID, a.sessionClient(r))
 	if err != nil {
 		return err
 	}
@@ -86,14 +91,26 @@ func (a *API) login(w http.ResponseWriter, r *http.Request) error {
 	if !a.allowGuess(r, target) {
 		return tooManyAttempts(w, i18n.FromContext(r.Context()).Text("Muitas tentativas de login. Aguarde um minuto."))
 	}
-	token, user, err := a.Identity.Login(r.Context(), request.Email, request.Password)
+	outcome, err := a.Identity.Login(r.Context(), request.Email, request.Password, a.sessionClient(r))
 	if err != nil {
 		return err
 	}
-	auditActor(r, identity.Principal{User: user})
+	auditActor(r, identity.Principal{User: outcome.User})
 	a.accountLimiter.reset(target)
-	a.setSessionCookie(w, r, token)
-	return ok(w, user)
+	if outcome.Challenge != "" {
+		return ok(w, challengeResponse{TwoFactorRequired: true, Challenge: outcome.Challenge,
+			ExpiresIn: int(outcome.ChallengeTTL.Seconds())})
+	}
+	a.setSessionCookie(w, r, outcome.SessionToken)
+	return ok(w, outcome.User)
+}
+
+// challengeResponse is the login answer for accounts with a second factor:
+// no session yet, only the challenge to send with the code.
+type challengeResponse struct {
+	TwoFactorRequired bool   `json:"two_factor_required"`
+	Challenge         string `json:"challenge"`
+	ExpiresIn         int    `json:"expires_in"`
 }
 
 func (a *API) logout(w http.ResponseWriter, r *http.Request) error {
@@ -139,7 +156,7 @@ func (a *API) changePassword(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	// Every session was invalidated; open a new one for the current browser.
-	token, err := a.Identity.OpenSession(r.Context(), userID)
+	token, err := a.Identity.StartSession(r.Context(), userID, a.sessionClient(r))
 	if err != nil {
 		return err
 	}
@@ -180,7 +197,9 @@ func (a *API) listTokens(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return ok(w, tokens)
+	own := tokens[:0]
+ for _, token := range tokens { if token.UserID == principalFrom(r.Context()).User.ID { own = append(own,token) } }
+ return ok(w, own)
 }
 
 type tokenRequest struct {

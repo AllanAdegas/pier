@@ -70,14 +70,15 @@ func TestLoginAndSessionLifecycle(t *testing.T) {
 	ctx := context.Background()
 	user, _ := service.Setup(ctx, claim(ctx, service, "Ana", "ana@example.com"))
 
-	if _, _, err := service.Login(ctx, "ana@example.com", "wrong-password-xx"); kindOf(err) != apperr.KindUnauthorized {
+	if _, err := service.Login(ctx, "ana@example.com", "wrong-password-xx", Client{}); kindOf(err) != apperr.KindUnauthorized {
 		t.Errorf("wrong password must be unauthorized, got %v", err)
 	}
-	if _, _, err := service.Login(ctx, "nobody@example.com", strongPassword); kindOf(err) != apperr.KindUnauthorized {
+	if _, err := service.Login(ctx, "nobody@example.com", strongPassword, Client{}); kindOf(err) != apperr.KindUnauthorized {
 		t.Errorf("unknown account must be unauthorized, got %v", err)
 	}
-	token, logged, err := service.Login(ctx, "Ana@Example.com", strongPassword)
-	if err != nil || logged.ID != user.ID {
+	outcome, err := service.Login(ctx, "Ana@Example.com", strongPassword, Client{})
+	token := outcome.SessionToken
+	if err != nil || outcome.User.ID != user.ID || token == "" || outcome.Challenge != "" {
 		t.Fatalf("Login: %v", err)
 	}
 	principal, err := service.AuthenticateSession(ctx, token)
@@ -124,7 +125,7 @@ func TestChangingThePasswordInvalidatesOtherSessions(t *testing.T) {
 	if _, err := service.AuthenticateSession(ctx, stolen); kindOf(err) != apperr.KindUnauthorized {
 		t.Error("sessions opened before the password change must stop working")
 	}
-	if _, _, err := service.Login(ctx, "ana@example.com", "another-strong-pass"); err != nil {
+	if _, err := service.Login(ctx, "ana@example.com", "another-strong-pass", Client{}); err != nil {
 		t.Errorf("login with the new password failed: %v", err)
 	}
 }

@@ -142,7 +142,7 @@ func (c *Config) validateBackup(spec engineSpec, fields apperr.Fields) {
 		if c.Backup.RestoreTestCron == "" {
 			c.Backup.RestoreTestCron = "0 4 * * 0"
 		}
-		if spec.Dump == nil {
+		if !supportsRestoreTest(spec.Engine) {
 			fields.Add("config.backup.restore_test", "Esta engine não suporta teste de restauração.")
 		}
 		if _, err := cron.ParseStandard(c.Backup.RestoreTestCron); err != nil {
