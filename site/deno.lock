@@ -14,7 +14,7 @@
     "jsr:@std/net@^1.0.7": "1.0.7",
     "jsr:@std/path@^1.1.6": "1.1.6",
     "jsr:@std/streams@^1.2.0": "1.2.0",
-    "npm:marked@18.1.1": "18.1.1"
+    "npm:marked@18.2.0": "18.2.0"
   },
   "jsr": {
     "@std/assert@1.0.19": {
@@ -72,8 +72,8 @@
     }
   },
   "npm": {
-    "marked@18.1.1": {
-      "integrity": "sha512-zEGgrtUG8crk+TrMacJSVABU4DYDDkS8uqgU3ohrn/2fW9C2AEfUrO3m6IhpIpQpl7YcVpiXXC9cSMWDANT3dg==",
+    "marked@18.2.0": {
+      "integrity": "sha512-KaeL+tAbtvI930q7HE2PN5lYXYdT8EiSmxHlN6F3rsfb57wd5mp5W5TLazpdj4inTQBJdgjYwbs40W/0VUGU+Q==",
       "bin": true
     }
   },
@@ -81,7 +81,7 @@
     "dependencies": [
       "jsr:@std/assert@1.0.19",
       "jsr:@std/http@1.1.4",
-      "npm:marked@18.1.1"
+      "npm:marked@18.2.0"
     ]
   }
 }
