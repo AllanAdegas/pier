@@ -110,3 +110,51 @@ func TestOpenTerminalClosesWhenTheRoleIsRemoved(t *testing.T) {
 		t.Fatal("terminal slot not released after revocation")
 	}
 }
+
+// Revoking write after issuance must prevent even a transient server shell.
+func TestTerminalRevokedTicketNeverExecutes(t *testing.T) {
+	fake := executor.NewFake().On("docker ps", "aaaaaaaaaaaa\ttest\trunning\tfalse\t\t\t\t", 0)
+	svc := terminal.NewService(terminalConnector{fake})
+	t.Cleanup(svc.Close)
+	a := platformAPI(t)
+	a.Terminal = svc
+	owner, _ := testIdentity(t, a, "owner")
+	grantRole(t, a, owner.ID, rbac.Owner)
+	operator, _ := testIdentity(t, a, "operator")
+	grantRole(t, a, operator.ID, rbac.Admin)
+	ctx := context.Background()
+	cookie, err := a.Identity.OpenSession(ctx, operator.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	principal, err := a.Identity.AuthenticateSession(ctx, cookie)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ticket, err := svc.Issue(ctx, terminalOwner(principal), terminal.Request{Kind: terminal.KindContainer, ServerID: "s", ResourceID: "test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := len(fake.Commands)
+	if err := a.Access.SetInstanceRole(ctx, owner.ID, operator.ID, rbac.Viewer); err != nil {
+		t.Fatal(err)
+	}
+	handler := a.Handler()
+	for attempt := 0; attempt < 2; attempt++ {
+		r := httptest.NewRequest("GET", "http://panel.test/api/v1/terminal?ticket="+ticket.Ticket, nil)
+		r.Header.Set("Origin", "http://panel.test")
+		r.AddCookie(&http.Cookie{Name: sessionCookie, Value: cookie})
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		want := http.StatusForbidden
+		if attempt == 1 {
+			want = http.StatusUnauthorized
+		}
+		if w.Code != want {
+			t.Fatalf("attempt %d: status %d: %s", attempt, w.Code, w.Body.String())
+		}
+		if len(fake.Commands) != before || svc.OpenCount() != 0 {
+			t.Fatal("denied ticket executed a command or reserved capacity")
+		}
+	}
+}

@@ -124,14 +124,14 @@ func (a *API) terminalConnect(w http.ResponseWriter, r *http.Request) error {
 		a.auditTerminal(r, principal, http.StatusForbidden, "", terminalEvent{Event: "terminal.denied", Reason: "origin"})
 		return err
 	}
-	session, err := a.Terminal.Open(r.Context(), terminalOwner(principal), r.URL.Query().Get("ticket"), requestedSize(r))
+	session, err := a.Terminal.Open(r.Context(), terminalOwner(principal), r.URL.Query().Get("ticket"), requestedSize(r),
+		func(ctx context.Context, grant terminal.Grant) error {
+			return a.authorizeTerminal(ctx, principal, grant)
+		})
 	if err != nil {
 		return err
 	}
 	defer session.Close()
-	if err := a.authorizeTerminal(r.Context(), principal, session.Grant()); err != nil {
-		return err
-	}
 	// The origin was verified above, scheme and host, against the public URL
 	// and the request host: stricter than the library's host-only check.
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{InsecureSkipVerify: true})
