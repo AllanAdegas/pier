@@ -62,6 +62,9 @@ func hostSample(m server.Metrics) Sample {
 func resourceSamples(containers []server.ContainerUsage) map[string]Sample {
 	samples := map[string]Sample{}
 	for _, c := range containers {
+		if c.ResourceType != "application" && c.ResourceType != "database" && c.ResourceType != "stack" {
+			continue
+		}
 		if c.ResourceID == "" || c.State != "running" {
 			continue
 		}

@@ -39,3 +39,7 @@ Log drains encaminham logs de um projeto, aplicação ou stack para **HTTP JSON*
 O envio HTTP publica um array de registros com timestamp, mensagem e labels. Loki usa o endpoint de push correspondente. Há teste do destino na API `/api/v1/log-drains/{id}/test`; enviar um teste não comprova coleta contínua de todos os containers. A interface de configuração ainda está em integração nesta beta.
 
 A fila é limitada e fica em memória. Lentidão do destino, repetidas falhas, excesso de linhas ou reinício do Pier podem perder logs; não há garantia de entrega única nem persistente. O mascaramento usa os segredos conhecidos pelo Pier, não detecta todo dado sensível escrito pela aplicação. Use uma solução própria de auditoria/armazenamento quando não puder perder eventos.
+
+### Limites da coleta de logs
+
+O envio é best effort, com buffers limitados. Registros completos acima de 1 MiB e excessos do orçamento por coleta (1 MiB ou 5.000 registros) são descartados e contabilizados em **Dropped**. Linhas normais depois de um registro grande continuam elegíveis. Falhas de leitura não avançam o cursor, mas falhas finais do destino podem perder registros. O cursor é mantido em memória; reiniciar o Pier não recupera o histórico anterior. Rotação e registros com timestamp idêntico também podem causar perdas. Não há garantia de entrega completa ou exatamente uma vez.

@@ -38,7 +38,8 @@ func SubjectKey(kind, id string) string { return kind + ":" + id }
 type HistoryStore struct{ DB *sql.DB }
 
 // Record stores one reading per subject at the given minute. A repeated
-// minute replaces the previous point.
+// minute replaces the previous point. An explicitly empty sample clears that
+// minute, so a retry with incomplete coverage cannot leave a stale total.
 func (h *HistoryStore) Record(ctx context.Context, at time.Time, samples map[string]Sample) error {
 	if len(samples) == 0 {
 		return nil
@@ -57,6 +58,9 @@ func (h *HistoryStore) Record(ctx context.Context, at time.Time, samples map[str
 	ts := at.Truncate(rawInterval).Unix()
 	for subject, s := range samples {
 		if s.empty() {
+			if _, err := tx.ExecContext(ctx, `DELETE FROM metric_points_raw WHERE subject=? AND ts=?`, subject, ts); err != nil {
+				return err
+			}
 			continue
 		}
 		if _, err := statement.ExecContext(ctx, subject, ts, s.CPU, s.MemUsed, s.MemTotal, s.DiskUsed, s.DiskTotal, s.Load1); err != nil {
@@ -116,11 +120,12 @@ type Series struct {
 
 // History is the answer to a range query.
 type History struct {
-	Range      string `json:"range"`
-	StepSecond int    `json:"step_seconds"`
-	From       int64  `json:"from"`
-	To         int64  `json:"to"`
-	Series     Series `json:"series"`
+	Range       string `json:"range"`
+	StepSecond  int    `json:"step_seconds"`
+	From        int64  `json:"from"`
+	To          int64  `json:"to"`
+	Series      Series `json:"series"`
+	Aggregation string `json:"aggregation,omitempty"`
 }
 
 // Query returns the points of a subject for a validated range.
@@ -156,6 +161,9 @@ func (h *HistoryStore) Query(ctx context.Context, subject string, r Range, now t
 	}
 	if err := rows.Err(); err != nil {
 		return History{}, err
+	}
+	if strings.HasPrefix(subject, "application:") {
+		history.Aggregation = "sum_complete_destinations"
 	}
 	history.Series = builder.series(r.Resolution == bucketInterval)
 	return history, nil

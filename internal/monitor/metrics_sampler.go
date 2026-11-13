@@ -32,6 +32,7 @@ type Sampler struct {
 	Logger   *slog.Logger
 	Now      func() time.Time
 
+	roundMu     sync.Mutex
 	mu          sync.Mutex
 	inFlight    map[string]bool
 	lastCompact time.Time
@@ -61,11 +62,18 @@ func (s *Sampler) Run(ctx context.Context) {
 // whose previous collection is still running is skipped, so one slow host
 // never accumulates work.
 func (s *Sampler) SampleOnce(ctx context.Context) {
+	if !s.roundMu.TryLock() {
+		return
+	}
+	defer s.roundMu.Unlock()
 	servers, err := s.Servers.List(ctx)
 	if err != nil {
 		s.Logger.Warn("metrics: list servers", "error", err)
 		return
 	}
+	at := s.now()
+	results := map[string]server.Metrics{}
+	var resultsMu sync.Mutex
 	var wait sync.WaitGroup
 	for _, target := range servers {
 		if target.Status != server.StatusReachable || !s.begin(target.ID) {
@@ -75,10 +83,16 @@ func (s *Sampler) SampleOnce(ctx context.Context) {
 		go func(id string) {
 			defer wait.Done()
 			defer s.finish(id)
-			s.sampleServer(ctx, id)
+			metrics, err := s.Source.Metrics(ctx, id)
+			if err == nil {
+				resultsMu.Lock()
+				results[id] = metrics
+				resultsMu.Unlock()
+			}
 		}(target.ID)
 	}
 	wait.Wait()
+	s.recordRound(ctx, at, results)
 }
 
 func (s *Sampler) begin(id string) bool {
@@ -98,18 +112,6 @@ func (s *Sampler) finish(id string) {
 	s.mu.Lock()
 	delete(s.inFlight, id)
 	s.mu.Unlock()
-}
-
-func (s *Sampler) sampleServer(ctx context.Context, id string) {
-	metrics, err := s.Source.Metrics(ctx, id)
-	if err != nil {
-		return // an unreachable or failing host is a gap, not a zero
-	}
-	samples := resourceSamples(metrics.Containers)
-	samples[SubjectKey("server", id)] = hostSample(metrics)
-	if err := s.Store.Record(ctx, s.now(), samples); err != nil {
-		s.Logger.Warn("metrics: record", "server", id, "error", err)
-	}
 }
 
 func (s *Sampler) compactIfDue(ctx context.Context) {

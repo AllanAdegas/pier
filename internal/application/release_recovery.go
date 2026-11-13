@@ -3,7 +3,7 @@ package application
 import (
 	"context"
 	"errors"
-	"fmt"
+	"pier/internal/platform/i18n"
 
 	"pier/internal/docker"
 )
@@ -39,7 +39,7 @@ func (r *releaseRecovery) restore(ctx context.Context, j *job) error {
 		}
 		// Docker retains the original healthcheck; no release command/hooks run here.
 		if err := j.waitUntilReady(ctx, container.ID); err != nil {
-			failures = append(failures, fmt.Errorf("restaurar container %s: %w", container.ID, err))
+			failures = append(failures, i18n.Errorf("restaurar container %s: %w", container.ID, err))
 		}
 	}
 	return errors.Join(failures...)

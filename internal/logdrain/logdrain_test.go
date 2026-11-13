@@ -3,6 +3,7 @@ package logdrain
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -198,18 +199,6 @@ func TestBufferIsBoundedAndCountsDrops(t *testing.T) {
 	}
 }
 
-func TestParseLogLinesSkipsOldAndPartialLines(t *testing.T) {
-	cursor := time.Date(2026, 11, 12, 10, 0, 0, 0, time.UTC)
-	output := "2026-11-12T10:00:00Z old\n2026-11-12T10:00:01.5Z new line\nnot a log\n2026-11-12T10:00:02Z partial"
-	lines := parseLogLines(output, cursor, true)
-	if len(lines) != 1 || lines[0].message != "new line" {
-		t.Fatalf("%+v", lines)
-	}
-	if len(parseLogLines(output, cursor, false)) != 2 {
-		t.Fatal("complete read lost a line")
-	}
-}
-
 const psLine = "c0ffee\tapi-1\tapi:latest\trunning\tUp 1h\tapplication\tapp\td1"
 
 func TestForwarderShipsMaskedLabeledLinesAndSurvivesFailures(t *testing.T) {
@@ -218,7 +207,7 @@ func TestForwarderShipsMaskedLabeledLinesAndSurvivesFailures(t *testing.T) {
 	endpoint := received.server(t)
 	now := time.Now().UTC()
 	ex := executor.NewFake().On("docker ps", psLine, 0).
-		On("docker logs", now.Add(time.Second).Format(time.RFC3339Nano)+" password=hunter2-secret\n"+now.Add(2*time.Second).Format(time.RFC3339Nano)+" ready", 0)
+		On("docker logs", hexLogs(now.Add(time.Second).Format(time.RFC3339Nano)+" password=hunter2-secret\n"+now.Add(2*time.Second).Format(time.RFC3339Nano)+" ready\n"), 0)
 	redactorFails := false
 	service := newTestService(t, db, ex, func(_ context.Context, kind, id string) (Masker, error) {
 		if redactorFails {
@@ -246,7 +235,7 @@ func TestForwarderShipsMaskedLabeledLinesAndSurvivesFailures(t *testing.T) {
 		!strings.Contains(body, `"pier_resource_id":"app"`) || !strings.Contains(body, `"pier_container":"api-1"`) {
 		t.Fatalf("body %s", body)
 	}
-	if !ex.Ran("docker logs --timestamps --since") || !ex.Ran("| head -c 1048576") {
+	if !ex.Ran("docker logs --timestamps --since") || !ex.Ran("| od -An -v -tx1") {
 		t.Fatalf("commands %v", ex.Commands)
 	}
 	waitFor(t, func() bool { return service.forwarder.Status(view.ID).Sent == 2 })
@@ -254,7 +243,7 @@ func TestForwarderShipsMaskedLabeledLinesAndSurvivesFailures(t *testing.T) {
 	received.mu.Lock()
 	received.failWith = http.StatusServiceUnavailable
 	received.mu.Unlock()
-	ex.On("docker logs", now.Add(time.Hour).Format(time.RFC3339Nano)+" later", 0)
+	ex.On("docker logs", hexLogs(now.Add(time.Hour).Format(time.RFC3339Nano)+" later\n"), 0)
 	if err := service.forwarder.cycle(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -265,7 +254,7 @@ func TestForwarderShipsMaskedLabeledLinesAndSurvivesFailures(t *testing.T) {
 	}
 
 	redactorFails = true
-	ex.On("docker logs", now.Add(2*time.Hour).Format(time.RFC3339Nano)+" password=hunter2-secret", 0)
+	ex.On("docker logs", hexLogs(now.Add(2*time.Hour).Format(time.RFC3339Nano)+" password=hunter2-secret\n"), 0)
 	if err := service.forwarder.cycle(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -305,4 +294,13 @@ func waitFor(t *testing.T, condition func() bool) {
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
+}
+
+func hexLogs(raw string) string {
+	var out strings.Builder
+	for _, b := range []byte(raw + "PIER_LOG_EXIT=000") {
+		out.WriteString(hex.EncodeToString([]byte{b}))
+		out.WriteByte(32)
+	}
+	return out.String()
 }

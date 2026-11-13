@@ -83,24 +83,32 @@ func schema(e ast.Expr, s scope) M {
 		props := M{}
 		required := []string{}
 		for _, f := range n.Fields.List {
+			tag := ""
+			if f.Tag != nil {
+				value, _ := strconv.Unquote(f.Tag.Value)
+				tag = reflect.StructTag(value).Get("json")
+			}
+			if tag == "-" {
+				continue
+			}
 			if len(f.Names) == 0 {
-				embedded := schema(f.Type, s)
-				if r, ok := embedded["$ref"].(string); ok {
-					embedded = schemas[strings.TrimPrefix(r, "#/components/schemas/")].(M)
+				if name := strings.Split(tag, ",")[0]; name != "" {
+					props[name] = schema(f.Type, s)
+					continue
 				}
-				if p, ok := embedded["properties"].(M); ok {
-					for k, v := range p {
+				embeddedType := f.Type
+				if ptr, ok := embeddedType.(*ast.StarExpr); ok {
+					embeddedType = ptr.X
+				}
+				embedded := schema(embeddedType, s)
+				if ref, ok := embedded["$ref"].(string); ok {
+					embedded, _ = schemas[strings.TrimPrefix(ref, "#/components/schemas/")].(M)
+				}
+				if fields, ok := embedded["properties"].(M); ok {
+					for k, v := range fields {
 						props[k] = v
 					}
 				}
-				continue
-			}
-			tag := ""
-			if f.Tag != nil {
-				v, _ := strconv.Unquote(f.Tag.Value)
-				tag = reflect.StructTag(v).Get("json")
-			}
-			if tag == "-" {
 				continue
 			}
 			parts := strings.Split(tag, ",")

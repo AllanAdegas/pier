@@ -189,3 +189,51 @@ func TestGenerationIsDeterministic(t *testing.T) {
 		t.Fatal("nondeterministic output")
 	}
 }
+
+func TestSchemasRespectJSONRepresentation(t *testing.T) {
+	reset()
+	expression, err := parser.ParseExpr("struct { ID string `json:\"id\"`; Hidden string `json:\"-\"`; Value *string `json:\"value,omitempty\"`; Data []byte `json:\"data\"` }")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sc := schema(expression, scope{pkg: "fixture"})
+	props := sc["properties"].(M)
+	if props["Hidden"] != nil || props["hidden"] != nil {
+		t.Fatal("json excluded field leaked")
+	}
+	if props["data"].(M)["contentEncoding"] != "base64" {
+		t.Fatal("byte slices serialize as base64")
+	}
+	if props["value"].(M)["anyOf"] == nil {
+		t.Fatal("nullable pointer lost")
+	}
+	if sc["required"] != nil {
+		t.Fatal("serialization must not invent request-presence validation")
+	}
+	types["fixture.Inner"] = typ{expression, scope{pkg: "fixture"}}
+	embedded, err := parser.ParseExpr("struct { *Inner; Named Inner `json:\"nested\"` }")
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := schema(embedded, scope{pkg: "fixture"})["properties"].(M)
+	if result["id"] == nil || result["nested"] == nil {
+		t.Fatal("embedded/tagged fields lost")
+	}
+}
+func TestDynamicCollectionExpansionFollowsNewCallsites(t *testing.T) {
+	reset()
+	if err := parseRepo(); err != nil {
+		t.Fatal(err)
+	}
+	addFunction(t, `func (a *API) fixture(mux *http.ServeMux) {a.registerEnvRoutes(mux,"fixturecollection",envvar.OwnerApplication)}`)
+	scanRoutes()
+	found := false
+	for _, r := range routes {
+		if r.Pattern == "GET /api/v1/fixturecollection/{id}/envs" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("new dynamic collection silently omitted")
+	}
+}

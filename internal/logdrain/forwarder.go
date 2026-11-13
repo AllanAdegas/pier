@@ -2,9 +2,9 @@ package logdrain
 
 import (
 	"context"
+	"encoding/hex"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -16,8 +16,8 @@ import (
 	"pier/internal/server"
 )
 
-// Tuning of the forwarder. Collection reads at most maxReadBytes per
-// container per cycle; what does not fit is read in the next cycle.
+// Collection retains at most maxReadBytes per container per cycle.
+// Excess complete records are consumed and counted as dropped.
 const (
 	collectInterval = 10 * time.Second
 	serverTimeout   = 30 * time.Second
@@ -56,6 +56,7 @@ type Forwarder struct {
 	mu       sync.Mutex
 	shippers map[string]*shipper
 	cursors  map[string]time.Time
+	offsets  map[string]uint64
 }
 
 // Run collects every collectInterval until ctx ends. A failing cycle is
@@ -149,7 +150,7 @@ func (f *Forwarder) collect(ctx context.Context, serverID string, wanted map[str
 			continue
 		}
 		seen[container.ID] = true
-		lines := f.read(ctx, ex, container.ID)
+		lines := f.read(ctx, ex, container.ID, targets...)
 		if len(lines) == 0 {
 			continue
 		}
@@ -179,9 +180,13 @@ type logLine struct {
 
 // read returns the lines logged since the container's cursor. A container
 // seen for the first time starts now: drains do not backfill history.
-func (f *Forwarder) read(ctx context.Context, ex executor.Executor, containerID string) []logLine {
+func (f *Forwarder) read(ctx context.Context, ex executor.Executor, containerID string, targets ...*shipper) []logLine {
 	f.mu.Lock()
 	cursor, known := f.cursors[containerID]
+	if f.offsets == nil {
+		f.offsets = map[string]uint64{}
+	}
+	skip := f.offsets[containerID]
 	if !known {
 		f.cursors[containerID] = f.now().UTC()
 	}
@@ -189,38 +194,39 @@ func (f *Forwarder) read(ctx context.Context, ex executor.Executor, containerID 
 	if !known {
 		return nil
 	}
-	command := shell.Join("docker", "logs", "--timestamps", "--since", cursor.Format(time.RFC3339Nano), containerID) +
-		" 2>&1 | head -c " + strconv.Itoa(maxReadBytes)
-	output, err := ex.Run(ctx, command)
-	if err != nil {
+	// od emits bounded ASCII lines even for arbitrarily large Docker records.
+	// A fixed trailer carries Docker status through the POSIX pipeline.
+	// It is held back from the parser, including on an unterminated log tail.
+	command := "{ " + shell.Join("docker", "logs", "--timestamps", "--since", cursor.Format(time.RFC3339Nano), containerID) +
+		` 2>&1; code=$?; printf "PIER_LOG_EXIT=%03d" "$code"; } | od -An -v -tx1`
+	reader := newLogRead(cursor, skip)
+	var trailer []byte
+	err := ex.Stream(ctx, command, func(line string) {
+		for _, word := range strings.Fields(line) {
+			var decoded [1]byte
+			n, err := hex.Decode(decoded[:], []byte(word))
+			if err != nil || n != 1 {
+				reader.invalid = true
+				continue
+			}
+			trailer = append(trailer, decoded[0])
+			if len(trailer) > len("PIER_LOG_EXIT=000") {
+				reader.byte(trailer[0])
+				trailer = trailer[1:]
+			}
+		}
+	})
+	if err != nil || reader.invalid || string(trailer) != "PIER_LOG_EXIT=000" {
 		return nil
 	}
-	lines := parseLogLines(output, cursor, len(output) >= maxReadBytes-1)
-	if len(lines) > 0 {
-		f.mu.Lock()
-		f.cursors[containerID] = lines[len(lines)-1].at
-		f.mu.Unlock()
+	// An unterminated tail is intentionally retried, never marked consumed.
+	f.mu.Lock()
+	f.cursors[containerID], f.offsets[containerID] = reader.cursor, reader.offset
+	f.mu.Unlock()
+	for _, target := range targets {
+		target.buffer.drop(reader.dropped)
 	}
-	return lines
-}
-
-// parseLogLines keeps lines newer than the cursor. When the read was cut at
-// the byte limit, the last line may be partial and is left for the next read.
-func parseLogLines(output string, cursor time.Time, truncated bool) []logLine {
-	raw := strings.Split(output, "\n")
-	if truncated && len(raw) > 0 {
-		raw = raw[:len(raw)-1]
-	}
-	lines := []logLine{}
-	for _, line := range raw {
-		stamp, message, found := strings.Cut(line, " ")
-		at, err := time.Parse(time.RFC3339Nano, stamp)
-		if !found || err != nil || !at.After(cursor) {
-			continue
-		}
-		lines = append(lines, logLine{at: at, message: message})
-	}
-	return lines
+	return reader.lines
 }
 
 func (f *Forwarder) forgetCursors(seen map[string]bool) {
@@ -229,6 +235,7 @@ func (f *Forwarder) forgetCursors(seen map[string]bool) {
 	for id := range f.cursors {
 		if !seen[id] {
 			delete(f.cursors, id)
+			delete(f.offsets, id)
 		}
 	}
 }

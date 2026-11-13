@@ -120,3 +120,29 @@ func TestKeyValueRestoreJournalsBeforeStop(t *testing.T) {
 		t.Fatal("stop without durable journal")
 	}
 }
+
+func TestKeyValueRecoveryDoesNotStartWhileHelperCannotBeRemoved(t *testing.T) {
+	s, db, f := startKeyValue(t, EngineRedis)
+	b := seedBackup(t, s, db, BackupSucceeded)
+	_, err := s.store.db.Exec("INSERT INTO database_operations(id,database_id,backup_id,kind,status,started_at,resume_containers) VALUES('crash',?,?,'restore','running','2026-01-01',?)", db.ID, b.ID, `["original"]`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.On("docker rm -fv pier-restore-crash", "busy", 1)
+	if err := s.RecoverBackups(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if f.Ran("docker start") {
+		t.Fatal("must remove writing helper before restarting database")
+	}
+	if err := s.DeleteBackup(context.Background(), b.ID); err == nil {
+		t.Fatal("pending recovery journal must survive backup deletion")
+	}
+	f.On("docker rm -fv pier-restore-crash", "", 0)
+	if err := s.RecoverBackups(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if !f.Ran("docker start original") {
+		t.Fatal("cleanup retry did not resume original")
+	}
+}

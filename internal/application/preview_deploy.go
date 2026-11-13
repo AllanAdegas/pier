@@ -33,6 +33,9 @@ func (d *Deployer) executePreview(ctx context.Context, deployment Deployment, lo
 	if err != nil {
 		return i18n.Errorf("carregar aplicação: %w", err)
 	}
+	if err := d.checkDeployPolicy(ctx, app); err != nil {
+		return err
+	}
 	preview, err := d.previewOf(ctx, deployment)
 	if err != nil {
 		return err
@@ -133,6 +136,7 @@ func previewApplication(app Application, preview Preview) Application {
 // the host: its domains, its host ports and its host directories. Named
 // volumes stay, under the preview's own names.
 func isolatePreview(config *Config, preview Preview) {
+	stripPreviewHostOptions(config)
 	config.Network.Domains = []string{}
 	if preview.URL != "" {
 		config.Network.Domains = []string{preview.URL}

@@ -16,7 +16,9 @@ func (a *API) registerCloneRoutes(mux *http.ServeMux) {
 		if err != nil {
 			return err
 		}
-		app, err := a.Applications.Clone(r.Context(), r.PathValue("id"), options)
+		app, err := a.Applications.CloneWithConfigCheck(r.Context(), r.PathValue("id"), options, func(config application.Config) error {
+			return a.authorizeHostOptions(r, config)
+		})
 		if err != nil {
 			return err
 		}

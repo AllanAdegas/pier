@@ -37,8 +37,15 @@ default_data_dir() {
 
 if [ ! -f .env ]; then
   data_dir="${PIER_DATA_DIR:-$(default_data_dir)}"
+  # A generated value is read by both POSIX sh and Compose. Single quotes
+  # preserve spaces, dollar signs and command substitutions in both parsers.
+  case "$data_dir" in
+    *"'"*|*'
+'*) fail "O diretório de dados não pode conter aspas simples ou quebra de linha." ;;
+  esac
+  escaped_data_dir=$(printf '%s' "$data_dir" | sed 's/[\\&|]/\\&/g')
   say "Criando .env (dados em $data_dir)"
-  sed -e "s|^PIER_DATA_DIR=.*|PIER_DATA_DIR=$data_dir|" \
+  sed -e "s|^PIER_DATA_DIR=.*|PIER_DATA_DIR='$escaped_data_dir'|" \
       -e "s|^PIER_PORT=.*|PIER_PORT=${PIER_PORT:-8700}|" \
       -e "s|^PIER_BIND=.*|PIER_BIND=${PIER_BIND:-127.0.0.1}|" \
       -e "s|^TZ=.*|TZ=${TZ:-UTC}|" \

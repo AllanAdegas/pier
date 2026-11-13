@@ -8,7 +8,7 @@ Previews são cópias temporárias de uma aplicação para revisar pull requests
 4. Defina o máximo e o prazo de expiração: padrão de cinco previews e sete dias; limites de vinte e noventa dias.
 5. Abra um PR de teste e acompanhe o deploy e seus logs na aba. Novos commits atualizam o preview pelo SHA recebido no webhook.
 
-Cada preview tem identidade, domínio, imagens e volumes próprios. Portas do host e bind mounts são descartados. Isso separa recursos da aplicação principal, mas o código ainda é construído no Docker do servidor.
+Cada preview tem identidade, domínio, imagens e volumes próprios. Portas do host, bind mounts, dispositivos e capabilities adicionadas são descartados; privileged e namespaces de host não são herdados, inclusive depois de sobreposições do repositório. A política Docker vigente é revalidada antes do build, e revogar a política bloqueia novos previews da configuração antes autorizada. Isso separa recursos da aplicação principal, mas o código ainda é construído no Docker do servidor.
 
 ## Variáveis e forks
 

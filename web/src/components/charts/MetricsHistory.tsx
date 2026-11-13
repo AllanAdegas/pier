@@ -60,6 +60,9 @@ export function MetricsHistory(props: { path: string; hostCpu?: boolean }) {
       <QueryView query={history} skeletonLines={4}>
         {(data) => (
           <Show when={data().series.t.length > 0} fallback={<p class="small muted">{t("Ainda não há histórico. O Pier coleta uma amostra por minuto de servidores acessíveis.")}</p>}>
+            <Show when={(data() as History & { aggregation?: string }).aggregation === "sum_complete_destinations"}>
+              <p class="small muted">{t("Soma dos destinos da aplicação. Lacunas indicam coleta incompleta.")}</p>
+            </Show>
             <div class="chart-grid-layout">
               <For each={charts(data().series, props.hostCpu ? 100 : undefined)}>{(chart) => (
                 <LineChart title={chart.title} t={data().series.t} lines={chart.lines} stepSeconds={data().step_seconds}

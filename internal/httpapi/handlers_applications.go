@@ -77,6 +77,9 @@ func (a *API) createApplication(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	if err := a.authorizeHostOptions(r, input.Config); err != nil {
+		return err
+	}
 	if _, err := a.Projects.GetEnvironment(r.Context(), input.EnvironmentID); err != nil && input.EnvironmentID != "" {
 		return err
 	}
@@ -93,6 +96,9 @@ func (a *API) createApplication(w http.ResponseWriter, r *http.Request) error {
 func (a *API) updateApplication(w http.ResponseWriter, r *http.Request) error {
 	input, err := decode[application.UpdateInput](w, r)
 	if err != nil {
+		return err
+	}
+	if err := a.authorizeHostOptions(r, input.Config); err != nil {
 		return err
 	}
 	app, err := a.Applications.Update(r.Context(), r.PathValue("id"), input)

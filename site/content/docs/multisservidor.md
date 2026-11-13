@@ -30,7 +30,7 @@ Uma promoção entre servidores pode reutilizar o mesmo digest já publicado, se
 - Rollback de imagem não desfaz migrations ou alterações em serviços externos.
 - Volumes não são compartilhados. Uploads locais e bancos precisam de arquitetura própria; réplicas de aplicação não replicam dados.
 - Não há retomada automática de rollout interrompido. Depois de reiniciar o Pier durante uma atualização, confira cada destino antes de tentar de novo.
-- Previews, tarefas agendadas, terminal, aba Logs e histórico de métricas ainda usam o servidor original da aplicação; use a visão de destinos para os demais.
+- Previews, tarefas agendadas, terminal e aba Logs ainda usam o servidor original da aplicação; use a visão de destinos para os demais. O histórico de métricas agrega os destinos configurados: [entenda totais e lacunas](/docs/alertas/#historico-de-metricas).
 - Registry HTTP inseguro não é suportado. Não há provisionamento automático de DNS ou balanceador.
 
 A integração foi exercitada em testes com executores simulados e servidores HTTP de teste. Não foi validada contra registries ou múltiplos servidores reais nesta etapa. Antes de usar produção, teste publicação privada, falha parcial, rollback e recuperação no seu ambiente.

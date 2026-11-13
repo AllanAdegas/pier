@@ -198,9 +198,12 @@ func validateDevices(devices []string, fields apperr.Fields) {
 
 // DangerousDockerOptions lists what in the configuration gives the container
 // power over the server: privileged mode, the host's network or process
-// namespace, kernel-level capabilities, raw devices and the Docker socket.
+// namespace, kernel-level capabilities, host devices and all host bind mounts.
 func (c Config) DangerousDockerOptions() []string {
 	options := c.DockerOptions
+	options.NetworkMode = strings.TrimSpace(options.NetworkMode)
+	options.PidMode = strings.TrimSpace(options.PidMode)
+	options.CapAdd = normalizeCapabilities(options.CapAdd)
 	found := []string{}
 	if options.Privileged {
 		found = append(found, "privileged")
@@ -217,12 +220,12 @@ func (c Config) DangerousDockerOptions() []string {
 		}
 	}
 	for _, device := range options.Devices {
-		if dangerousDevice(device) {
+		if device != "" {
 			found = append(found, "device: "+strings.Split(device, ":")[0])
 		}
 	}
 	for _, storage := range c.Storages {
-		if storage.Kind == StorageBind && exposesDockerSocket(storage.Source) {
+		if storage.Kind == StorageBind {
 			found = append(found, "volume: "+storage.Source)
 		}
 	}

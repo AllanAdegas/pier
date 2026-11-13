@@ -120,8 +120,8 @@ func TestDockerOptionsDevicesNeedTheDevicesSwitch(t *testing.T) {
 	if _, found := fieldsOf(t, dockerOptionsAllowed(config, DockerOptionsPolicy{AllowDangerous: true}))["docker_options.devices"]; !found {
 		t.Fatal("devices accepted while the instance does not allow them")
 	}
-	if err := dockerOptionsAllowed(config, DockerOptionsPolicy{AllowDevices: true}); err != nil {
-		t.Fatalf("an ordinary device needs only the devices switch: %v", err)
+	if err := dockerOptionsAllowed(config, DockerOptionsPolicy{AllowDevices: true, AllowDangerous: true}); err != nil {
+		t.Fatalf("an explicitly authorized device should work: %v", err)
 	}
 }
 

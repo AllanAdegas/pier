@@ -104,6 +104,12 @@ func (p ClonePlan) CloneRepository(repository string) string {
 // Clone copies an application's definition (never its deployments, image or
 // webhook secret) into the target environment, on the same server.
 func (s *Service) Clone(ctx context.Context, sourceID string, options CloneOptions) (Application, error) {
+	return s.CloneWithConfigCheck(ctx, sourceID, options, nil)
+}
+
+// CloneWithConfigCheck authorizes the exact copied configuration before any
+// resource is persisted, avoiding a second source read between check and copy.
+func (s *Service) CloneWithConfigCheck(ctx context.Context, sourceID string, options CloneOptions, check func(Config) error) (Application, error) {
 	source, err := s.Get(ctx, sourceID)
 	if err != nil {
 		return Application{}, err
@@ -115,6 +121,11 @@ func (s *Service) Clone(ctx context.Context, sourceID string, options CloneOptio
 	config, err := s.cloneConfig(ctx, source, plan)
 	if err != nil {
 		return Application{}, err
+	}
+	if check != nil {
+		if err := check(config); err != nil {
+			return Application{}, err
+		}
 	}
 	clone, err := s.Create(ctx, CreateInput{
 		EnvironmentID: plan.Options.TargetEnvironmentID, ServerID: source.ServerID,

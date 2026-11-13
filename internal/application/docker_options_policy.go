@@ -13,7 +13,7 @@ import (
 // instance owner may turn them on (enforced by the HTTP layer).
 type DockerOptionsPolicy struct {
 	// AllowDangerous permits privileged mode, host network/pid, kernel-level
-	// capabilities, raw disks and Docker socket mounts.
+	// capabilities, host devices and all host bind mounts.
 	AllowDangerous bool `json:"allow_dangerous"`
 	// AllowDevices permits mapping host devices (e.g. a GPU or /dev/ttyUSB0).
 	AllowDevices bool `json:"allow_devices"`

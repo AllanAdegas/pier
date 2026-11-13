@@ -1,4 +1,5 @@
 export const englishMetrics: Record<string, string> = {
+  "Soma dos destinos da aplicação. Lacunas indicam coleta incompleta.": "Sum of application destinations. Gaps indicate incomplete collection.",
   "Histórico de uso": "Usage history",
   "Período": "Period",
   "Memória": "Memory",

@@ -81,3 +81,32 @@ func TestMetricsHistoryRejectsBadInput(t *testing.T) {
 		}
 	}
 }
+
+func TestMetricsHistoryProjectIsolation(t *testing.T) {
+	a := newAccessWorld(t).a
+	a.MetricsHistory = &monitor.HistoryStore{DB: a.Instance.DB}
+	ctx := context.Background()
+	user, err := a.Identity.CreateUser(ctx, "Metrics", "metrics@example.com", "test-password-long")
+	if err != nil {
+		t.Fatal(err)
+	}
+	grantMember(t, a, user.ID, "pa", rbac.Viewer)
+	_, token, err := a.Identity.CreateToken(ctx, user.ID, "read", []identity.Ability{identity.AbilityRead})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cpu := 30.0
+	if err := a.MetricsHistory.Record(ctx, time.Now().Add(-time.Minute), map[string]monitor.Sample{"application:appa": {CPU: &cpu}, "application:appb": {CPU: &cpu}}); err != nil {
+		t.Fatal(err)
+	}
+	for path, want := range map[string]int{
+		"/api/v1/resources/applications/appa/metrics/history": 200,
+		"/api/v1/resources/applications/appb/metrics/history": 403,
+		"/api/v1/servers/srv/metrics/history":                 403,
+	} {
+		w := metricsRequest(t, a, path, token)
+		if w.Code != want {
+			t.Errorf("%s: %d %s", path, w.Code, w.Body)
+		}
+	}
+}

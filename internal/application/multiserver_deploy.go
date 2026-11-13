@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -188,6 +189,7 @@ func (r *rollout) compensate(ctx context.Context, failedID string, cause error) 
 		if err := r.restore(cleanup, released); err != nil {
 			r.record(cleanup, released.id, PlacementRollbackFailed, r.image, released.previous, err)
 			failures = append(failures, released.name)
+			cause = errors.Join(cause, err)
 			continue
 		}
 		r.record(cleanup, released.id, PlacementRolledBack, released.previous, r.image, nil)

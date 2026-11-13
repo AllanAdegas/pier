@@ -3627,6 +3627,9 @@
       },
       "monitor.History": {
         "properties": {
+          "aggregation": {
+            "type": "string"
+          },
           "from": {
             "type": "integer"
           },
@@ -6011,7 +6014,7 @@
   "info": {
     "description": "Source-derived HTTP contract. Authorization intersects credential abilities with live instance/project membership. Unknown/global scopes require instance permission; roles do not grant access to unrelated projects. Schemas describe JSON representation, not every semantic validation. Extension x-schema-inference lists expressions whose exact shape cannot be inferred; these are deliberately not presented as typed SDK guarantees.",
     "title": "Pier HTTP API",
-    "version": "0.5.0"
+    "version": "0.6.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -9136,7 +9139,7 @@
             "cookieAuth": []
           }
         ],
-        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\toptions, err := decode[application.CloneOptions](w, r)\n\tif err != nil {\n\t\treturn err\n\t}\n\tapp, err := a.Applications.Clone(r.Context(), r.PathValue(\"id\"), options)\n\tif err != nil {\n\t\treturn err\n\t}\n\treturn created(w, forCaller(r, app))\n}",
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\toptions, err := decode[application.CloneOptions](w, r)\n\tif err != nil {\n\t\treturn err\n\t}\n\tapp, err := a.Applications.CloneWithConfigCheck(r.Context(), r.PathValue(\"id\"), options, func(config application.Config) error {\n\t\treturn a.authorizeHostOptions(r, config)\n\t})\n\tif err != nil {\n\t\treturn err\n\t}\n\treturn created(w, forCaller(r, app))\n}",
         "tags": [
           "applications"
         ],

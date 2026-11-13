@@ -252,7 +252,9 @@ func (j *job) releaseRecoverable(ctx context.Context, image string, env map[stri
 		return err
 	}
 	if recovery.touched && !recovery.retain {
-		return docker.Remove(ctx, j.ex, recovery.previous)
+		if err := docker.Remove(ctx, j.ex, recovery.previous); err != nil {
+			j.log.Info("Não foi possível remover containers antigos de %s: %s", j.server.Name, err)
+		}
 	}
 	return nil
 }
