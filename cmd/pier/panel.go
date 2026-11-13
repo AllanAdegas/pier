@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
+	"pier/internal/platform/i18n"
 
 	"gopkg.in/yaml.v3"
 
@@ -19,10 +19,10 @@ func configurePanel(ctx context.Context, servers *server.Service, domain string)
 
 	if domain != "" {
 		if _, err := compose.ParseRoute("https://" + domain); err != nil {
-			return fmt.Errorf("PIER_DOMAIN inválido: %w", err)
+			return i18n.Errorf("PIER_DOMAIN inválido: %w", err)
 		}
 		if containsPanelPath(domain) {
-			return fmt.Errorf("PIER_DOMAIN deve conter apenas o domínio")
+			return i18n.Errorf("PIER_DOMAIN deve conter apenas o domínio")
 		}
 	}
 	all, err := servers.List(ctx)
@@ -50,7 +50,7 @@ func configurePanel(ctx context.Context, servers *server.Service, domain string)
 		}
 		return (&executor.Local{}).WriteFile(ctx, filepath.Join(dir, "pier-panel.yaml"), data, 0600)
 	}
-	return fmt.Errorf("servidor local não encontrado para PIER_DOMAIN")
+	return i18n.Errorf("servidor local não encontrado para PIER_DOMAIN")
 }
 func containsPanelPath(domain string) bool {
 	for _, r := range domain {

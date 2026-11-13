@@ -104,7 +104,7 @@ function PlacementSettings(props: { application: Application }) {
                 <TextInput
                   label={t("Repositório de imagens")}
                   hint={t("Caminho no registro, como empresa/api. O host vem do registro escolhido.")}
-                  placeholder="empresa/api"
+                  placeholder={t("empresa/api")}
                   mono
                   value={current().repository}
                   error={save.errors().repository}

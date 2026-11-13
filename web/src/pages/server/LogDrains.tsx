@@ -144,7 +144,7 @@ function DrainForm(props: { drain?: LogDrain; onClose: () => void; onSaved: () =
         <TextInput
           label={t("URL")}
           mono
-          placeholder={input.kind === "loki" ? "https://loki.exemplo.com" : "https://logs.exemplo.com/ingest"}
+          placeholder={input.kind === "loki" ? t("https://loki.exemplo.com") : t("https://logs.exemplo.com/ingest")}
           value={input.url}
           onValue={(value) => setInput("url", value)}
           hint={input.kind === "loki" ? t("Sem caminho, o Pier usa /loki/api/v1/push.") : t("Recebe um POST com uma lista JSON de {timestamp, message, labels}.")}

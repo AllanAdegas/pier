@@ -9,7 +9,6 @@ export const englishEngine: Record<string, string> = {
   "Confiança SSH do Git redefinida. A nova chave será registrada no próximo deploy.": "Git SSH trust reset. The new key will be recorded on the next deployment.",
   "Se o host Git mudou de chave, confirme a nova chave com o administrador do repositório antes de redefinir a confiança.": "If the Git host key changed, verify the new key with the repository administrator before resetting trust.",
   "Redefinir confiança SSH do Git": "Reset Git SSH trust",
-  "Caminhos monitorados": "Watch paths",
   "Um glob por linha, ex.: apps/api/**. Vazio implanta qualquer push na branch.": "One glob per line, e.g. apps/api/**. Empty deploys every push to the branch.",
   "rodar no contêiner atual": "run in the current container",
   "Comando de release": "Release command",

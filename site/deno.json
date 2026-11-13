@@ -1,8 +1,8 @@
 {
   "tasks": {
-    "build": "deno run --allow-read --allow-env=SITE_BASE_PATH --allow-write=dist src/build.ts",
+    "build": "deno run --allow-read --allow-env=SITE_BASE_PATH,SITE_ALLOW_MISSING_EN,CI --allow-write=dist src/build.ts",
     "serve": "deno task build && deno run --allow-net --allow-read=dist --allow-env=PORT src/serve.ts",
-    "test": "deno test --allow-read src/"
+    "test": "deno test --allow-read --allow-env=SITE_ALLOW_MISSING_EN,CI src/"
   },
   "imports": {
     "marked": "npm:marked@18.2.0",

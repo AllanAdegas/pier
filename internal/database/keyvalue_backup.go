@@ -101,7 +101,7 @@ func (s *Service) restoreKeyValue(ctx context.Context, source, target Database, 
 		return err
 	}
 	if n, err := result.RowsAffected(); err != nil || n != 1 {
-		return fmt.Errorf("não foi possível registrar os containers antes da parada")
+		return i18n.Errorf("não foi possível registrar os containers antes da parada")
 	}
 	log(i18n.Instance().Text("Parando o banco para substituir os dados. As conexões serão interrompidas."))
 	restoreErr := docker.Stop(ctx, ex, running)

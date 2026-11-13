@@ -60,6 +60,6 @@ Siga a [instalação](/docs/instalacao/): são uns 10 minutos num servidor com D
 
 ## Licença e responsabilidade
 
-O código usa Apache-2.0. A disponibilidade pública do repositório e das imagens depende da publicação pelo proprietário. Veja [licença e governança](/docs/comunidade/). Automação reduz manutenção, mas não dispensa revisão humana.
+O código usa Apache-2.0. O repositório e as imagens são públicos. Veja [licença e governança](/docs/comunidade/). Automação reduz manutenção, mas não dispensa revisão humana.
 
 Os guias novos acompanham o desenvolvimento da linha 0.6. A versão publicada {{version}} pode não conter todos esses recursos até a release correspondente; confira as notas da tag escolhida.

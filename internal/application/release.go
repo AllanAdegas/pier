@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -185,7 +184,7 @@ func (j *job) release(ctx context.Context, image string, env map[string]string) 
 		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), compensationTimeout)
 		defer cancel()
 		if restoreErr := state.restore(cleanup, j); restoreErr != nil {
-			return errors.Join(err, fmt.Errorf("restaurar versão anterior: %w", restoreErr))
+			return i18n.Errorf("%w\n%w", err, i18n.Errorf("restaurar versão anterior: %w", restoreErr))
 		}
 	}
 	return err

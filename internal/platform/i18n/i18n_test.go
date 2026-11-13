@@ -59,3 +59,25 @@ func TestARequestWithoutLanguageUsesTheInstances(t *testing.T) {
 		t.Errorf("the request's language must win, got %s", got)
 	}
 }
+
+func TestATerminalSpeaksItsLocaleAndEnglishByDefault(t *testing.T) {
+	cases := []struct {
+		environment map[string]string
+		want        Language
+	}{
+		{map[string]string{"LANG": "pt_BR.UTF-8"}, Portuguese},
+		{map[string]string{"LANG": "pt_PT"}, Portuguese},
+		{map[string]string{"LANG": "en_US.UTF-8"}, English},
+		{map[string]string{"LC_ALL": "en_GB.UTF-8", "LANG": "pt_BR.UTF-8"}, English},
+		{map[string]string{"LC_MESSAGES": "pt_BR.UTF-8", "LANG": "en_US.UTF-8"}, Portuguese},
+		{map[string]string{"LANG": "C.UTF-8"}, English},
+		{map[string]string{"LANG": "de_DE.UTF-8"}, English},
+		{map[string]string{}, English},
+	}
+	for _, c := range cases {
+		lookup := func(name string) string { return c.environment[name] }
+		if got := FromEnvironment(lookup); got != c.want {
+			t.Errorf("%v: got %s, want %s", c.environment, got, c.want)
+		}
+	}
+}

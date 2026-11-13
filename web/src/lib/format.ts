@@ -137,14 +137,17 @@ export function formatDuration(start: string | null, end: string | null): string
   return `${Math.floor(seconds / 60)}min ${seconds % 60}s`;
 }
 
-export function formatBytes(bytes: number): string {
+/** Binary size with the decimal separator of the language ("1.5 MB" / "1,5 MB"). */
+export function formatBytes(bytes: number, tag: string = locale): string {
   if (!bytes) {
     return "0 B";
   }
   const units = ["B", "KB", "MB", "GB", "TB"];
   const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   const value = bytes / 1024 ** exponent;
-  return `${value.toFixed(value >= 10 || exponent === 0 ? 0 : 1)} ${units[exponent]}`;
+  const digits = value >= 10 || exponent === 0 ? 0 : 1;
+  const number = value.toLocaleString(tag, { minimumFractionDigits: digits, maximumFractionDigits: digits, useGrouping: false });
+  return `${number} ${units[exponent]}`;
 }
 
 export function shortSha(sha: string): string {

@@ -3,7 +3,6 @@ package database
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"path"
 	"pier/internal/docker"
 	"pier/internal/platform/i18n"
@@ -96,7 +95,7 @@ func (s *Service) recoverOperation(ctx context.Context, operationID, backupID, d
 			containers = append(containers, docker.Container{ID: id})
 		}
 		if err := docker.Start(ctx, ex, containers); err != nil {
-			return fmt.Errorf("não foi possível iniciar o banco novamente: %w", err)
+			return i18n.Errorf("não foi possível iniciar o banco novamente: %w", err)
 		}
 		if _, err := s.store.db.ExecContext(ctx, "UPDATE database_operations SET resume_containers='[]' WHERE id=?", operationID); err != nil {
 			return err

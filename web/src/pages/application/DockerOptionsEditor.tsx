@@ -28,7 +28,7 @@ export function DockerOptionsEditor(props: {
       <div class="grid-2">
         <LinesInput label={t("Hosts extras")} placeholder="api.interna:10.0.0.5" hint={t("Um por linha, nome:IP. Use host-gateway para o servidor.")}
           value={options().extra_hosts} onValue={(extra_hosts) => update({ extra_hosts })} error={error("extra_hosts")} />
-        <LinesInput label={t("Labels")} placeholder="com.exemplo.time=web" hint={t("Um por linha, chave=valor. Prefixos pier., traefik. e com.docker. são reservados.")}
+        <LinesInput label={t("Labels")} placeholder={t("com.exemplo.time=web")} hint={t("Um por linha, chave=valor. Prefixos pier., traefik. e com.docker. são reservados.")}
           value={formatLabels(options().labels)} onValue={(lines) => update({ labels: parseLabels(lines) })} error={error("labels")} />
         <LinesInput label={t("Adicionar capabilities")} placeholder="NET_ADMIN" value={options().cap_add}
           onValue={(cap_add) => update({ cap_add })} error={error("cap_add")} />

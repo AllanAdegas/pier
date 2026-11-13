@@ -43,7 +43,7 @@ function SharedScopeSection(props: { scope: SharedScope; path: string; title: st
     onSuccess: () => void variables.refetch(),
   });
   return (
-    <Section title={props.title} description={t("Use nas variáveis da aplicação como {reference}.", { reference: `\${{${props.scope}.NOME}}` })}>
+    <Section title={props.title} description={t("Use nas variáveis da aplicação como {reference}.", { reference: `\${{${props.scope}.${t("NOME")}}}` })}>
       <For each={variables.data() ?? []}>
         {(variable) => (
           <div class="row-between">

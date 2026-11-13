@@ -27,7 +27,10 @@ function withHeaders(response: Response, cache: string): Response {
 export async function handle(request: Request): Promise<Response> {
   const response = await serveDir(request, { fsRoot: root, quiet: true, showDirListing: false });
   if (response.status === 404) {
-    return withHeaders(new Response(notFoundPage, { status: 404, headers: { "Content-Type": "text/html; charset=utf-8" } }), "no-cache");
+    return withHeaders(
+      new Response(notFoundPage, { status: 404, headers: { "Content-Type": "text/html; charset=utf-8" } }),
+      "no-cache",
+    );
   }
   const path = new URL(request.url).pathname;
   return withHeaders(response, path.startsWith("/assets/") ? "public, max-age=3600" : "no-cache");

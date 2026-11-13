@@ -47,6 +47,25 @@ func FromAcceptLanguage(header string, fallback Language) Language {
 	return fallback
 }
 
+// FromEnvironment picks the language of a terminal from the POSIX locale
+// variables, in their order of precedence (LC_ALL, LC_MESSAGES, LANG): the
+// first one set decides. A locale Pier does not speak, "C", "POSIX" or no
+// locale at all mean English. lookup is os.Getenv in production.
+func FromEnvironment(lookup func(string) string) Language {
+	for _, name := range []string{"LC_ALL", "LC_MESSAGES", "LANG"} {
+		value := strings.TrimSpace(lookup(name))
+		if value == "" {
+			continue
+		}
+		tag, _, _ := strings.Cut(value, ".")
+		if language, ok := Parse(strings.ReplaceAll(tag, "_", "-")); ok {
+			return language
+		}
+		return English
+	}
+	return English
+}
+
 // Text is an argument that is itself a message, such as the name of a kind
 // of resource, so it is translated along with the format it fills.
 type Text string

@@ -1,6 +1,8 @@
+English | [Português](CODE_OF_CONDUCT.pt-BR.md)
+
 # Contributor Covenant Code of Conduct
 
-> Reports go to contato@asigas.com, or privately to a maintainer through GitHub. / Denúncias: contato@asigas.com ou, em particular, a um mantenedor pelo GitHub.
+> Reports go to contato@asigas.com, or privately to a maintainer through GitHub.
 
 ## Our Pledge
 

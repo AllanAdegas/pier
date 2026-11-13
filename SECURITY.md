@@ -1,37 +1,35 @@
-# Política de segurança
+English | [Português](SECURITY.pt-BR.md)
 
-## Versões com suporte
+# Security policy
 
-Corrigimos vulnerabilidades apenas na **versão menor mais recente** (por exemplo, enquanto 0.6.x for a mais nova, só a 0.6.x recebe correções). O Pier está em beta (0.x): para corrigir, atualize para a última versão. O painel avisa quando há uma nova (desligue com `PIER_UPDATE_CHECK=0`).
+## Supported versions
 
-| Versão | Suporte |
+We fix vulnerabilities only in the **latest minor version** (for example, while 0.6.x is the newest, only 0.6.x receives fixes). Pier is in beta (0.x): to get a fix, upgrade to the latest version. The panel notifies you when there is a new one (turn this off with `PIER_UPDATE_CHECK=0`).
+
+| Version | Support |
 |---|---|
-| Última versão menor (`latest`) | Sim |
-| Anteriores | Não |
+| Latest minor version (`latest`) | Yes |
+| Earlier ones | No |
 
-## Como reportar uma vulnerabilidade
+## How to report a vulnerability
 
-**Não abra issue pública.** Use o relato privado do GitHub:
+**Do not open a public issue.** Use GitHub's private reporting:
 
-1. Abra a aba **Security** do repositório e clique em **Report a vulnerability** (ou vá direto a `https://github.com/AllanAdegas/pier/security/advisories/new`).
-2. Descreva o impacto, os passos para reproduzir, a versão afetada e, se tiver, uma sugestão de correção.
+1. Open the repository's **Security** tab and click **Report a vulnerability** (or go straight to `https://github.com/AllanAdegas/pier/security/advisories/new`).
+2. Describe the impact, the steps to reproduce, the affected version and, if you have one, a suggested fix.
 
-Não inclua segredos reais de produção no relato.
+Do not include real production secrets in the report.
 
-## O que esperar
+## What to expect
 
-- Confirmação em até 7 dias e uma avaliação inicial em até 14 dias.
-- A correção sai numa versão nova (release automático), junto de um *security advisory* com crédito a quem reportou, se desejar.
-- Pedimos divulgação coordenada: aguarde a versão corrigida antes de publicar detalhes.
+- Acknowledgement within 7 days and an initial assessment within 14 days.
+- The fix ships in a new version (automatic release), together with a *security advisory* crediting the reporter, if you wish.
+- We ask for coordinated disclosure: wait for the fixed version before publishing details.
 
-## Escopo
+## Scope
 
-Está no escopo o código deste repositório: painel (API, interface, MCP), instalador e imagem. Fora do escopo: vulnerabilidades das imagens de terceiros que o Pier implanta, do Docker ou do sistema do servidor, e achados que exijam acesso de administrador já concedido (todo usuário do Pier é administrador; um token `write` equivale a root nos servidores, como documentado).
+The code in this repository is in scope: panel (API, interface, MCP), installer and image. Out of scope: vulnerabilities in the third-party images that Pier deploys, in Docker or in the server's operating system, and findings that require administrator access already granted (every Pier user is an administrator; a `write` token is equivalent to root on the servers, as documented).
 
-## Cadeia de suprimentos
+## Supply chain
 
-Todas as Actions do CI são fixadas por SHA, o CI roda `govulncheck`, `gitleaks` e CodeQL, e as imagens publicadas trazem SBOM e atestado de procedência.
-
----
-
-**English.** Only the latest minor version is supported. Report vulnerabilities privately through GitHub (Security tab > Report a vulnerability); never in a public issue. Expect an acknowledgement within 7 days and an initial assessment within 14. Fixes ship as a new automatic release plus a security advisory; please coordinate disclosure.
+All CI Actions are pinned by SHA, CI runs `govulncheck`, `gitleaks` and CodeQL, and the published images carry an SBOM and a provenance attestation.

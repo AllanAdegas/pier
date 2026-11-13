@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"path/filepath"
+	"pier/internal/platform/i18n"
 	"pier/internal/platform/secretbox"
 	"pier/internal/platform/sqlite"
 	"strings"
@@ -54,5 +55,33 @@ func TestPasswordResetUsesOnlyAccountRecipientAndRequiresTLS(t *testing.T) {
 	channels, _ := s.List(ctx)
 	if channels[0].Config["to"] != "admin@example.com" {
 		t.Fatal("channel mutated")
+	}
+}
+
+func TestPasswordResetSpeaksTheLanguageOfTheRequest(t *testing.T) {
+	ctx := context.Background()
+	db, err := sqlite.Open(ctx, filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	box, _ := secretbox.New("reset-mailer-test-key")
+	s := NewService(db, box, slog.New(slog.DiscardHandler))
+	capture := &resetCapture{}
+	s.senders[KindEmail] = capture
+	if _, err = s.Create(ctx, Input{Name: "smtp", Kind: KindEmail, Enabled: true, Events: []EventType{DeploymentFailed}, Config: map[string]string{"host": "localhost", "port": "25", "from": "panel@example.com", "to": "admin@example.com"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SendPasswordReset(i18n.WithLanguage(ctx, i18n.English), "account@example.com", "https://panel.example/#reset=token"); err != nil {
+		t.Fatal(err)
+	}
+	if capture.event.Title != "Pier — reset password" || !strings.HasPrefix(capture.event.Message, "To reset your password") {
+		t.Fatalf("reset mail not in English: %q / %q", capture.event.Title, capture.event.Message)
+	}
+	if err := s.SendPasswordReset(i18n.WithLanguage(ctx, i18n.Portuguese), "account@example.com", "https://panel.example/#reset=token"); err != nil {
+		t.Fatal(err)
+	}
+	if capture.event.Title != "Pier — redefinir senha" {
+		t.Fatalf("reset mail not in Portuguese: %q", capture.event.Title)
 	}
 }

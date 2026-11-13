@@ -1,19 +1,22 @@
+English | [Português](RELEASE_NOTES.pt-BR.md)
+
 # Pier 0.6.0 — beta
 
-Painel self-hosted Apache-2.0 para equipes pequenas. Esta linha continua em beta: os recursos e limites abaixo devem orientar a adoção. Os controles locais passaram por três rodadas de QA com escopo delimitado. Consulte os limites abaixo; disponibilidade dos artefatos e instalação pública exigem verificação após a publicação.
+Self-hosted Apache-2.0 panel for small teams. This line remains in beta: the features and limits below should guide adoption. The local controls went through three rounds of QA with a bounded scope. See the limits below; artifact availability and public installation require verification after publication.
 
-- Autenticação TOTP/recovery, redefinição de senha, sessões e SSO OIDC; papéis de instância/projeto e convites.
-- Previews isolados por identidade, com forks desligados por padrão; Git stacks e integrações GitHub App/provedores.
-- Terminal web com sessão e revalidação de acesso; histórico de métricas, alertas e envio de logs.
-- Backup de volumes e engines key-value, com recuperação de disponibilidade após interrupção e journal na migration0024.
-- Registry privado, build server e destinos múltiplos por digest; rollout sequencial e compensação. DNS/LB externos, sem volumes compartilhados ou retomada automática de rollout.
-- Railpack, variáveis compartilhadas, clonagem de definições, domínios automáticos e opções de runtime; manutenção, limpeza restrita, provisionamento e instalação remota com confirmação.
-- CLI expandida, contrato OpenAPI derivado de296operações e site com24guias. Automação de testes/releases/dependências reduz tarefas recorrentes, sem dispensar revisão humana.
+- TOTP/recovery authentication, password reset, sessions and OIDC SSO; instance/project roles and invitations.
+- Previews isolated by identity, with forks off by default; Git stacks and GitHub App/provider integrations.
+- Web terminal with a session and access revalidation; metrics history, alerts and log shipping.
+- Backup of volumes and key-value engines, with availability recovery after interruption and a journal in migration 0024.
+- Private registry, build server and multiple targets by digest; sequential rollout and compensation. External DNS/LB, no shared volumes or automatic rollout resume.
+- Railpack, shared variables, definition cloning, automatic domains and runtime options; maintenance, restricted cleanup, provisioning and remote installation with confirmation.
+- Expanded CLI, OpenAPI contract derived from 296 operations and a website with 24 guides. Automation of tests/releases/dependencies reduces recurring tasks, without removing the need for human review.
+- 0.7 adds the English version: the panel, the website, the documentation, the installer and the CLI now ship in English and Portuguese (pt-BR).
 
-## Atualização e limites
+## Upgrade and limits
 
-Faça backup do banco de controle e da chave e teste a restauração antes de atualizar. Migrations não têm down. A linha0.6 altera o controle de acesso: usuários preexistentes preservam papel owner da instância por compatibilidade; revise explicitamente os grants. Bancos de desenvolvimento que aplicaram versões intermediárias das migrations0.6 precisam ser recriados; não são caminho de upgrade lançado.
+Back up the control database and the key, and test the restore before upgrading. Migrations have no down. The 0.6 line changes access control: pre-existing users keep the instance owner role for compatibility; review the grants explicitly. Development databases that applied intermediate versions of the 0.6 migrations must be recreated; they are not a released upgrade path.
 
-Binds/opções perigosas exigem owner da instância e política explícita para gravar configuração, inclusive clones. Previews não herdam privilégios de host, mas código de fork continua sendo código não confiável no servidor; não é sandbox de kernel. Portas fixas do host implicam interrupção na troca; compensação não desfaz migrações/dados externos. Métricas somam destinos completos; histórico legado sobrescrito não é recuperável. Log drains são best effort com perdas contabilizadas e cursor em memória.
+Dangerous binds/options require the instance owner and an explicit policy to write configuration, including clones. Previews do not inherit host privileges, but fork code is still untrusted code on the server; this is not a kernel sandbox. Fixed host ports imply an interruption during the switch; compensation does not undo external migrations/data. Metrics add up complete targets; overwritten legacy history is not recoverable. Log drains are best effort with accounted losses and an in-memory cursor.
 
-Evidência local inclui Linux/arm64 no Docker Desktop, fakes/SQLite/httptest e ensaios delimitados. Não equivale a operação de todos os provedores cloud, registries, arquiteturas ou todo catálogo em produção. Os artefatos GitHub/GHCR e site só devem ser anunciados como disponíveis após publicação e verificação reais.
+Local evidence includes Linux/arm64 on Docker Desktop, fakes/SQLite/httptest and bounded rehearsals. It does not equal operation across all cloud providers, registries, architectures or the whole catalog in production. The GitHub/GHCR artifacts and the website should only be announced as available after real publication and verification.
