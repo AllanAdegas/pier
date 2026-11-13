@@ -2,7 +2,7 @@
 
 [![Licença: Apache-2.0](https://img.shields.io/badge/licen%C3%A7a-Apache--2.0-blue.svg)](LICENSE) [![CI](https://github.com/AllanAdegas/pier/actions/workflows/ci.yml/badge.svg)](https://github.com/AllanAdegas/pier/actions/workflows/ci.yml)
 
-Painel self-hosted para subir projetos em servidores próprios: aplicações, bancos de dados e serviços compose, com domínio, HTTPS e deploy sem downtime. Escrito em Go e SolidJS.
+Painel self-hosted para subir projetos em servidores próprios: aplicações, bancos de dados e serviços compose, com domínio, HTTPS e deploy com verificação de prontidão e compensação de falhas. Escrito em Go e SolidJS.
 
 Três níveis sobre a mesma infraestrutura — use o que o projeto pedir:
 
@@ -18,7 +18,7 @@ Os dois últimos têm o [Rancher](https://github.com/rancher/rancher) como refer
 
 Em **Infraestrutura › Monitoramento** (`/monitoring`), acompanhe cada servidor: CPU, RAM utilizada/disponível, disco do diretório de dados, swap, tempo ativo, carga média e containers. Clusters Kubernetes têm um resumo separado de nós, pods saudáveis e avisos. As leituras se atualizam a cada 15 segundos com a página visível; também há atualização manual.
 
-O consumo do host requer Linux com `/proc` acessível. Falta de suporte ou falha de coleta aparece como indisponível, nunca como consumo zero. O painel mostra snapshots, não histórico persistente;.
+O consumo do host requer Linux com `/proc` acessível. Falta de suporte ou falha de coleta aparece como indisponível, nunca como consumo zero. O painel mostra snapshots e histórico persistente. Aplicações com vários destinos têm totais de CPU e memória somente quando a coleta está completa; leituras parciais aparecem como lacunas. Portas fixas no host exigem interrupção durante a troca de versão.
 
 > Em beta (0.x). Em produção numa VPS Linux desde 11/11/2026: painel, proxy e cinco stacks validados. Instalação limpa, backup/restauração, deploy/rollback, segredos de build, promoção e alertas de uptime também exercitados em Docker local Linux/arm64. Essas verificações não cobrem todos os fluxos nem todo o catálogo.
 

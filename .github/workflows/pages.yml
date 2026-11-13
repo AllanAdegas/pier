@@ -35,8 +35,10 @@ jobs:
         working-directory: site
       - run: deno task build
         working-directory: site
-      # The site links to absolute paths (/docs/...): it needs a domain of its
-      # own. Set the repository variable PAGES_CNAME (e.g. pier.example.com).
+        env:
+          SITE_BASE_PATH: ${{ vars.PAGES_CNAME && '/' || '/pier/' }}
+      # Default project hosting uses /pier/. A custom domain uses the root.
+      # Set PAGES_CNAME only after configuring its DNS.
       - name: Custom domain
         env:
           PAGES_CNAME: ${{ vars.PAGES_CNAME }}

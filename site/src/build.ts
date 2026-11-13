@@ -91,19 +91,31 @@ async function listAssets(): Promise<string[]> {
   return names;
 }
 
+/** Rebase local document and asset URLs for a project hosted below a prefix. */
+export function withBasePath(html: string, basePath = "/"): string {
+  if (!/^\/(?:[A-Za-z0-9_-]+\/)*$/.test(basePath)) {
+    throw new Error("SITE_BASE_PATH must be a root-relative directory ending in /.");
+  }
+  if (basePath === "/") return html;
+  return html.replace(
+    /\b(href|src)="\/(?!\/)([^"]*)"/g,
+    (_, attribute, target) => `${attribute}="${basePath}${target}"`,
+  );
+}
+
 function outputFile(path: string): URL {
   const relative = path.endsWith("/") ? `${path.slice(1)}index.html` : path.slice(1);
   return new URL(relative, distDir);
 }
 
-async function write(pages: BuiltPage[], assets: string[]) {
+async function write(pages: BuiltPage[], assets: string[], basePath: string) {
   await Deno.remove(distDir, { recursive: true }).catch((error) => {
     if (!(error instanceof Deno.errors.NotFound)) throw error;
   });
   for (const page of pages) {
     const file = outputFile(page.path);
     await Deno.mkdir(new URL("./", file), { recursive: true });
-    await Deno.writeTextFile(file, page.html);
+    await Deno.writeTextFile(file, withBasePath(page.html, basePath));
   }
   await Deno.mkdir(new URL("assets/", distDir), { recursive: true });
   for (const name of assets) {
@@ -120,6 +132,6 @@ if (import.meta.main) {
     console.error(`links internos quebrados:\n  ${broken.join("\n  ")}`);
     Deno.exit(1);
   }
-  await write(pages, assets);
+  await write(pages, assets, Deno.env.get("SITE_BASE_PATH") || "/");
   console.log(`site do Pier ${version}: ${pages.length} páginas em dist/`);
 }
