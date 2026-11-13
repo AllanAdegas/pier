@@ -1,6 +1,6 @@
 ## Licença e acesso
 
-O Pier usa a licença **Apache-2.0**. Leia [LICENSE]({{repo}}/blob/main/LICENSE), [NOTICE]({{repo}}/blob/main/NOTICE) e os avisos de dependências no repositório antes de redistribuir. A licença do código não torna automaticamente um repositório ou pacote GHCR acessível: enquanto privados, esses links e downloads exigem autorização.
+O Pier usa a licença **Apache-2.0**. Leia [LICENSE]({{repo}}/blob/main/LICENSE), [NOTICE]({{repo}}/blob/main/NOTICE) e os avisos de dependências no repositório antes de redistribuir.
 
 ## Contribuir e reportar problemas
 

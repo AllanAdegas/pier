@@ -6014,7 +6014,7 @@
   "info": {
     "description": "Source-derived HTTP contract. Authorization intersects credential abilities with live instance/project membership. Unknown/global scopes require instance permission; roles do not grant access to unrelated projects. Schemas describe JSON representation, not every semantic validation. Extension x-schema-inference lists expressions whose exact shape cannot be inferred; these are deliberately not presented as typed SDK guarantees.",
     "title": "Pier HTTP API",
-    "version": "0.6.0"
+    "version": "v1"
   },
   "openapi": "3.1.0",
   "paths": {
