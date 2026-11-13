@@ -77,17 +77,15 @@ cd pier
 ./install.sh
 ```
 
-### Acesso enquanto o projeto é privado
+### Se o download da imagem falhar
 
-O clone exige uma conta autorizada no repositório. A imagem e a tag também precisam existir no GHCR e sua conta precisa de permissão de leitura do pacote. Não há garantia de pull anônimo enquanto o pacote não for público. Autentique o cliente Docker com `docker login ghcr.io` usando uma credencial com acesso ao pacote, sem colocar tokens em comandos ou no histórico.
-
-Se a imagem ainda não foi publicada ou você só tem acesso ao código, construa no checkout autorizado:
+O repositório e a imagem do GHCR são públicos: o clone e o `docker pull` funcionam sem login. Se o pull falhar (rede restrita, registro bloqueado), construa a imagem no próprio checkout:
 
 ```sh
 PIER_BUILD=1 ./install.sh
 ```
 
-Use essa mesma opção nas reinstalações enquanto depender de build local. Não contorne um erro de acesso expondo credenciais no `.env` ou na URL do repositório.
+Use essa mesma opção nas reinstalações enquanto depender de build local. Não coloque tokens no `.env` nem na URL do repositório.
 
 O script:
 

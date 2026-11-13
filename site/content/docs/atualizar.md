@@ -28,7 +28,7 @@ git checkout vX.Y.Z
 ./install.sh
 ```
 
-O instalador baixa a imagem GHCR da versão selecionada e recria o container. O pacote precisa estar publicado e acessível à sua conta; veja [acesso privado](/docs/instalacao/#acesso-enquanto-o-projeto-e-privado). Para construir o código localmente, use `PIER_BUILD=1 ./install.sh`. O `.env` é mantido. O painel fica fora do ar por alguns segundos, mas as aplicações continuam respondendo.
+O instalador baixa a imagem GHCR da versão selecionada e recria o container. Se o download falhar, veja [o que fazer](/docs/instalacao/#se-o-download-da-imagem-falhar) ou construa o código localmente com `PIER_BUILD=1 ./install.sh`. O `.env` é mantido. O painel fica fora do ar por alguns segundos, mas as aplicações continuam respondendo.
 
 Confira a versão em execução:
 

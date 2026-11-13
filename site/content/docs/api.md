@@ -1,4 +1,4 @@
-A API HTTP do Pier usa o prefixo `/api/v1`. O contrato versionado fica em [api/openapi.json]({{repo}}/blob/main/api/openapi.json). Enquanto o repositório for privado, esse arquivo exige acesso autorizado. Use o arquivo da **mesma tag** do servidor, não o `main` de outra versão.
+A API HTTP do Pier usa o prefixo `/api/v1`. O contrato versionado fica em [api/openapi.json]({{repo}}/blob/main/api/openapi.json). O campo `info.version` é a versão do contrato (`v1`), não a do servidor. Use o arquivo da **mesma tag** do servidor, não o `main` de outra versão.
 
 ## Autenticação e permissões
 
