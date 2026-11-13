@@ -56,7 +56,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ## RBAC OIDC dependencies
 
 - github.com/coreos/go-oidc/v3 v3.14.1 — Apache-2.0; https://github.com/coreos/go-oidc/blob/v3.14.1/LICENSE
-- github.com/go-jose/go-jose/v4 v4.0.5 — Apache-2.0; https://github.com/go-jose/go-jose/blob/v4.0.5/LICENSE
+- github.com/go-jose/go-jose/v4 v4.1.4 — Apache-2.0; https://github.com/go-jose/go-jose/blob/v4.1.4/LICENSE
 
 ## Railpack build pack (downloaded at build time, not bundled)
 
