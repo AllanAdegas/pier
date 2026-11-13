@@ -136,7 +136,7 @@ make test         # go vet, testes Go e verificação de tipos da interface
 |---|---|---|
 | `PIER_ADDR` | `127.0.0.1:8700` | Endereço de escuta (a imagem Docker usa `:8700` e o compose publica em `127.0.0.1`) |
 | `PIER_DATA_DIR` | `./data` | Banco SQLite, chave e arquivos do servidor local |
-| `PIER_SECRET_KEY` | gerada em `<data>/secret.key` | Deriva a chave que cifra os segredos |
+| `PIER_SECRET_KEY` | gerada em `<data>/secret.key` | Deriva a chave que cifra os segredos (SHA-256). Se definir a sua, use um valor aleatório longo, como `openssl rand -hex 32`: uma frase curta ou previsível enfraquece a cifra |
 | `PIER_DEPLOY_CONCURRENCY` | `2` | Deploys simultâneos |
 | `PIER_DEV` | — | `1` liga o log de depuração |
 | `PIER_UPDATE_CHECK` | `1` | `0` desliga a consulta de novas versões (e qualquer requisição de saída do aviso) |

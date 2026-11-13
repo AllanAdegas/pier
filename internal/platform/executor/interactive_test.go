@@ -180,7 +180,16 @@ func TestSSHTerminalRequestsPtyResizesAndReportsExitStatus(t *testing.T) {
 	if err != nil || code != 7 {
 		t.Fatalf("code=%d err=%v", code, err)
 	}
-	ptys, resizes := record.snapshot()
+	// The window-change request is asynchronous: the peer may record it after the exit status arrives.
+	var ptys, resizes []string
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		ptys, resizes = record.snapshot()
+		if len(resizes) > 0 || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 	if len(ptys) != 1 || ptys[0] != "xterm-256color 120x40" || len(resizes) != 1 || resizes[0] != "100x30" {
 		t.Fatalf("pty=%v resizes=%v", ptys, resizes)
 	}
