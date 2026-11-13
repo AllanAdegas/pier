@@ -1,4 +1,9 @@
 export const englishMultiserver: Record<string, string> = {
+ "Rollout interrompido": "Interrupted rollout",
+ "Retome a imagem fixada ou restaure a versão anterior. Comandos de release podem exigir verificação manual.": "Resume the pinned image or restore the previous version. Release commands may require manual verification.",
+ "Retomar rollout": "Resume rollout",
+ "Reverter rollout": "Roll back rollout",
+
   "Destinos": "Destinations",
   "Implantando": "Deploying",
   "Versão atual no ar": "Current version live",

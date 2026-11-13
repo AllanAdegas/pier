@@ -219,6 +219,11 @@ func run() error {
 	if err := dispatcher.Start(ctx, cfg.DeployConcurrency); err != nil {
 		return err
 	}
+	// After the workers start: an interrupted multi-server rollout is resumed
+	// or rolled back once; a refusal leaves it for the operator.
+	if err := applications.RecoverRollouts(ctx); err != nil {
+		logger.Warn("recover multi-server rollouts", "error", err)
+	}
 	scheduler.Start(ctx)
 	defer scheduler.Stop()
 
