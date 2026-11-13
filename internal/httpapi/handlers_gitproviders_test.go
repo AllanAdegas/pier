@@ -81,7 +81,8 @@ func newGitProviderFixture(t *testing.T) gitProviderFixture {
 	auth := identity.NewService(identity.NewStore(db), time.Hour)
 	a := New(Dependencies{
 		Access: testAccess(t, db), Identity: auth, Env: env, Applications: apps, GitProviders: providers,
-		Settings: settings.NewStore(db), Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		GitFeedback: gitprovider.NewQueue(providers, nil, gitprovider.DefaultRetryPolicy(), slog.Default()),
+		Settings:    settings.NewStore(db), Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
 	user, err := auth.CreateUser(ctx, "Owner", "gitapp@example.invalid", "testing-password-long")
 	if err != nil {
@@ -92,6 +93,7 @@ func newGitProviderFixture(t *testing.T) gitProviderFixture {
 	_, writer, _ := auth.CreateToken(ctx, user.ID, "writer", []identity.Ability{identity.AbilityWrite})
 	mux := http.NewServeMux()
 	a.registerGitProviderRoutes(mux)
+	a.registerGitFeedbackRoutes(mux)
 	return gitProviderFixture{mux: mux, app: app.ID, reader: reader, writer: writer}
 }
 
@@ -171,5 +173,23 @@ func TestGitProviderWebhookVerifiesTheAppSignatureAndDispatches(t *testing.T) {
 	again := f.call("POST", "/webhooks/git-provider/github", "", body, header)
 	if !strings.Contains(again.Body.String(), `"duplicate":true`) || strings.Contains(again.Body.String(), f.app) {
 		t.Fatal("redelivery dispatched again", again.Body.String())
+	}
+}
+
+func TestGitFeedbackRoutesRequireAbilitiesAndScope(t *testing.T) {
+	f := newGitProviderFixture(t)
+	base := "/api/v1/applications/" + f.app + "/git-provider/reports"
+	for _, tc := range []struct {
+		method, path, token string
+		want                int
+	}{
+		{"GET", base, "", 401}, {"GET", base, f.reader, 200},
+		{"POST", base + "/1/resend", f.reader, 403},
+		{"POST", base + "/1/resend", f.writer, 404},
+		{"GET", "/api/v1/applications/missing/git-provider/reports", f.reader, 404},
+	} {
+		if got := f.call(tc.method, tc.path, tc.token, "", nil); got.Code != tc.want {
+			t.Errorf("%s %s: %d: %s", tc.method, tc.path, got.Code, got.Body.String())
+		}
 	}
 }

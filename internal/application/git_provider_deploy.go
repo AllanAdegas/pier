@@ -7,7 +7,10 @@ import "context"
 type DeploymentEvent string
 
 const (
-	DeploymentEventStarted   DeploymentEvent = "started"
+	// DeploymentEventStarted: the commit is checked out, the build waits.
+	DeploymentEventStarted DeploymentEvent = "started"
+	// DeploymentEventBuilding: the image build of the commit begins.
+	DeploymentEventBuilding  DeploymentEvent = "building"
 	DeploymentEventSucceeded DeploymentEvent = "succeeded"
 	DeploymentEventFailed    DeploymentEvent = "failed"
 	DeploymentEventCancelled DeploymentEvent = "cancelled"
@@ -40,6 +43,16 @@ func (d *Deployer) reportDeploymentStarted(ctx context.Context, j *job) {
 	}
 	d.deploymentReporter.ReportDeployment(context.WithoutCancel(ctx), DeploymentReport{
 		Event: DeploymentEventStarted, Application: j.app, Deployment: j.deployment,
+	})
+}
+
+// reportDeploymentBuilding runs when the build of the checked out commit starts.
+func (d *Deployer) reportDeploymentBuilding(ctx context.Context, j *job) {
+	if d.deploymentReporter == nil || j.deployment.Trigger == TriggerPreview || j.deployment.CommitSHA == "" {
+		return
+	}
+	d.deploymentReporter.ReportDeployment(context.WithoutCancel(ctx), DeploymentReport{
+		Event: DeploymentEventBuilding, Application: j.app, Deployment: j.deployment,
 	})
 }
 

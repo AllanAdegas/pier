@@ -25,6 +25,10 @@ const (
 	purposeClone
 	// purposeReport writes commit statuses and pull request comments of one repository.
 	purposeReport
+	// purposeCheck writes GitHub check runs of one repository. It is its own
+	// token: an App installed before checks were requested lacks the
+	// permission, and asking for it would make the report token fail too.
+	purposeCheck
 )
 
 func (p tokenPurpose) permissions() map[string]string {
@@ -33,6 +37,8 @@ func (p tokenPurpose) permissions() map[string]string {
 		return map[string]string{"contents": "read"}
 	case purposeReport:
 		return map[string]string{"statuses": "write", "pull_requests": "write"}
+	case purposeCheck:
+		return map[string]string{"checks": "write"}
 	}
 	return map[string]string{"metadata": "read"}
 }
@@ -76,7 +82,7 @@ func (s *Service) installationToken(ctx context.Context, key tokenKey) (string, 
 	}
 	path := fmt.Sprintf("/app/installations/%d/access_tokens", key.installation)
 	if err := s.github(ctx, http.MethodPost, path, jwt, input, &result); err != nil {
-		return "", mintError(err)
+		return "", &mintRefusal{status: statusOf(err), cause: mintError(err)}
 	}
 	if result.Token == "" || !result.ExpiresAt.After(s.now().Add(tokenRenewalMargin)) {
 		return "", apperr.Unavailable("O GitHub devolveu um token de instalação inválido.")
@@ -85,6 +91,25 @@ func (s *Service) installationToken(ctx context.Context, key tokenKey) (string, 
 	s.tokens[key] = cachedToken{value: result.Token, expires: result.ExpiresAt}
 	s.mu.Unlock()
 	return result.Token, nil
+}
+
+// mintRefusal is a failed installation token mint. Its text is the
+// explanation of mintError; status keeps the HTTP status GitHub answered.
+type mintRefusal struct {
+	status int
+	cause  error
+}
+
+func (e *mintRefusal) Error() string { return e.cause.Error() }
+func (e *mintRefusal) Unwrap() error { return e.cause }
+
+// mintStatus is the HTTP status of a refused token mint, 0 otherwise.
+func mintStatus(err error) int {
+	var refusal *mintRefusal
+	if errors.As(err, &refusal) {
+		return refusal.status
+	}
+	return 0
 }
 
 // mintError explains why GitHub refused an installation token.
