@@ -1,6 +1,6 @@
 import { assert, assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
 import { fillPlaceholders, parseVersion, placeholders, readVersion } from "./config.ts";
-import { renderMarkdown, slugify } from "./markdown.ts";
+import { renderMarkdown, slugify, stripTags } from "./markdown.ts";
 import { allPages, neighbours } from "./pages.ts";
 import { brokenLinks, buildPages, withBasePath } from "./build.ts";
 
@@ -87,4 +87,10 @@ Deno.test("every generated local URL supports project hosting", async () => {
       assert(match[1].startsWith("/pier/"), `${page.path}: ${match[1]}`);
     }
   }
+});
+
+Deno.test("heading text for the table of contents never keeps markup", () => {
+  assertEquals(stripTags("a <b>b</b> c"), "a b c");
+  assertEquals(stripTags("<scr<script>ipt>x"), "x");
+  assertEquals(slugify("<script>Olá</script>"), "scriptola-script");
 });
