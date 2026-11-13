@@ -1,0 +1,12 @@
+# Overlay used only by tools/installtest: gives the test instance its own
+# container and network names so it never touches a real Pier on the same
+# Docker. Selected through COMPOSE_FILE; install.sh is unaware of it.
+services:
+  pier:
+    environment:
+      PIER_UPDATE_CHECK: "0"
+    container_name: pier-v08-installtest-pier
+networks:
+  panel:
+    name: pier-v08-installtest-net
+    external: true
