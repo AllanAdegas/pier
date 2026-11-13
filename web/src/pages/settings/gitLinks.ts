@@ -46,20 +46,28 @@ export function feedbackInput(settings: GitFeedbackSettings, token: string): Git
   return input;
 }
 
-/** Suggests the provider from the repository host. */
+/** Reads a HTTPS/SSH URL or Git's SCP-style address without trusting its path. */
+function repositoryHost(repository: string): string {
+  const value = repository.trim();
+  try {
+    if (value.includes("://")) {
+      const url = new URL(value);
+      return url.protocol === "https:" || url.protocol === "ssh:" ? url.hostname.toLowerCase() : "";
+    }
+    const scp = /^(?:[^/@:\s]+@)?([A-Za-z0-9.-]+):[^\s]+$/.exec(value);
+    return scp ? new URL(`ssh://${scp[1]}`).hostname.toLowerCase() : "";
+  } catch {
+    return "";
+  }
+}
+
+/** Suggests only known provider hosts; self-hosted instances are chosen explicitly. */
 export function suggestedProvider(repository: string, linked: boolean): GitFeedbackProvider {
-  const value = repository.toLowerCase();
-  if (linked || value.includes("github.com")) {
-    return linked ? "github" : "none";
+  if (linked) return "github";
+  switch (repositoryHost(repository)) {
+    case "bitbucket.org": return "bitbucket";
+    case "gitlab.com": return "gitlab";
+    case "codeberg.org": return "gitea";
+    default: return "none";
   }
-  if (value.includes("bitbucket.org")) {
-    return "bitbucket";
-  }
-  if (value.includes("gitlab")) {
-    return "gitlab";
-  }
-  if (value.includes("gitea") || value.includes("forgejo") || value.includes("codeberg.org")) {
-    return "gitea";
-  }
-  return "none";
 }

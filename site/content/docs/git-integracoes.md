@@ -35,3 +35,5 @@ A integração ao deploy foi exercitada com HTTP simulado e executores de teste.
 Aplicações e Git stacks mostram os endereços e segredos de webhook na área de automação. Use o endereço específico do provedor e valide a assinatura/segredo; eventos de uma branch diferente ou tag não selecionada não devem publicar a aplicação principal. Não exponha o segredo em issues, capturas ou comandos.
 
 Para builds em outra máquina, registries privados e deploy em vários destinos, siga [Registry e múltiplos servidores](/docs/multisservidor/).
+
+Para instâncias GitLab/Gitea/Forgejo em domínio próprio, escolha o provedor explicitamente. A sugestão automática reconhece apenas hosts públicos exatos; nomes no caminho, query ou usuário da URL não identificam o provedor.

@@ -36,6 +36,25 @@ Deno.test("the provider is suggested from the repository host", () => {
   assertEquals(suggestedProvider("https://github.com/a/b.git", true), "github");
   assertEquals(suggestedProvider("https://github.com/a/b.git", false), "none");
   assertEquals(suggestedProvider("git@bitbucket.org:ws/app.git", false), "bitbucket");
-  assertEquals(suggestedProvider("https://gitlab.example.com/g/app.git", false), "gitlab");
+  assertEquals(suggestedProvider("https://gitlab.com/g/app.git", false), "gitlab");
   assertEquals(suggestedProvider("https://codeberg.org/a/b.git", false), "gitea");
+});
+
+Deno.test("provider suggestions use exact parsed hosts, not URL substrings", () => {
+  assertEquals(suggestedProvider("ssh://git@BITBUCKET.ORG/ws/app.git", false), "bitbucket");
+  assertEquals(suggestedProvider("git@gitlab.com:g/app.git", false), "gitlab");
+  assertEquals(suggestedProvider("git@codeberg.org:a/b.git", false), "gitea");
+  for (const host of ["github.com", "bitbucket.org", "codeberg.org", "gitlab.com"]) {
+    for (const address of [
+      `https://${host}.evil.test/a/b.git`,
+      `https://not${host}/a/b.git`,
+      `https://${host}@evil.test/a/b.git`,
+      `https://evil.test/${host}/a.git`,
+      `https://evil.test/a.git?q=${host}#${host}`,
+      `git@${host}.evil.test:a/b.git`,
+    ]) assertEquals(suggestedProvider(address, false), "none", address);
+  }
+  for (const address of ["https://gitlab.example.com/g/a.git", "https://gitea.example.com/a.git", "", "not a repository", "https://", "file:///bitbucket.org/a.git"]) {
+    assertEquals(suggestedProvider(address, false), "none", address);
+  }
 });
