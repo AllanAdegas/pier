@@ -58,3 +58,9 @@ Deno.test("provider suggestions use exact parsed hosts, not URL substrings", () 
     assertEquals(suggestedProvider(address, false), "none", address);
   }
 });
+
+Deno.test("connection picks use the chosen clone URL and stop applying after source edits", () => {
+  const pick = {installation_id: 0, connection_id: "forge", repository: "group/repo", clone_url: "https://forge.example/group/repo.git"};
+  assertEquals(pickStillApplies(pick, "https://forge.example/group/repo.git"), true);
+  assertEquals(pickStillApplies(pick, "https://other.example/group/repo.git"), false);
+});

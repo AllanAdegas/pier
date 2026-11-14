@@ -3,6 +3,7 @@ package httpapi
 import (
 	"io"
 	"net/http"
+	"pier/internal/gitprovider"
 	"strings"
 
 	"pier/internal/application"
@@ -35,6 +36,18 @@ func (a *API) rotateStackWebhook(w http.ResponseWriter, r *http.Request) error {
 	secret, err := a.Stacks.RotateWebhookSecret(r.Context(), r.PathValue("id"))
 	if err != nil {
 		return err
+	}
+	if a.GitConnections != nil {
+		link, err := a.GitConnections.Link(r.Context(), "stack", r.PathValue("id"))
+		if err != nil {
+			return err
+		}
+		if link.Linked {
+			_, err = a.GitConnections.RefreshWebhook(r.Context(), "stack", r.PathValue("id"), gitprovider.HookTarget{URL: a.publicURL(r) + "/webhooks/stacks/" + r.PathValue("id") + "/" + link.Provider, Secret: secret})
+			if err != nil {
+				return err
+			}
+		}
 	}
 	return ok(w, a.stackWebhookResponse(r, secret))
 }

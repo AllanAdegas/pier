@@ -3,6 +3,8 @@ import type { GitFeedbackProvider, GitFeedbackSettings } from "../../lib/types.t
 /** A repository chosen from a GitHub App installation in a creation form. */
 export interface GitHubPick {
   installation_id: number;
+  connection_id?: string;
+  clone_url?: string;
   repository: string;
 }
 
@@ -19,8 +21,11 @@ export function pickStillApplies(pick: GitHubPick | null, repository: string): p
   if (!pick) {
     return false;
   }
-  const normalize = (value: string) => value.trim().replace(/\/+$/, "").replace(/\.git$/, "").toLowerCase();
-  return normalize(repository) === normalize(githubCloneURL(pick.repository));
+  const normalize = (value: string) => {
+    const cleaned=value.trim().replace(/\/+$/, "").replace(/\.git$/, "");
+    return pick.connection_id ? cleaned : cleaned.toLowerCase();
+  };
+  return normalize(repository) === normalize(pick.clone_url ?? githubCloneURL(pick.repository));
 }
 
 /** The code and state GitHub appends when it returns from creating the App. */

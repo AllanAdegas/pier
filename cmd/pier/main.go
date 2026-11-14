@@ -164,7 +164,10 @@ func run() error {
 	applications.SetMultiServer(multi)
 	previews := application.NewPreviewService(applications, logger)
 	gitProviders := gitprovider.New(db, box)
-	deployer.SetGitProvider(gitProviders)
+	gitConnections := gitprovider.NewConnections(gitProviders)
+	go gitConnections.RunSweeper(ctx, gitprovider.DefaultSweepInterval, logger)
+	gitCredentials := gitprovider.Credentials{App: gitProviders, Connections: gitConnections}
+	deployer.SetGitProvider(gitCredentials)
 	gitFeedback := application.NewGitFeedback(gitProviders, func(ctx context.Context) string {
 		current, err := instanceSettings.Get(ctx)
 		if err != nil {
@@ -186,7 +189,7 @@ func run() error {
 	stacks.SetDeployGuard(projects)
 	stacks.SetDomainChecker(servers)
 	stacks.SetGitSupport(box, keys)
-	stacks.SetGitProvider(gitProviders)
+	stacks.SetGitProvider(gitCredentials)
 	clusters := cluster.NewService(db, box, connector, oplog.NewRegistry(), cfg.LocalHost)
 	tasks := schedule.NewTaskService(db, applications, connector, notifications)
 
@@ -253,10 +256,10 @@ func run() error {
 		APIRateLimit: apiRateLimit,
 		Access:       accessService,
 		OIDC:         identity.NewOIDC(db, box, strings.Fields(os.Getenv("PIER_OIDC_ISSUERS")), os.Getenv("PIER_OIDC_CALLBACK")),
-		GitProviders: gitProviders,
-		MultiServer:  multi,
-		Registries:   images,
-		Identity:     identities, Instance: backups, Audit: &audit.Store{DB: db}, Monitoring: alerts, MetricsHistory: metricsHistory, CookieSecure: os.Getenv("PIER_COOKIE_SECURE") == "1",
+		GitProviders: gitProviders, GitConnections: gitConnections,
+		MultiServer: multi,
+		Registries:  images,
+		Identity:    identities, Instance: backups, Audit: &audit.Store{DB: db}, Monitoring: alerts, MetricsHistory: metricsHistory, CookieSecure: os.Getenv("PIER_COOKIE_SECURE") == "1",
 		Servers: servers, ServerOperations: serverOperations, DockerInstaller: dockerInstaller, Provisioning: provisioning, LogDrains: logDrains, Keys: keys, Proxy: server.NewProxyService(connector), Connector: connector,
 		Projects: projects, Applications: applications, Previews: previews, LogHub: logHub, Env: env,
 		Databases: databases, Stacks: stacks, VolumeBackups: volumeBackups, Engine: engine.NewService(connector), Clusters: clusters,

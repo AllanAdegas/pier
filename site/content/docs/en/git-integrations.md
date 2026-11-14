@@ -18,7 +18,7 @@ In **Settings**, the integration lets you register your own GitHub App, list ins
 4. In Pier, enter the App ID, the RSA PEM private key and the same secret. After you save, the credential fields are cleared.
 5. List the installations and repositories and select the resource by type and ID.
 
-The integration uses `api.github.com`; GitHub Enterprise is not supported. Do not confuse a GitHub App with [SSO](/en/docs/team-and-access/): it authorizes access to repositories, not the sign-in of people.
+The integration defaults to `api.github.com`. A manually configured GitHub App can use a GitHub Enterprise API URL; the manifest flow remains specific to GitHub.com. Binding global Git credentials requires instance write access as well as write access to the resource. Project deployers can deploy an approved binding only while its source matches the bound repository. Authenticated clones refuse redirects and do not share credentials with other repositories, including submodules. Do not confuse a GitHub App with [SSO](/en/docs/team-and-access/): it authorizes access to repositories, not the sign-in of people.
 
 ### Link and follow
 
@@ -37,3 +37,17 @@ Applications and Git stacks show the webhook addresses and secrets in the automa
 For builds on another machine, private registries and deploy to several destinations, follow [Registry and multiple servers](/en/docs/multi-server/).
 
 For GitLab/Gitea/Forgejo instances on your own domain, choose the provider explicitly. The automatic suggestion recognizes only exact public hosts; names in the path, query or user part of the URL do not identify the provider.
+
+## GitLab, Gitea and Bitbucket connections
+
+In **Settings**, open **Git connections**. Choose GitLab, Gitea / Forgejo or Bitbucket Cloud, enter the name, HTTPS address and **Access token**, then click **Save connection**. GitLab accepts subpaths; Bitbucket only accepts bitbucket.org, with an optional workspace. The token is validated and stored encrypted; responses never return it. To rotate it, fill **Access token** and click **Replace token** on the desired connection.
+
+GitLab requires `api`. Gitea/Forgejo requires user read and repository write. Bitbucket requires repository read and webhook write; it accepts Bearer or `username:app-password`. Restrict credentials to the necessary repositories.
+
+In **Git integration** on an existing application or stack, select **Git connection**, use **Search repositories**, and navigate with **Previous** and **Next**. The list shows the clone address and available branches. Configure that address and branch in the resource source before clicking **Link repository**. The link uses credentials only during cloning and refuses a different source.
+
+Pier creates or updates one webhook per resource: `active` means success, `manual` means insufficient permission (configure the webhook in the automation area), and `failed` means another error. Linking again retries registration without duplicating the known webhook. Secret rotation updates the remote webhook. **Unlink** removes the webhook; temporary failures are retried in the background. Removing resources also schedules cleanup. **Remove connection** requires unlinking resources first.
+
+Global connection routes require instance access; repository and branch listings require write access. Links require access to the resource project (read to inspect, write to change). Tests use simulated HTTP and temporary SQLite; no real provider was validated.
+
+The same picker appears when creating applications and Git stacks. The selection is linked before the first deployment, provided the source address has not been changed.

@@ -45,6 +45,7 @@ type Dependencies struct {
 	DockerInstaller  *server.DockerInstaller
 	Provisioning     *provision.Service
 	LogDrains        *logdrain.Service
+	GitConnections   *gitprovider.Connections
 	GitProviders     *gitprovider.Service
 	MultiServer      *application.MultiServer
 	Registries       *registry.Service
@@ -151,6 +152,7 @@ func (a *API) Handler() http.Handler {
 	a.registerClusterRoutes(mux)
 	a.registerMiscRoutes(mux)
 	a.registerGitProviderRoutes(mux)
+	a.registerGitConnectionRoutes(mux)
 	a.registerUpdateRoutes(mux)
 	a.registerTerminalRoutes(mux)
 	a.registerEngineRoutes(mux)

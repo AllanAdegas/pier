@@ -129,7 +129,7 @@ func (s *Service) CompleteManifest(ctx context.Context, code, state string) (Sta
 		PEM           string `json:"pem"`
 		WebhookSecret string `json:"webhook_secret"`
 	}
-	if err := s.github(ctx, http.MethodPost, "/app-manifests/"+code+"/conversions", "", nil, &created); err != nil {
+	if err := s.githubAt(ctx, githubAPI, http.MethodPost, "/app-manifests/"+code+"/conversions", "", nil, &created); err != nil {
 		return Status{}, err
 	}
 	config := Config{AppID: created.ID, Slug: created.Slug, PrivateKey: created.PEM, WebhookSecret: created.WebhookSecret}

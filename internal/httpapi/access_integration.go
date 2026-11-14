@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	rbac "pier/internal/access"
 	"pier/internal/identity"
@@ -27,6 +28,12 @@ func (a *API) authorizeRequest(r *http.Request, p identity.Principal, required a
 		return grant{}, accessDenied()
 	}
 	policy, _ := policyFor(r.Pattern)
+	// Binding global credentials requires both the resource and instance write grants.
+	if r.Method == http.MethodPut && (strings.HasSuffix(r.URL.Path, "/git-connection") || strings.HasSuffix(r.URL.Path, "/git-provider") || strings.HasPrefix(r.URL.Path, "/api/v1/git-provider/")) {
+		if _, err := a.authorizeScope(r.Context(), p, "", identity.AbilityWrite, ""); err != nil {
+			return grant{}, err
+		}
+	}
 	granted, err := a.authorizePolicy(r, p, required, policy)
 	if err == nil && policy.guard != nil {
 		err = policy.guard(a, r, p)

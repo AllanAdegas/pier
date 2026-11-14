@@ -7,6 +7,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
+	"database/sql"
 	"encoding/hex"
 	"encoding/pem"
 	"io"
@@ -34,7 +35,14 @@ const (
 	gitAppFeedbackToken = "glpat-feedback-secret-token"
 )
 
+type gitBindingTransport func(*http.Request) (*http.Response, error)
+
+func (f gitBindingTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
 type gitProviderFixture struct {
+	remoteCalls    *int
+	api            *API
+	db             *sql.DB
 	mux            *http.ServeMux
 	app            string
 	reader, writer string
@@ -62,14 +70,27 @@ func newGitProviderFixture(t *testing.T) gitProviderFixture {
 		}
 	}
 	env := envvar.NewStore(db, box)
-	apps := application.NewService(application.NewStore(db, box), env, engineHTTPConnector{executor.NewFake()}, nil)
+	appStore := application.NewStore(db, box)
+	dispatcher := application.NewDispatcher(appStore, nil, slog.Default(), time.Minute)
+	apps := application.NewService(appStore, env, engineHTTPConnector{executor.NewFake()}, dispatcher)
 	config := application.DefaultConfig(application.PackDockerfile)
 	config.Source.Repository = "https://github.com/acme/app.git"
 	app, err := apps.Create(ctx, application.CreateInput{EnvironmentID: "e", ServerID: "srv", Name: "app", Config: config})
 	if err != nil {
 		t.Fatal(err)
 	}
-	providers := gitprovider.New(db, box)
+	remoteCalls := new(int)
+	providers := gitprovider.NewWithHTTPClient(db, box, &http.Client{Transport: gitBindingTransport(func(r *http.Request) (*http.Response, error) {
+		*remoteCalls++
+		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"path_with_namespace":"acme/foreign","http_url_to_repo":"https://forge.example/acme/foreign.git"}`))}, nil
+	})})
+	sealed, err := box.Seal("valid-instance-token")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO git_connections(id,provider,name,base_url,encrypted_token,created_at,updated_at) VALUES('valid-instance-connection','gitlab','test','https://forge.example',?,'now','now')`, sealed); err != nil {
+		t.Fatal(err)
+	}
 	key, _ := rsa.GenerateKey(rand.Reader, 2048)
 	pemKey := string(pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)}))
 	if err := providers.Configure(ctx, gitprovider.Config{AppID: 9, PrivateKey: pemKey, WebhookSecret: gitAppWebhookSecret}); err != nil {
@@ -80,7 +101,7 @@ func newGitProviderFixture(t *testing.T) gitProviderFixture {
 	}
 	auth := identity.NewService(identity.NewStore(db), time.Hour)
 	a := New(Dependencies{
-		Access: testAccess(t, db), Identity: auth, Env: env, Applications: apps, GitProviders: providers,
+		Access: testAccess(t, db), Identity: auth, Env: env, Applications: apps, GitProviders: providers, GitConnections: gitprovider.NewConnections(providers),
 		Settings: settings.NewStore(db), Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
 	user, err := auth.CreateUser(ctx, "Owner", "gitapp@example.invalid", "testing-password-long")
@@ -92,7 +113,8 @@ func newGitProviderFixture(t *testing.T) gitProviderFixture {
 	_, writer, _ := auth.CreateToken(ctx, user.ID, "writer", []identity.Ability{identity.AbilityWrite})
 	mux := http.NewServeMux()
 	a.registerGitProviderRoutes(mux)
-	return gitProviderFixture{mux: mux, app: app.ID, reader: reader, writer: writer}
+	a.registerGitConnectionRoutes(mux)
+	return gitProviderFixture{remoteCalls: remoteCalls, db: db, api: a, mux: mux, app: app.ID, reader: reader, writer: writer}
 }
 
 func (f gitProviderFixture) call(method, path, token, body string, header http.Header) *httptest.ResponseRecorder {
@@ -118,6 +140,14 @@ func TestGitProviderRoutesAbilitiesAndNoSecretsInResponses(t *testing.T) {
 		method, path, token, body string
 		want                      int
 	}{
+		{"GET", "/api/v1/git-connections", f.reader, "", 200},
+		{"POST", "/api/v1/git-connections", f.reader, `{}`, 403},
+		{"PUT", "/api/v1/git-connections/missing", f.reader, `{}`, 403},
+		{"DELETE", "/api/v1/git-connections/missing", f.reader, "", 403},
+		{"GET", "/api/v1/git-connections/missing/repositories", f.reader, "", 403},
+		{"GET", "/api/v1/git-connections", "", "", 401},
+		{"PUT", "/api/v1/applications/" + f.app + "/git-connection", f.reader, `{}`, 403},
+		{"GET", "/api/v1/applications/" + f.app + "/git-connection", f.reader, "", 200},
 		{"GET", "/api/v1/git-provider", f.reader, "", 200},
 		{"PUT", "/api/v1/git-provider", f.reader, `{}`, 403},
 		{"POST", "/api/v1/git-provider/manifest", f.reader, `{}`, 403},
@@ -171,5 +201,41 @@ func TestGitProviderWebhookVerifiesTheAppSignatureAndDispatches(t *testing.T) {
 	again := f.call("POST", "/webhooks/git-provider/github", "", body, header)
 	if !strings.Contains(again.Body.String(), `"duplicate":true`) || strings.Contains(again.Body.String(), f.app) {
 		t.Fatal("redelivery dispatched again", again.Body.String())
+	}
+}
+
+func TestGitProviderBindingRequiresInstanceWrite(t *testing.T) {
+	f := newGitProviderFixture(t)
+	user, token := testIdentity(t, f.api, "project-writer")
+	if _, err := f.db.Exec(`INSERT INTO access_memberships(project_id,user_id,role) VALUES(?,?,?)`, "p", user.ID, rbac.Admin); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{
+		"/api/v1/applications/" + f.app + "/git-provider",
+		"/api/v1/applications/" + f.app + "/git-connection",
+	} {
+		response := f.call("PUT", path, token, `{"installation_id":55,"repository":"acme/foreign","connection_id":"valid-instance-connection"}`, nil)
+		if response.Code != http.StatusForbidden {
+			t.Fatalf("%s: %d %s", path, response.Code, response.Body.String())
+		}
+	}
+	if *f.remoteCalls != 0 {
+		t.Fatalf("denied binding made %d remote calls", *f.remoteCalls)
+	}
+}
+
+func TestGitProviderApprovedBindingAllowsProjectDeployer(t *testing.T) {
+	f := newGitProviderFixture(t)
+	user, token := testIdentity(t, f.api, "project-deployer", identity.AbilityDeploy)
+	if _, err := f.db.Exec(`INSERT INTO access_memberships(project_id,user_id,role) VALUES('p',?,'developer')`, user.ID); err != nil {
+		t.Fatal(err)
+	}
+	f.api.route(f.mux, "POST /api/v1/applications/{id}/deploy", canDeploy, f.api.deployApplication)
+	response := f.call("POST", "/api/v1/applications/"+f.app+"/deploy", token, "{}", nil)
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("approved deployment: %d %s", response.Code, response.Body.String())
+	}
+	if *f.remoteCalls != 0 {
+		t.Fatal("queuing deployment contacted provider")
 	}
 }

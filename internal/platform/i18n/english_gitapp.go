@@ -1,7 +1,27 @@
 package i18n
 
 var englishGitapp = map[string]string{
-	"O repositório da origem não corresponde à seleção do GitHub App. Selecione o repositório de novo.": "The source repository does not match the GitHub App selection. Select the repository again.",
+	"Não foi possível remover o webhook anterior. Tente novamente.":                                     "Could not remove the previous webhook. Try again.",
+	"Aguarde a remoção dos webhooks pendentes antes de remover a conexão.":                              "Wait for pending webhooks to be removed before removing the connection.",
+	"O token da conexão não dá acesso a %s.":                                                            "The connection token does not grant access to %s.",
+	"O provedor devolveu um endereço de clone fora do endereço da conexão.":                             "The provider returned a clone address outside the connection address.",
+	"A origem do recurso não é %s. Use o endereço de clone do repositório escolhido e vincule de novo.": "The resource source is not %s. Use the selected repository clone address and link again.",
+	"Escolha uma conexão e um repositório.":                                                             "Choose a connection and repository.",
+	"O recurso já está vinculado ao GitHub App. Desvincule-o antes de usar outra conexão.":              "The resource is already linked to the GitHub App. Unlink it before using another connection.",
+	"Endereço de webhook inválido. Confira a URL pública do Pier em Configurações.":                     "Invalid webhook address. Check the public Pier URL in Settings.",
+	"Conexão Git":                      "Git connection",
+	"Nome da conexão inválido.":        "Invalid connection name.",
+	"Workspace do Bitbucket inválido.": "Invalid Bitbucket workspace.",
+	"O provedor e o endereço de uma conexão não mudam: crie uma nova conexão.":                       "The provider and address of a connection cannot change: create a new connection.",
+	"O %s recusou o token (HTTP %d): confira o token e as permissões mínimas.":                       "%s rejected the token (HTTP %d): check the token and minimum permissions.",
+	"A conexão está vinculada a %d recurso(s). Desvincule-os antes de removê-la.":                    "The connection is linked to %d resource(s). Unlink them before removing it.",
+	"Repositório inválido para esta conexão.":                                                        "Invalid repository for this connection.",
+	"O Bitbucket é suportado apenas na nuvem (bitbucket.org).":                                       "Only Bitbucket Cloud (bitbucket.org) is supported.",
+	"Endereço do provedor inválido: use https://host[:porta][/caminho], sem usuário nem parâmetros.": "Invalid provider address: use https://host[:port][/path], without credentials or parameters.",
+	"O endereço de clone vinculado está fora do endereço da conexão. Vincule o repositório de novo.": "The linked clone address is outside the connection address. Link the repository again.",
+	"Desvincule a conexão Git antes de usar o GitHub App.":                                           "Unlink the Git connection before using the GitHub App.",
+
+	"O repositório da origem não corresponde ao repositório vinculado. Selecione o repositório de novo.": "The source repository does not match the linked repository. Select the repository again.",
 	"Configuração do GitHub App inválida.":                                      "Invalid GitHub App configuration.",
 	"Limite do GitHub atingido. Aguarde um minuto.":                             "GitHub rate limit reached. Wait one minute.",
 	"Assinatura do GitHub inválida.":                                            "Invalid GitHub signature.",

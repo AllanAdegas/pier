@@ -27,6 +27,9 @@ type apiRequest struct {
 	header   http.Header
 	input    any
 	output   any
+	// received, when set, gets the response headers of a 2xx answer
+	// (pagination and token scopes travel there).
+	received *http.Header
 }
 
 // upstreamError is a provider answer outside 2xx. Its text names only the
@@ -86,6 +89,9 @@ func (s *Service) call(ctx context.Context, r apiRequest) error {
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return &upstreamError{provider: r.provider, status: resp.StatusCode}
 	}
+	if r.received != nil {
+		*r.received = resp.Header.Clone()
+	}
 	if r.output == nil {
 		return nil
 	}
@@ -100,8 +106,14 @@ func rateLimited(resp *http.Response) bool {
 		resp.StatusCode == http.StatusForbidden && resp.Header.Get("X-RateLimit-Remaining") == "0"
 }
 
-// github calls the GitHub REST API, honouring the rate limit cooldown.
+// github calls the REST API of the configured GitHub (github.com or a
+// GitHub Enterprise Server), honouring the rate limit cooldown.
 func (s *Service) github(ctx context.Context, method, path, bearer string, input, output any) error {
+	return s.githubAt(ctx, s.githubAPIBase(ctx), method, path, bearer, input, output)
+}
+
+// githubAt calls the GitHub REST API at base.
+func (s *Service) githubAt(ctx context.Context, base, method, path, bearer string, input, output any) error {
 	if s.blocked() {
 		return apperr.Unavailable("Limite do GitHub atingido. Aguarde um minuto.")
 	}
@@ -111,7 +123,7 @@ func (s *Service) github(ctx context.Context, method, path, bearer string, input
 	if bearer != "" {
 		header.Set("Authorization", "Bearer "+bearer)
 	}
-	return s.call(ctx, apiRequest{provider: "GitHub", method: method, url: githubAPI + path, header: header, input: input, output: output})
+	return s.call(ctx, apiRequest{provider: "GitHub", method: method, url: base + path, header: header, input: input, output: output})
 }
 
 func (s *Service) blocked() bool {

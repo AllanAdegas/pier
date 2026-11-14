@@ -1,3 +1,4 @@
+import { ConnectionRepositoryPicker } from "./GitConnections";
 import { createEffect, createSignal, Show } from "solid-js";
 import { Button } from "../../components/Button";
 import { Alert, QueryView } from "../../components/Feedback";
@@ -31,6 +32,7 @@ export function GitIntegration(props: { kind: Kind; id: string; repository: stri
       title={t("Integração Git")}
       description={t("Credenciais do GitHub App e status dos deploys nos commits e pull requests.")}
     >
+      <ConnectionRepositoryPicker kind={props.kind} id={props.id} />
       <QueryView query={link}>
         {(current) => (
           <GitHubLink
@@ -62,7 +64,7 @@ export function GitIntegration(props: { kind: Kind; id: string; repository: stri
 
 function GitHubLink(props: { base: string; link: GitProviderLink; onChanged: () => void }) {
   const [pick, setPick] = createSignal<GitHubPick | null>(null);
-  const save = createAction(() => api.put<GitProviderLink>(props.base, pick()), {
+  const save = createAction(() => api.put<GitProviderLink>(pick()?.connection_id ? props.base.replace(/git-provider$/, "git-connection") : props.base, pick()), {
     success: t("Repositório vinculado ao GitHub App."),
     onSuccess: props.onChanged,
   });

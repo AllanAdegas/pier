@@ -77,9 +77,11 @@ func Clone(ctx context.Context, ex executor.Executor, request CloneRequest, log 
 		log.Redact(authorization)
 		parsed.User = nil
 		values["PIER_REPOSITORY"] = parsed.String()
-		// Git's process-only config also applies to relative submodule URLs.
-		values["GIT_CONFIG_COUNT"] = "1"
-		values["GIT_CONFIG_KEY_0"] = "http." + parsed.Scheme + "://" + parsed.Host + "/.extraHeader"
+		// Confine credentials to this repository; other submodules require their own access.
+		values["GIT_CONFIG_COUNT"] = "2"
+		values["GIT_CONFIG_KEY_1"] = "http.followRedirects"
+		values["GIT_CONFIG_VALUE_1"] = "false"
+		values["GIT_CONFIG_KEY_0"] = "http." + parsed.Scheme + "://" + parsed.Host + parsed.EscapedPath() + "/.extraHeader"
 		values["GIT_CONFIG_VALUE_0"] = "Authorization: " + authorization
 	}
 	content, envErr := dockerEnvFile(values)
