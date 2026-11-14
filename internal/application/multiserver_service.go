@@ -32,6 +32,13 @@ func (s *Service) placementOperate(ctx context.Context, id, status string, opera
 	if err != nil {
 		return true, err
 	}
+	p, err := s.multi.settings(ctx, id)
+	if err != nil {
+		return true, err
+	}
+	if p.SwarmClusterID != "" {
+		return true, apperr.Conflict("Use um novo deploy para atualizar a aplicação Swarm.")
+	}
 	servers, err := s.store.PlacementDestinations(ctx, app)
 	if err != nil || len(servers) == 0 {
 		return err != nil, err

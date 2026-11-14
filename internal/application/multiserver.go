@@ -32,10 +32,11 @@ const (
 // placement (or with only that server and no build server) the application
 // is deployed exactly as a single-server application.
 type Placement struct {
-	BuildServerID string   `json:"build_server_id"`
-	RegistryID    string   `json:"registry_id"`
-	Repository    string   `json:"repository"`
-	Destinations  []string `json:"destinations"`
+	SwarmClusterID string   `json:"swarm_cluster_id"`
+	BuildServerID  string   `json:"build_server_id"`
+	RegistryID     string   `json:"registry_id"`
+	Repository     string   `json:"repository"`
+	Destinations   []string `json:"destinations"`
 }
 
 // DestinationStatus is the last known rollout state on one server.
@@ -104,7 +105,14 @@ func (s *MultiServer) settings(ctx context.Context, id string) (Placement, error
 		return p, err
 	}
 	p.BuildServerID, p.RegistryID = build.String, registryID.String
-	return p, json.Unmarshal([]byte(raw), &p.Destinations)
+	err = json.Unmarshal([]byte(raw), &p.Destinations)
+	if err == nil {
+		e := s.db.QueryRowContext(ctx, "SELECT cluster_id FROM application_swarm WHERE application_id = ?", id).Scan(&p.SwarmClusterID)
+		if e != nil && !errors.Is(e, sql.ErrNoRows) {
+			return p, e
+		}
+	}
+	return p, err
 }
 
 // Save validates and stores a placement. It takes effect on the next
@@ -123,14 +131,25 @@ func (s *MultiServer) Save(ctx context.Context, id string, p Placement) (Placeme
 	if err := s.validate(ctx, app, p); err != nil {
 		return Placement{}, err
 	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Placement{}, err
+	}
+	defer tx.Rollback()
+	if err := s.saveSwarmTarget(ctx, tx, app, p); err != nil {
+		return Placement{}, err
+	}
 	raw, _ := json.Marshal(p.Destinations)
-	_, err = s.db.ExecContext(ctx, `INSERT INTO application_placements
+	_, err = tx.ExecContext(ctx, `INSERT INTO application_placements
 		(application_id, build_server_id, registry_id, repository, destinations, updated_at) VALUES (?, ?, ?, ?, ?, ?)
 		ON CONFLICT(application_id) DO UPDATE SET build_server_id = excluded.build_server_id,
 		registry_id = excluded.registry_id, repository = excluded.repository,
 		destinations = excluded.destinations, updated_at = excluded.updated_at`,
 		id, nullable(p.BuildServerID), nullable(p.RegistryID), p.Repository, string(raw), sqlite.FormatTime(time.Now()))
 	if err != nil {
+		return Placement{}, err
+	}
+	if err = tx.Commit(); err != nil {
 		return Placement{}, err
 	}
 	return s.settings(ctx, id)
@@ -184,7 +203,7 @@ func (s *MultiServer) validate(ctx context.Context, app Application, p Placement
 	if p.RegistryID != "" && p.Repository == "" {
 		fields.Add("repository", "Informe o repositório onde as imagens serão enviadas.")
 	}
-	travels := len(p.Destinations) > 1 || p.BuildServerID != ""
+	travels := p.SwarmClusterID != "" || len(p.Destinations) > 1 || p.BuildServerID != ""
 	if travels && app.Config.Build.Pack != PackImage && p.RegistryID == "" {
 		fields.Add("registry_id", "Escolha um registro: a imagem construída precisa chegar aos outros servidores.")
 	}

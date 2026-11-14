@@ -136,6 +136,7 @@ var prefixRules = []prefixRule{
 	{"/api/v1/volume-backups/{id}", projectPolicy("volume-backups")},
 	{"/api/v1/servers", instancePolicy},
 	{"/api/v1/clusters", instancePolicy},
+	{"/api/v1/swarm", instancePolicy},
 	{"/api/v1/keys", instancePolicy},
 	{"/api/v1/registries", instancePolicy},
 	{"/api/v1/git-provider", instancePolicy},

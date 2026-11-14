@@ -48,6 +48,7 @@ export function ClustersPage() {
         }
       />
       <InfrastructureTabs current="clusters" />
+      <a href="/swarm">Docker Swarm</a>
       <QueryView query={clusters}>
         {(list) => (
           <Show

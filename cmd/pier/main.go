@@ -43,6 +43,7 @@ import (
 	"pier/internal/server"
 	"pier/internal/settings"
 	"pier/internal/stack"
+	"pier/internal/swarm"
 	"pier/internal/terminal"
 	"pier/internal/updates"
 	"pier/internal/version"
@@ -259,7 +260,7 @@ func run() error {
 		Identity:     identities, Instance: backups, Audit: &audit.Store{DB: db}, Monitoring: alerts, MetricsHistory: metricsHistory, CookieSecure: os.Getenv("PIER_COOKIE_SECURE") == "1",
 		Servers: servers, ServerOperations: serverOperations, DockerInstaller: dockerInstaller, Provisioning: provisioning, LogDrains: logDrains, Keys: keys, Proxy: server.NewProxyService(connector), Connector: connector,
 		Projects: projects, Applications: applications, Previews: previews, LogHub: logHub, Env: env,
-		Databases: databases, Stacks: stacks, VolumeBackups: volumeBackups, Engine: engine.NewService(connector), Clusters: clusters,
+		Databases: databases, Stacks: stacks, Swarm: swarm.NewService(db, connector), VolumeBackups: volumeBackups, Engine: engine.NewService(connector), Clusters: clusters,
 		Tasks: tasks, Notifications: notifications,
 		Terminal: terminals, Settings: instanceSettings, Updates: updateChecker, Logger: logger, WebUI: webui.Files(), SessionTTL: cfg.SessionTTL,
 		TrustedProxies: cfg.TrustedProxies,

@@ -21,6 +21,7 @@ export const sections: DocSection[] = [
   {
     title: { pt: "Comece aqui", en: "Start here" },
     pages: [
+ {slug:{pt:"docker-swarm",en:"docker-swarm"},title:{pt:"Docker Swarm",en:"Docker Swarm"},description:{pt:"Alvo de aplicações em Swarm e limitações.",en:"Swarm application targets and limitations."}},
       {
         slug: { pt: "introducao", en: "introduction" },
         title: { pt: "O que é o Pier", en: "What Pier is" },
