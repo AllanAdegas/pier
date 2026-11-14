@@ -13,7 +13,7 @@ import (
 	"pier/internal/identity"
 	"pier/internal/logdrain"
 	"pier/internal/platform/executor"
-	"pier/internal/platform/secretbox"
+	"pier/internal/platform/secretbox/testbox"
 	"pier/internal/platform/sqlite"
 	"pier/internal/provision"
 	"pier/internal/server"
@@ -59,7 +59,7 @@ func extrasAPI(t *testing.T) (extrasClient, *API, string, string) {
 	}
 	ex := executor.NewFake()
 	connector := operationsFakeConnector{ex}
-	box, _ := secretbox.New("extras-test-instance-key-long")
+	box := testbox.Box(t)
 	a.ServerOperations = server.NewOperations(db, connector)
 	a.DockerInstaller = server.NewDockerInstaller(connector, nil)
 	a.Servers = server.NewService(server.NewStore(db), nil, nil)

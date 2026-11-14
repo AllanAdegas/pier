@@ -12,6 +12,7 @@ import (
 	"pier/internal/platform/apperr"
 	"pier/internal/platform/executor"
 	"pier/internal/platform/secretbox"
+	"pier/internal/platform/secretbox/testbox"
 	"pier/internal/platform/sqlite"
 	"pier/internal/server"
 	"pier/internal/settings"
@@ -84,7 +85,7 @@ func newFixture(t *testing.T) fixture {
 		t.Fatalf("open database: %v", err)
 	}
 	t.Cleanup(func() { db.Close() })
-	box, _ := secretbox.New("test-passphrase-123456")
+	box := testbox.Box(t)
 	fake := executor.NewFake().
 		On("docker ps", psLine, 0).
 		On("docker inspect", mountsLine, 0).

@@ -11,7 +11,7 @@ import (
 
 	"pier/internal/platform/apperr"
 	"pier/internal/platform/executor"
-	"pier/internal/platform/secretbox"
+	"pier/internal/platform/secretbox/testbox"
 	"pier/internal/registry"
 	"pier/internal/server"
 )
@@ -107,10 +107,7 @@ func newPlacementFixture(t *testing.T, config Config, servers ...string) *placem
 	for _, ex := range connector {
 		ex.On(".State.Status", "running|healthy|0", 0).On("mktemp -d", "/tmp/pier-registry-abc123", 0)
 	}
-	box, err := secretbox.New("test-passphrase-123456")
-	if err != nil {
-		t.Fatal(err)
-	}
+	box := testbox.Box(t)
 	images := registry.New(db, box)
 	images.SetHTTPClient(&http.Client{Transport: offlineRegistry{manifest: http.StatusOK}})
 	multi := NewMultiServer(db, f.store, placementGuard{}, images)
@@ -322,7 +319,7 @@ func TestSingleServerDeploymentsRunTheSameCommandsAsBefore(t *testing.T) {
 		return strings.Split(strings.ReplaceAll(commands, deployment.ID[:6], "DEPLOY"), "\n")
 	}
 	before := run()
-	box, _ := secretbox.New("test-passphrase-123456")
+	box := testbox.Box(t)
 	images := registry.New(f.store.db, box)
 	if _, err := images.Create(context.Background(), registry.Input{Name: "Outro", Host: "ghcr.io", Username: "x", Password: "y"}); err != nil {
 		t.Fatal(err)

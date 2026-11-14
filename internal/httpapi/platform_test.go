@@ -21,7 +21,7 @@ import (
 	"pier/internal/instance"
 	"pier/internal/monitor"
 	"pier/internal/platform/apperr"
-	"pier/internal/platform/secretbox"
+	"pier/internal/platform/secretbox/testbox"
 	"pier/internal/platform/sqlite"
 	"pier/internal/project"
 	"pier/internal/settings"
@@ -43,8 +43,8 @@ func platformAPI(t *testing.T) *API {
 // platformAPIWith builds the platform fixture over an existing database.
 func platformAPIWith(t *testing.T, db *sql.DB, dir string) *API {
 	t.Helper()
-	box, _ := secretbox.New("platform-test-instance-key")
-	return New(Dependencies{Access: testAccess(t, db), Identity: identity.NewService(identity.NewStore(db), time.Hour), Instance: &instance.Service{DB: db, DataDir: dir, Key: "platform-test-instance-key", Box: box}, Audit: &audit.Store{DB: db}, Monitoring: &monitor.State{DB: db}, Settings: settings.NewStore(db), Projects: project.NewService(db), Applications: application.NewService(application.NewStore(db, box), nil, nil, nil), Stacks: stack.NewService(db, nil, nil, nil), Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), SessionTTL: time.Hour})
+	box := testbox.Box(t)
+	return New(Dependencies{Access: testAccess(t, db), Identity: identity.NewService(identity.NewStore(db), time.Hour), Instance: &instance.Service{DB: db, DataDir: dir, Key: testbox.Passphrase, Box: box}, Audit: &audit.Store{DB: db}, Monitoring: &monitor.State{DB: db}, Settings: settings.NewStore(db), Projects: project.NewService(db), Applications: application.NewService(application.NewStore(db, box), nil, nil, nil), Stacks: stack.NewService(db, nil, nil, nil), Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), SessionTTL: time.Hour})
 }
 func TestLimiterMemoryIsBoundedWithoutSweepingAndWindowsExpire(t *testing.T) {
 	l := newRateLimiter(2, time.Minute)

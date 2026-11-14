@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"pier/internal/platform/secretbox"
+	"pier/internal/platform/secretbox/testbox"
 	"pier/internal/platform/sqlite"
 )
 
@@ -56,10 +56,7 @@ func fixtureWithClient(t *testing.T, client *http.Client) *Service {
 			t.Fatal(err)
 		}
 	}
-	box, err := secretbox.New("test-passphrase-long-enough")
-	if err != nil {
-		t.Fatal(err)
-	}
+	box := testbox.Box(t)
 	s := NewWithHTTPClient(db, box, client)
 	if err := s.Configure(context.Background(), Config{AppID: 42, Slug: "pier-test", PrivateKey: testKey, WebhookSecret: webhookSecret}); err != nil {
 		t.Fatal(err)

@@ -14,7 +14,7 @@ import (
 	"pier/internal/platform/apperr"
 	"pier/internal/platform/executor"
 	"pier/internal/platform/oplog"
-	"pier/internal/platform/secretbox"
+	"pier/internal/platform/secretbox/testbox"
 	"pier/internal/platform/sqlite"
 	"pier/internal/server"
 )
@@ -41,7 +41,7 @@ func newService(t *testing.T) (*Service, *executor.Fake) {
 			t.Fatalf("seed: %v", err)
 		}
 	}
-	box, _ := secretbox.New("test-passphrase-123456")
+	box := testbox.Box(t)
 	fake := executor.NewFake()
 	return NewService(db, envvar.NewStore(db, box), fakeConnector{fake}, oplog.NewRegistry()), fake
 }

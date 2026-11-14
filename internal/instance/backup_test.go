@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"database/sql"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,11 +27,21 @@ func testInstance(t *testing.T) *Service {
 	}
 	t.Cleanup(func() { db.Close() })
 	key := "source-instance-key-for-tests"
-	box, err := secretbox.New(key)
+	return &Service{DB: db, DataDir: dir, Key: key, Box: openBox(t, db, key)}
+}
+
+// openBox wires the secretbox the way the server does at startup.
+func openBox(t *testing.T, db *sql.DB, key string) *secretbox.Box {
+	t.Helper()
+	salt, err := secretbox.LoadOrCreateSalt(context.Background(), db)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &Service{DB: db, DataDir: dir, Key: key, Box: box}
+	box, err := secretbox.NewWithSalt(key, salt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return box
 }
 func TestBackupRestoreRoundTripPreservesDatabaseAndEffectiveKey(t *testing.T) {
 	ctx := context.Background()
@@ -94,7 +105,7 @@ func TestBackupRestoreRoundTripPreservesDatabaseAndEffectiveKey(t *testing.T) {
 	if err = restored.QueryRow(`SELECT value FROM settings WHERE key='test_secret'`).Scan(&encrypted); err != nil {
 		t.Fatal(err)
 	}
-	box, _ := secretbox.New(strings.TrimSpace(string(key)))
+	box := openBox(t, restored, strings.TrimSpace(string(key)))
 	plain, err := box.Open(encrypted)
 	if err != nil || plain != "sensitive-db-value" {
 		t.Fatalf("restored secret %q, %v", plain, err)

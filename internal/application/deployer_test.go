@@ -16,7 +16,7 @@ import (
 	"pier/internal/notify"
 	"pier/internal/platform/executor"
 	"pier/internal/platform/pubsub"
-	"pier/internal/platform/secretbox"
+	"pier/internal/platform/secretbox/testbox"
 	"pier/internal/platform/sqlite"
 	"pier/internal/server"
 )
@@ -67,10 +67,7 @@ func newDeployFixture(t *testing.T, config Config) *deployFixture {
 	}
 	t.Cleanup(func() { db.Close() })
 	seedPlacement(t, db)
-	box, err := secretbox.New("test-passphrase-123456")
-	if err != nil {
-		t.Fatalf("secretbox: %v", err)
-	}
+	box := testbox.Box(t)
 	fixture := &deployFixture{
 		store: NewStore(db, box), env: envvar.NewStore(db, box),
 		ex: executor.NewFake(), publisher: &recordingPublisher{},

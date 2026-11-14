@@ -12,7 +12,7 @@ import (
 
 	"pier/internal/platform/apperr"
 	"pier/internal/platform/executor"
-	"pier/internal/platform/secretbox"
+	"pier/internal/platform/secretbox/testbox"
 	"pier/internal/platform/sqlite"
 	"pier/internal/server"
 )
@@ -126,7 +126,7 @@ func newFixture(t *testing.T) fixture {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
-	box, _ := secretbox.New("provision-test-key")
+	box := testbox.Box(t)
 	f := fixture{provider: &fakeProvider{}, registrar: &fakeRegistrar{db: db}, installer: &fakeInstaller{}, keys: &fakeKeys{}, db: db}
 	f.service = NewService(db, box, f.keys, f.registrar, f.installer)
 	f.service.SetProviders(map[string]ProviderFactory{ProviderHetzner: func(token string) Provider { f.provider.token = token; return f.provider }})

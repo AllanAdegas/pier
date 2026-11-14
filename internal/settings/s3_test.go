@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"pier/internal/platform/secretbox"
+	"pier/internal/platform/secretbox/testbox"
 	"pier/internal/platform/sqlite"
 )
 
@@ -15,10 +15,7 @@ func TestS3SettingsValidationAndEncryption(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	box, err := secretbox.New("s3-test-key-at-least-16")
-	if err != nil {
-		t.Fatal(err)
-	}
+	box := testbox.Box(t)
 	store := NewS3Store(db, box)
 	ctx := context.Background()
 	good := S3Settings{Endpoint: "https://objects.example.com", Bucket: "backups", Region: "region", AccessKey: "access", SecretKey: "secret"}
