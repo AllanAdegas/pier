@@ -22,8 +22,9 @@ log "instalar release anterior / install the previous release $old_ref (publishe
 if [ -n "${PIER_OLD_SRC:-}" ]; then stage_source "$PIER_OLD_SRC"; else stage_git_ref "$old_ref"; fi
 run_installer >/dev/null
 check "painel antigo executa / the old panel runs $old_version" version_is "$old_version"
-old_migrations=$(applied_migration_count)
+# Consume the setup code before the migration check restarts the instance.
 check "código de configuração aceito / the setup code is accepted" test "$(create_admin "$(setup_code_from "$install_log")")" = 201
+old_migrations=$(applied_migration_count)
 seed_resources
 check "projeto, aplicação e variável existem antes da atualização / project, application and variable exist before the upgrade" seeded_resources_intact
 

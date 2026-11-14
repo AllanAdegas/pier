@@ -19,10 +19,11 @@ setup_code=$(setup_code_from "$install_log")
 check "código de configuração exibido / setup code is printed" test -n "$setup_code"
 check "/healthz responde 200 / /healthz answers 200" test "$(http_status "$base_url/healthz")" = 200
 check "/api/v1/version responde com versão / /api/v1/version answers with a version" sh -c "curl -sf '$base_url/api/v1/version' | grep -q '\"version\"\\|[0-9]\\.[0-9]'"
+# Counting migrations restarts Pier, which rotates an unused setup code.
+check "código de configuração aceito / the setup code is accepted" test "$(create_admin "$setup_code")" = 201
 check "todas as migrations aplicadas / all migrations are applied ($(source_migration_count))" \
   test "$(applied_migration_count)" = "$(source_migration_count)"
 check "nenhum erro de migration nos logs / no migration error in the logs" no_failed_migration_in_logs
-check "código de configuração aceito / the setup code is accepted" test "$(create_admin "$setup_code")" = 201
 
 log "segunda execução idempotente / second run is idempotent"
 version_before=$(curl -sf "$base_url/api/v1/version")
