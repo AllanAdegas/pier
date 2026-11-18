@@ -1,4 +1,5 @@
 import { GitProviders } from "./settings/GitProviders";
+import { GitConnections } from "./settings/GitConnections";
 import { EngineSettings } from "./settings/EngineSettings";
 import { createSignal } from "solid-js";
 import { S3Settings } from "./settings/S3Settings";
@@ -24,6 +25,7 @@ export function SettingsPage() {
       <InstanceBackup />
       <S3Settings />
       <GitProviders />
+      <GitConnections />
       <EngineSettings />
       <InterfaceLanguage />
       <ProfileForm />
@@ -59,7 +61,7 @@ function InstanceForm(props: { settings: InstanceSettings }) {
           label={t("URL pública do Pier")}
           mono
           placeholder={t("https://pier.exemplo.com")}
-          hint={t("Usada para montar as URLs de webhook mostradas nas aplicações. Vazio, usa o endereço pelo qual você acessa o painel.")}
+          hint={t("Obrigatória para webhooks gerenciados de GitLab, Gitea e Bitbucket. Informe o endereço pelo qual os provedores chegam ao Pier.")}
           value={publicUrl()}
           onValue={setPublicUrl}
           error={save.errors().public_url}

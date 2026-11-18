@@ -3,6 +3,7 @@ import { createSignal, For, Show } from "solid-js";
 import { Button } from "../../components/Button";
 import { QueryView } from "../../components/Feedback";
 import { Select, TextInput } from "../../components/Form";
+import { Modal } from "../../components/Modal";
 import { Section } from "../../components/Page";
 import { api } from "../../lib/api";
 import { createAction, createQuery } from "../../lib/query";
@@ -14,26 +15,63 @@ type Repository = { path: string; clone_url: string; default_branch: string };
 type Page<T> = { items: T[]; has_more: boolean };
 
 export function GitConnections() {
- const rows = createQuery(() => true, () => api.get<Connection[]>("/git-connections"));
- const [provider, setProvider] = createSignal("gitlab");
- const [name, setName] = createSignal("");
- const [base, setBase] = createSignal("");
- const [workspace, setWorkspace] = createSignal("");
- const [token, setToken] = createSignal("");
- const save = createAction(() => api.post("/git-connections", {provider:provider(),name:name(),base_url:base(),workspace:workspace(),token:token()}), {onSuccess: () => {setToken(""); void rows.refetch();}});
- const rotate = createAction((id:string) => api.put(`/git-connections/${id}`, {token:token()}), {onSuccess: () => {setToken("");void rows.refetch();}});
- const remove = createAction((id:string) => api.delete(`/git-connections/${id}`), {onSuccess: () => void rows.refetch()});
- return <Section title={t("Conexões Git")}>
- <QueryView query={rows}>{data => <For each={data()}>{row => <div class="row-between"><span>{row.name} ({row.provider})</span><Show when={allowed("write")}><Button disabled={!token()} pending={rotate.pending()} onClick={() => void rotate.run(row.id)}>{t("Substituir token")}</Button><Button pending={remove.pending()} onClick={() => void remove.run(row.id)}>{t("Remover conexão")}</Button></Show></div>}</For>}</QueryView>
- <Show when={allowed("write")}><div class="stack">
- <Select label={t("Provedor")} value={provider()} onValue={value => {setProvider(value);setBase("");setWorkspace("");}} options={[{value:"gitlab",label:"GitLab"},{value:"gitea",label:"Gitea / Forgejo"},{value:"bitbucket",label:"Bitbucket Cloud"}]} />
- <TextInput label={t("Nome da conexão")} value={name()} onValue={setName} />
- <TextInput label={t("Endereço do provedor")} value={base()} onValue={setBase} />
- <Show when={provider()==="bitbucket"}><TextInput label="Workspace" value={workspace()} onValue={setWorkspace} /></Show>
- <TextInput label={t("Token de acesso")} type="password" value={token()} onValue={setToken} autocomplete="new-password" />
- <p>{t("Use api no GitLab; leitura de usuário e escrita de repositório no Gitea; leitura de repositório e escrita de webhook no Bitbucket. O token fica criptografado no servidor.")}</p>
- <Button pending={save.pending()} onClick={() => void save.run()}>{t("Salvar conexão")}</Button>
- </div></Show></Section>;
+  const rows = createQuery(() => true, () => api.get<Connection[]>("/git-connections"));
+  const [provider, setProvider] = createSignal("gitlab");
+  const [name, setName] = createSignal("");
+  const [base, setBase] = createSignal("");
+  const [workspace, setWorkspace] = createSignal("");
+  const [token, setToken] = createSignal("");
+  const [rotating, setRotating] = createSignal<Connection>();
+  const [newToken, setNewToken] = createSignal("");
+  const closeRotation = () => { setRotating(undefined); setNewToken(""); };
+  const save = createAction(
+    () => api.post("/git-connections", { provider: provider(), name: name(), base_url: base(), workspace: workspace(), token: token() }),
+    { success: t("Conexão Git salva."), onSuccess: () => { setName(""); setBase(""); setWorkspace(""); setToken(""); void rows.refetch(); } },
+  );
+  const rotate = createAction(
+    (id: string) => api.put(`/git-connections/${id}`, { token: newToken() }),
+    { success: t("Token substituído."), onSuccess: () => { closeRotation(); void rows.refetch(); } },
+  );
+  const remove = createAction((id: string) => api.delete(`/git-connections/${id}`), { onSuccess: () => void rows.refetch() });
+  return <Section title={t("Conexões Git")}>
+    <QueryView query={rows}>{data => <div class="list">
+      <For each={data()}>{row => <div class="list-item">
+        <strong class="grow">{row.name} · {row.provider}</strong>
+        <Show when={allowed("write")}>
+          <div class="row">
+            <Button onClick={() => setRotating(row)}>{t("Substituir token")}</Button>
+            <Button pending={remove.pending()} onClick={() => void remove.run(row.id)}>{t("Remover conexão")}</Button>
+          </div>
+        </Show>
+      </div>}</For>
+    </div>}</QueryView>
+    <Show when={allowed("write")}>
+      <form class="stack" onSubmit={event => { event.preventDefault(); void save.run(); }}>
+        <div class="grid-2">
+          <Select label={t("Provedor")} value={provider()} onValue={value => { setProvider(value); setBase(""); setWorkspace(""); }}
+            options={[{ value: "gitlab", label: "GitLab" }, { value: "gitea", label: "Gitea / Forgejo" }, { value: "bitbucket", label: "Bitbucket Cloud" }]} />
+          <TextInput label={t("Nome da conexão")} value={name()} onValue={setName} required error={save.errors().name} />
+          <TextInput label={t("Endereço do provedor")} value={base()} onValue={setBase} error={save.errors().base_url} />
+          <Show when={provider() === "bitbucket"}><TextInput label="Workspace" value={workspace()} onValue={setWorkspace} error={save.errors().workspace} /></Show>
+        </div>
+        <TextInput label={t("Token de acesso")} type="password" value={token()} onValue={setToken} autocomplete="new-password" required error={save.errors().token} />
+        <p class="small muted">{t("Use api no GitLab; leitura de usuário e escrita de repositório no Gitea; leitura de repositório e escrita de webhook no Bitbucket. O token fica criptografado no servidor.")}</p>
+        <div class="row"><Button type="submit" variant="primary" pending={save.pending()}>{t("Salvar conexão")}</Button></div>
+      </form>
+      <Show when={rotating()} keyed>{row =>
+        <Modal title={t("Substituir token")} onClose={() => { if (!rotate.pending()) closeRotation(); }}>
+          <form class="stack" onSubmit={event => { event.preventDefault(); void rotate.run(row.id); }}>
+            <p>{row.name} · {row.provider}</p>
+            <TextInput label={t("Token de acesso")} type="password" value={newToken()} onValue={setNewToken} autocomplete="new-password" required />
+            <div class="form-actions">
+              <Button onClick={closeRotation} disabled={rotate.pending()}>{t("Cancelar")}</Button>
+              <Button type="submit" variant="primary" pending={rotate.pending()}>{t("Substituir token")}</Button>
+            </div>
+          </form>
+        </Modal>
+      }</Show>
+    </Show>
+  </Section>;
 }
 
 export function ConnectionRepositoryPicker(props: {kind: "applications" | "stacks"; id:string}) {

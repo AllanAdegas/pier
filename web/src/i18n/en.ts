@@ -612,8 +612,8 @@ const base: Record<string, string> = {
   "Nome da instância": "Instance name",
   "URL pública do Pier": "Pier's public URL",
   "https://pier.exemplo.com": "https://pier.example.com",
-  "Usada para montar as URLs de webhook mostradas nas aplicações. Vazio, usa o endereço pelo qual você acessa o painel.":
-    "Used to build the webhook URLs shown in applications. Empty, it uses the address you open the panel with.",
+  "Obrigatória para webhooks gerenciados de GitLab, Gitea e Bitbucket. Informe o endereço pelo qual os provedores chegam ao Pier.":
+    "Required for GitLab, Gitea and Bitbucket managed webhooks. Enter the address those providers use to reach Pier.",
   "Idioma do servidor": "Server language",
   "Usado nos logs de deploy, nas notificações e nas respostas da API a quem não informa um idioma.":
     "Used in deployment logs, notifications and API answers to clients that do not ask for a language.",

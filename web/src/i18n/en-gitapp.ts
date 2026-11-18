@@ -5,6 +5,8 @@ export const englishGitapp: Record<string, string> = {
  "Webhook pendente": "Webhook pending",
  "Anterior": "Previous",
  "Substituir token": "Replace token",
+ "Conexão Git salva.": "Git connection saved.",
+ "Token substituído.": "Token replaced.",
  "Branches disponíveis": "Available branches",
   "A origem deve usar o endereço de clone escolhido. Sem permissão para webhook, configure-o manualmente na aba de webhook.": "The source must use the chosen clone address. Without webhook permission, configure it manually in the webhook tab.",
   "Use api no GitLab; leitura de usuário e escrita de repositório no Gitea; leitura de repositório e escrita de webhook no Bitbucket. O token fica criptografado no servidor.": "Use api on GitLab; user read and repository write on Gitea; repository read and webhook write on Bitbucket. The token is encrypted on the server.",

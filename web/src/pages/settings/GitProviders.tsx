@@ -1,4 +1,3 @@
-import { GitConnections } from "./GitConnections";
 import { createSignal, For, onMount, Show } from "solid-js";
 import { Button } from "../../components/Button";
 import { Alert, EmptyState, QueryView } from "../../components/Feedback";
@@ -16,7 +15,6 @@ export function GitProvidersPage() {
     <div class="page">
       <PageHeader title={t("GitHub App")} description={t("Repositórios privados, webhooks automáticos e status nos pull requests.")} />
       <GitProviders />
-      <GitConnections />
     </div>
   );
 }
