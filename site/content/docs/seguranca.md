@@ -12,7 +12,7 @@ O acesso é controlado por [papéis de projeto e de instância](/docs/equipe/). 
 
 ## Tokens de API
 
-Em **Segurança › Tokens de API**, crie tokens para scripts, CI e IA. Cada token tem uma permissão:
+Em **Segurança › Chaves e tokens**, seção **Tokens de API**, crie tokens para scripts, CI e IA. Cada token tem uma permissão:
 
 | Permissão | Pode |
 |---|---|

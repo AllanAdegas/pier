@@ -299,6 +299,42 @@
   white-space: nowrap;
 }
 
+/* A select inside a list row: the row already names it, the label stays for screen readers. */
+.inline-select {
+  min-width: 180px;
+}
+
+.inline-select .field-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Onboarding checklist: an empty ring until done, then a filled check. */
+.checklist .list-item {
+  min-height: 48px;
+}
+
+.checklist-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--border-strong);
+  border-radius: 50%;
+}
+
+.checklist [data-done="true"] .checklist-mark {
+  border-color: var(--success);
+  background: var(--success);
+  color: var(--on-accent);
+}
+
 /* ---------- Tabs ---------- */
 .tabs {
   display: flex;
@@ -306,6 +342,14 @@
   border-bottom: 1px solid var(--border);
   overflow-x: auto;
   scrollbar-width: none;
+}
+
+/* On narrow screens the strip scrolls sideways; the fade shows there is more. */
+@media (max-width: 760px) {
+  .tabs {
+    mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+    padding-right: var(--space-6);
+  }
 }
 
 .tab {

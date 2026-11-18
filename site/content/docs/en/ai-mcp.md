@@ -4,7 +4,7 @@ Pier has an [MCP](https://modelcontextprotocol.io) server, the protocol AI agent
 
 ## Create the access
 
-1. In **Security › AI and agents (MCP)**, create a token dedicated to the agent.
+1. In **Security › Keys and tokens**, section **AI and agents (MCP)**, create a token dedicated to the agent.
 2. Choose the minimum permission:
    - `read` so the agent can only look things up and diagnose;
    - `deploy` to also deploy and restart.

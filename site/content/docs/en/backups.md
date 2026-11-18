@@ -5,7 +5,7 @@ There are two kinds of backup, and you need both:
 
 ## Instance backup
 
-In **Settings › Instance backup**:
+In **Settings › Backups**, section **Instance backup**:
 
 - **Download encrypted backup:** creates a `.pierbak` file. You choose a passphrase of at least 16 characters.
 - **Automatic local backup:** choose the destination folder on the server, a schedule in cron format (for example `0 2 * * *`) and how many backups to keep.

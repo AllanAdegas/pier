@@ -37,7 +37,7 @@ function ContainerRow(props: {
 }) {
   return (
     <div class="list-item" style={{ "flex-wrap": "wrap" }}>
-      <div class="stack-sm" style={{ gap: "0", flex: "1 1 220px", "min-width": "0" }}>
+      <div class="stack-xs" style={{ flex: "1 1 220px" }}>
         <span class="mono truncate">
           <strong>{props.container.name}</strong>
         </span>

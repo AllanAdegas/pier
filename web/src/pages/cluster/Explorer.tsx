@@ -142,7 +142,7 @@ export function Explorer(props: { clusterId: string }) {
               <For each={list()}>
                 {(row) => (
                   <div class="list-item" style={{ "flex-wrap": "wrap" }}>
-                    <div class="stack-sm" style={{ gap: "0", flex: "1 1 220px", "min-width": "0" }}>
+                    <div class="stack-xs" style={{ flex: "1 1 220px" }}>
                       <span class="mono truncate">
                         <strong>{row.name}</strong>
                       </span>

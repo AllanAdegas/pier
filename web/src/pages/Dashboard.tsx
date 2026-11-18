@@ -2,7 +2,7 @@ import { A } from "@solidjs/router";
 import { createSignal, For, Show } from "solid-js";
 import { EmptyState, QueryView, StatusBadge } from "../components/Feedback";
 import { Icon } from "../components/Icon";
-import { Button } from "../components/Button";
+import { IconButton } from "../components/Button";
 import { currentUser,readOnboardingDismissals,saveOnboardingDismissals } from "../lib/state";
 import { PageHeader } from "../components/Page";
 import { DeploymentList } from "../components/Rows";
@@ -52,7 +52,7 @@ export function DashboardPage() {
             }
           >
             <div class="stack-lg">
-              <div class="grid-cards" style={{ "grid-template-columns": "repeat(auto-fill, minmax(160px, 1fr))" }}>
+              <div class="grid-stats">
                 <Stat label={t("Projetos")} value={data().projects} />
                 <Stat label={t("Aplicações")} value={data().applications} />
                 <Stat label={t("Bancos de dados")} value={data().databases} />
@@ -86,7 +86,7 @@ export function DashboardPage() {
                         <span class="muted">
                           <Icon name="server" size={20} />
                         </span>
-                        <div class="grow stack-sm" style={{ gap: "0" }}>
+                        <div class="grow stack-xs">
                           <strong class="truncate">{server.name}</strong>
                           <span class="small muted truncate">
                             {server.kind === "local" ? t("Máquina local") : `${server.user}@${server.host}`}
@@ -108,19 +108,56 @@ export function DashboardPage() {
 }
 
 function OnboardingChecklist() {
- const status=createQuery(()=>true,()=>api.get<{https:boolean;backup:boolean;notifications:boolean;deployed:boolean}>("/instance/onboarding"),{pollMs:30000});
- const [dismissed,setDismissed]=createSignal(readOnboardingDismissals(currentUser()?.id ?? ""));
- const dismiss=(id:string)=>{const items=[...dismissed(),id];setDismissed(items);saveOnboardingDismissals(currentUser()?.id ?? "",items);};
- const items=()=>[
- {id:"https",label:t("Ativar HTTPS no painel"),href:"/settings",done:status.data()?.https},
- {id:"backup",label:t("Criar um backup da instância"),href:"/settings#instance-backup",done:status.data()?.backup},
- {id:"notifications",label:t("Configurar notificações"),href:"/notifications",done:status.data()?.notifications},
- {id:"deploy",label:t("Faça seu primeiro deploy"),href:"/projects",done:status.data()?.deployed},
- {id:"2fa",label:t("Autenticação em dois fatores — em breve"),href:"/security",done:false}
- ].filter(item=>!dismissed().includes(item.id));
- return <Show when={status.data() && items().length>0}><section class="card stack">
- <h2>{t("Primeiros passos")}</h2>
- <For each={items()}>{item=><div class="row-between"><A href={item.href}>{item.done?"✓ ":""}{item.label}</A><Button small variant="ghost" onClick={()=>dismiss(item.id)}>{t("Dispensar item")}</Button></div>}</For>
- <Show when={!status.data()?.deployed && !dismissed().includes("deploy")}><p class="small muted">{t("Para experimentar, use o exemplo Node.js com Nixpacks:")} <a href="https://github.com/heroku/node-js-getting-started" target="_blank" rel="noopener noreferrer">heroku/node-js-getting-started</a></p></Show>
- </section></Show>;
+  const status = createQuery(
+    () => true,
+    () => api.get<{ https: boolean; backup: boolean; notifications: boolean; deployed: boolean }>("/instance/onboarding"),
+    { pollMs: 30000 },
+  );
+  const twoFactor = createQuery(() => true, () => api.get<{ enabled: boolean }>("/me/2fa"));
+  const [dismissed, setDismissed] = createSignal(readOnboardingDismissals(currentUser()?.id ?? ""));
+  const dismiss = (id: string) => {
+    const items = [...dismissed(), id];
+    setDismissed(items);
+    saveOnboardingDismissals(currentUser()?.id ?? "", items);
+  };
+  // The instance backup has its own warning at the top of every page, so it is not repeated here.
+  const all = () => [
+    { id: "https", label: t("Ativar HTTPS no painel"), href: "/settings?tab=instance", done: !!status.data()?.https },
+    { id: "notifications", label: t("Configurar notificações"), href: "/notifications", done: !!status.data()?.notifications },
+    { id: "deploy", label: t("Faça seu primeiro deploy"), href: "/projects", done: !!status.data()?.deployed },
+    { id: "2fa", label: t("Ativar a verificação em duas etapas"), href: "/security", done: !!twoFactor.data()?.enabled },
+  ];
+  const items = () => all().filter((item) => !dismissed().includes(item.id));
+  const doneCount = () => all().filter((item) => item.done).length;
+  return (
+    <Show when={status.data() && items().some((item) => !item.done)}>
+      <section class="card stack">
+        <div class="row-between">
+          <h2>{t("Primeiros passos")}</h2>
+          <span class="small muted">{t("{done} de {total} concluídos", { done: doneCount(), total: all().length })}</span>
+        </div>
+        <div class="list checklist">
+          <For each={items()}>
+            {(item) => (
+              <div class="list-item" data-done={item.done ? "true" : undefined}>
+                <span class="checklist-mark" aria-hidden="true">
+                  <Show when={item.done}><Icon name="check" size={16} /></Show>
+                </span>
+                <Show when={!item.done} fallback={<span class="grow muted">{item.label}</span>}>
+                  <A href={item.href} class="grow">{item.label}</A>
+                </Show>
+                <IconButton icon="close" label={t("Dispensar “{item}”", { item: item.label })} onClick={() => dismiss(item.id)} />
+              </div>
+            )}
+          </For>
+        </div>
+        <Show when={!status.data()?.deployed && !dismissed().includes("deploy")}>
+          <p class="small muted">
+            {t("Para experimentar, use o exemplo Node.js com Nixpacks:")}{" "}
+            <a href="https://github.com/heroku/node-js-getting-started" target="_blank" rel="noopener noreferrer">heroku/node-js-getting-started</a>
+          </p>
+        </Show>
+      </section>
+    </Show>
+  );
 }

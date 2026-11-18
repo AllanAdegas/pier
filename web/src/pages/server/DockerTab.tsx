@@ -176,7 +176,7 @@ function Containers(props: { base: string }) {
                   {(group) => (
                     <details class="card stack-sm" open style={{ padding: "var(--space-3)" }}>
                       <summary class="row-between" style={{ cursor: "pointer" }}>
-                        <span class="stack-sm" style={{ gap: "0" }}>
+                        <span class="stack-xs">
                           <strong>{group.title}</strong>
                           <span class="small muted">{group.kind}</span>
                         </span>

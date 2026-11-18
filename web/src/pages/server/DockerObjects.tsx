@@ -184,7 +184,7 @@ function NamedObjects<T extends { name: string }>(props: {
             <For each={list()}>
               {(item) => (
                 <div class="list-item">
-                  <div class="grow stack-sm" style={{ gap: "0" }}>
+                  <div class="grow stack-xs">
                     <span class="mono truncate">{item.name}</span>
                     <span class="small muted">{props.detail(item)}</span>
                   </div>

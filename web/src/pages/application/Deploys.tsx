@@ -41,7 +41,7 @@ export function DeploysTab(props: { application: Application; deployments: Query
               {(deployment) => (
                 <div class="list-item">
                   <StatusBadge status={deploymentStatus(deployment.status)} />
-                  <div class="grow stack-sm" style={{ gap: "0" }}>
+                  <div class="grow stack-xs">
                     <A href={`/deployments/${deployment.id}`} class="truncate">
                       {deployment.commit_message || deployment.source || t("Deploy {name}", { name: triggerLabel(deployment.trigger).toLowerCase() })}
                     </A>

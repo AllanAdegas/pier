@@ -176,6 +176,9 @@ export function ProjectDetailPage() {
               description={data().description || undefined}
               actions={
                 <>
+                  <A href={`/projects/${data().id}/access`} class="btn">
+                    <Icon name="shield" size={16} />{t("Equipe")}
+                  </A>
                   <Button onClick={() => setDialog("edit")}>{t("Editar")}</Button>
                   <Button icon="trash" onClick={() => setDialog("delete")}>{t("Remover")}
                   </Button>
@@ -195,7 +198,7 @@ export function ProjectDetailPage() {
                 />
               </div>
               <div class="row">
-                <Button small icon="plus" onClick={() => setDialog("environment")}>{t("Ambiente")}
+                <Button small icon="plus" onClick={() => setDialog("environment")}>{t("Novo ambiente")}
                 </Button>
                 <Show when={data().environments.length > 1}>
                   <Button small variant="ghost" icon="trash" onClick={() => setDialog("delete-environment")}>{t("Remover ambiente")}
@@ -204,7 +207,6 @@ export function ProjectDetailPage() {
               </div>
             </div>
 
-            <Show when={environment()}>{(env) => <EnvironmentProtection environment={env()} onSaved={() => void project.refetch()} />}</Show>
             <QueryView query={resources}>
               {(items) => (
                 <Show
@@ -226,6 +228,7 @@ export function ProjectDetailPage() {
                 </Show>
               )}
             </QueryView>
+            <Show when={environment()}>{(env) => <EnvironmentProtection environment={env()} onSaved={() => void project.refetch()} />}</Show>
             <SharedVariables projectId={data().id} environmentId={environmentId()} />
 
             <Show when={dialog() === "edit"}>

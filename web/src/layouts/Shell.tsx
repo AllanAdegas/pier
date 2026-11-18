@@ -102,7 +102,15 @@ export function Shell(props: RouteSectionProps) {
         </div>
       </aside>
 
-      <main class="main"><UpdateBanner /><Show when={backup.data() && !backup.data()!.last_backup_at}><Alert tone="warning">{t("Faça um backup da instância para proteger o Pier e suas credenciais.")} <A href="/settings#instance-backup">{t("Configurar backup")}</A></Alert></Show>{props.children}</main>
+      <main class="main">
+        <div class="main-notices">
+          <UpdateBanner />
+          <Show when={backup.data() && !backup.data()!.last_backup_at}>
+            <Alert tone="warning">{t("Faça um backup da instância para proteger o Pier e suas credenciais.")} <A href="/settings?tab=backups#instance-backup">{t("Configurar backup")}</A></Alert>
+          </Show>
+        </div>
+        {props.children}
+      </main>
     </div>
   );
 }

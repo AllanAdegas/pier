@@ -12,7 +12,7 @@ Access is controlled by [project and instance roles](/en/docs/team-and-access/).
 
 ## API tokens
 
-In **Security › API tokens**, create tokens for scripts, CI and AI. Each token has one permission:
+In **Security › Keys and tokens**, section **API tokens**, create tokens for scripts, CI and AI. Each token has one permission:
 
 | Permission | Can |
 |---|---|

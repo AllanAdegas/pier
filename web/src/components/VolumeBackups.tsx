@@ -99,7 +99,7 @@ function MountList(props: { mounts: Query<VolumeMount[]> }) {
                   <StatusBadge
                     status={mount.included ? { label: t("Incluído"), tone: "success" } : { label: t("Fora do backup"), tone: "neutral" }}
                   />
-                  <div class="grow stack-sm" style={{ gap: "0" }}>
+                  <div class="grow stack-xs">
                     <span class="mono truncate">{mount.source}</span>
                     <span class="small muted truncate">
                       {mount.kind === "volume" ? t("Volume") : t("Diretório do servidor")} · {mount.destination}
@@ -194,7 +194,7 @@ function BackupRow(props: { backup: VolumeBackup; onRestore: (backup: VolumeBack
   return (
     <div class="list-item">
       <StatusBadge status={backupStatus(backup().status)} />
-      <div class="grow stack-sm" style={{ gap: "0" }}>
+      <div class="grow stack-xs">
         <span>{formatDateTime(backup().started_at)} · {TRIGGER_LABEL[backup().trigger] ?? backup().trigger}</span>
         <span class="small muted truncate">
           <Show when={backup().message} fallback={formatBytes(backup().size_bytes)}>{backup().message}</Show>

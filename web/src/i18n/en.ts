@@ -18,6 +18,7 @@ import { englishMetrics } from "./en-metrics";
 import { englishUpdates } from "./en-updates";
 import { englishVolumes } from "./en-volumes";
 import { englishLocalization } from "./en-localization";
+import { englishUxReview } from "./en-uxreview";
 
 // English catalog: Portuguese source text → English. Every text the
 // interface passes to t(), msg() or <Trans> must be here (i18n.test.ts).
@@ -479,7 +480,6 @@ const base: Record<string, string> = {
   "Projeto removido.": "Project removed.",
   "Ambiente removido.": "Environment removed.",
   "Remover": "Remove",
-  "Ambiente": "Environment",
   "Remover ambiente": "Remove environment",
   "Nenhum recurso em “{name}”": "No resources in “{name}”",
   "Adicionar recurso": "Add resource",
@@ -532,7 +532,6 @@ const base: Record<string, string> = {
   "Já copiei": "I copied it",
   "Usuário removido.": "User removed.",
   "Usuários": "Users",
-  "Todos os usuários têm acesso total ao painel.": "Every user has full access to the panel.",
   "Novo usuário": "New user",
   "você": "you",
   "Usuário criado.": "User created.",
@@ -1071,6 +1070,7 @@ export const english: Record<string, string> = {
   ...englishEngineExtras,
   ...englishEngine06,
   ...englishRbac,
+  ...englishUxReview,
   ...englishMultiserver,
   ...englishAuth,
   ...englishEngine,

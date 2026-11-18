@@ -121,7 +121,7 @@ function TasksSection(props: { applicationId: string }) {
               <For each={list()}>
                 {(task) => (
                   <div class="list-item">
-                    <div class="grow stack-sm" style={{ gap: "0" }}>
+                    <div class="grow stack-xs">
                       <strong class="truncate">{task.name}</strong>
                       <span class="small muted mono truncate">
                         {task.cron} · {task.command}

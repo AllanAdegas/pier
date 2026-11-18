@@ -1,6 +1,6 @@
 import { createSignal, For, Show } from "solid-js";
 import { Button } from "../components/Button";
-import { Alert, EmptyState } from "../components/Feedback";
+import { Alert, EmptyState, Skeleton } from "../components/Feedback";
 import { Select } from "../components/Form";
 import { PageHeader, Section } from "../components/Page";
 import { api, errorMessage } from "../lib/api";
@@ -34,12 +34,12 @@ export function SwarmPage() {
   }
   function value(form: HTMLFormElement, name: string) { return String(new FormData(form).get(name) ?? ""); }
   return <div class="page">
-    <PageHeader title="Docker Swarm" description={t("Crie um Swarm em servidores cadastrados e implante imagens acessíveis a todos os nós.")} />
+    <PageHeader title={t("Infraestrutura")} description={t("Crie um Swarm em servidores cadastrados e implante imagens acessíveis a todos os nós.")} />
     <InfrastructureTabs current="swarm" />
     <Show when={error() || clusters.error() || servers.error()}><Alert tone="danger">{error() || errorMessage(clusters.error() || servers.error())}</Alert></Show>
-    <Show when={busy() || clusters.loading()}><p role="status">{t("Carregando")}</p></Show>
+    <Show when={clusters.loading()}><Skeleton lines={3} /></Show>
     <Show when={!clusters.loading() && !clusters.error()}>
-      <Show when={clusters.data()?.length} fallback={<EmptyState icon="cluster" title={t("Nenhum Swarm")} />}>
+      <Show when={clusters.data()?.length} fallback={<EmptyState icon="cluster" title={t("Nenhum Swarm")}>{t("Escolha um servidor como gerenciador no formulário abaixo para criar o primeiro.")}</EmptyState>}>
         <Select label={t("Swarm")} value={selected()} placeholder={t("Selecione um Swarm")} disabled={busy()}
           options={(clusters.data() ?? []).map(cluster => ({ value: cluster.id, label: cluster.name }))}
           onValue={id => { select(id); setWorker(""); setRemovingWorker(""); setLogs(""); setError(""); }} />
