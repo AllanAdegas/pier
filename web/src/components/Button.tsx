@@ -43,12 +43,16 @@ export function IconButton(props: {
   onClick?: JSX.EventHandler<HTMLButtonElement, MouseEvent>;
   pending?: boolean;
   disabled?: boolean;
+  /** For disclosure toggles: whether the content it controls is shown. */
+  expanded?: boolean;
+  class?: string;
 }) {
   return (
     <button
       type="button"
-      class="btn btn-ghost btn-icon"
+      class={`btn btn-ghost btn-icon ${props.class ?? ""}`}
       aria-label={props.label}
+      aria-expanded={props.expanded === undefined ? undefined : props.expanded ? "true" : "false"}
       title={props.label}
       onClick={props.onClick}
       disabled={props.disabled || props.pending}

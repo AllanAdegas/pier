@@ -364,6 +364,19 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Disclosure chevrons: the icon points right, so turn it. */
+.chevron-down svg {
+  transform: rotate(90deg);
+}
+
+.chevron-up svg {
+  transform: rotate(-90deg);
+}
+
+.onboarding-actions {
+  gap: var(--space-1);
+}
+
 /* ---------- Tabs ---------- */
 .tabs {
   display: flex;

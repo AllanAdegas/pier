@@ -3,7 +3,7 @@ import { createSignal, For, Show } from "solid-js";
 import { EmptyState, QueryView, StatusBadge } from "../components/Feedback";
 import { Icon } from "../components/Icon";
 import { IconButton } from "../components/Button";
-import { currentUser,readOnboardingDismissals,saveOnboardingDismissals } from "../lib/state";
+import { currentUser, notify, readOnboardingDismissals, readOnboardingView, saveOnboardingDismissals, saveOnboardingView, type OnboardingView } from "../lib/state";
 import { PageHeader } from "../components/Page";
 import { DeploymentList } from "../components/Rows";
 import { api } from "../lib/api";
@@ -114,7 +114,16 @@ function OnboardingChecklist() {
     { pollMs: 30000 },
   );
   const twoFactor = createQuery(() => true, () => api.get<{ enabled: boolean }>("/me/2fa"));
-  const [dismissed, setDismissed] = createSignal(readOnboardingDismissals(currentUser()?.id ?? ""));
+  const userID = () => currentUser()?.id ?? "";
+  const [dismissed, setDismissed] = createSignal(readOnboardingDismissals(userID()));
+  const [view, setView] = createSignal<OnboardingView>(readOnboardingView(userID()));
+  const changeView = (next: OnboardingView) => {
+    setView(next);
+    saveOnboardingView(userID(), next);
+    if (next === "closed") {
+      notify(t("Primeiros passos fechados. Os itens continuam nas suas telas."));
+    }
+  };
   const dismiss = (id: string) => {
     const items = [...dismissed(), id];
     setDismissed(items);
@@ -130,12 +139,25 @@ function OnboardingChecklist() {
   const items = () => all().filter((item) => !dismissed().includes(item.id));
   const doneCount = () => all().filter((item) => item.done).length;
   return (
-    <Show when={status.data() && items().some((item) => !item.done)}>
+    <Show when={view() !== "closed" && status.data() && items().some((item) => !item.done)}>
       <section class="card stack">
         <div class="row-between">
-          <h2>{t("Primeiros passos")}</h2>
-          <span class="small muted">{t("{done} de {total} concluídos", { done: doneCount(), total: all().length })}</span>
+          <div class="row">
+            <h2>{t("Primeiros passos")}</h2>
+            <span class="small muted">{t("{done} de {total} concluídos", { done: doneCount(), total: all().length })}</span>
+          </div>
+          <div class="row onboarding-actions">
+            <IconButton
+              icon="chevron"
+              class={view() === "collapsed" ? "chevron-down" : "chevron-up"}
+              label={view() === "collapsed" ? t("Expandir primeiros passos") : t("Recolher primeiros passos")}
+              expanded={view() !== "collapsed"}
+              onClick={() => changeView(view() === "collapsed" ? "open" : "collapsed")}
+            />
+            <IconButton icon="close" label={t("Fechar primeiros passos")} onClick={() => changeView("closed")} />
+          </div>
         </div>
+        <Show when={view() === "open"}>
         <div class="list checklist">
           <For each={items()}>
             {(item) => (
@@ -156,6 +178,7 @@ function OnboardingChecklist() {
             {t("Para experimentar, use o exemplo Node.js com Nixpacks:")}{" "}
             <a href="https://github.com/heroku/node-js-getting-started" target="_blank" rel="noopener noreferrer">heroku/node-js-getting-started</a>
           </p>
+        </Show>
         </Show>
       </section>
     </Show>

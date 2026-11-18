@@ -64,4 +64,8 @@ export const englishUxReview: Record<string, string> = {
   "{released} de {total} servidores com a nova versão · iniciado {when}": "{released} of {total} servers on the new version · started {when}",
   "antes": "before",
   "Os servidores que já receberam a nova versão voltam para a imagem anterior. Migrações de banco feitas pelo release não são desfeitas.": "Servers that already received the new version go back to the previous image. Database migrations run by the release are not undone.",
+  "Primeiros passos fechados. Os itens continuam nas suas telas.": "Getting started closed. Each item is still on its own screen.",
+  "Expandir primeiros passos": "Expand getting started",
+  "Recolher primeiros passos": "Collapse getting started",
+  "Fechar primeiros passos": "Close getting started",
 };
