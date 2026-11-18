@@ -16,7 +16,7 @@ import (
 	"pier/internal/envvar"
 	"pier/internal/identity"
 	"pier/internal/platform/executor"
-	"pier/internal/platform/secretbox"
+	"pier/internal/platform/secretbox/testbox"
 	"pier/internal/platform/sqlite"
 	"pier/internal/registry"
 )
@@ -28,10 +28,7 @@ func TestRegistryAndPlacementRoutesNeverReturnSecretsAndCheckAbilities(t *testin
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
-	box, err := secretbox.New("multiserver-http-testing-passphrase")
-	if err != nil {
-		t.Fatal(err)
-	}
+	box := testbox.Box(t)
 	auth := identity.NewService(identity.NewStore(db), time.Hour)
 	user, err := auth.CreateUser(ctx, "Test", "multiserver@example.invalid", "testing-password-long")
 	if err != nil {

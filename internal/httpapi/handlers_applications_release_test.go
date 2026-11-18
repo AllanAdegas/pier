@@ -20,7 +20,7 @@ import (
 	"pier/internal/identity"
 	"pier/internal/platform/executor"
 	"pier/internal/platform/pubsub"
-	"pier/internal/platform/secretbox"
+	"pier/internal/platform/secretbox/testbox"
 	"pier/internal/platform/sqlite"
 )
 
@@ -40,10 +40,7 @@ func newReleaseHTTPFixture(t *testing.T) releaseHTTPFixture {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
-	box, err := secretbox.New("engine-http-testing-passphrase")
-	if err != nil {
-		t.Fatal(err)
-	}
+	box := testbox.Box(t)
 	for _, statement := range []string{
 		`INSERT INTO servers(id,name,kind,data_dir,created_at) VALUES ('srv','test','local','/data','2026-01-01T00:00:00Z')`,
 		`INSERT INTO projects(id,name,created_at) VALUES ('p','p','2026-01-01T00:00:00Z')`,

@@ -13,7 +13,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
-	"pier/internal/platform/secretbox"
+	"pier/internal/platform/secretbox/testbox"
 	"pier/internal/platform/sqlite"
 	"testing"
 	"time"
@@ -75,7 +75,7 @@ func TestOIDCFlow(t *testing.T) {
 	}))
 	defer server.Close()
 	issuer = server.URL
-	box, _ := secretbox.New("test-key-32-characters-long-secret")
+	box := testbox.Box(t)
 	s := NewOIDC(db, box, []string{issuer}, "https://pier.example/api/v1/access/oidc/callback")
 	s.client = server.Client()
 	config := OIDCConfig{Issuer: issuer, ClientID: "client", ClientSecret: "secret", Callback: s.callback}
@@ -87,7 +87,7 @@ func TestOIDCFlow(t *testing.T) {
 	}
 	var sealed string
 	_ = db.QueryRow(`SELECT sealed FROM access_oidc_config`).Scan(&sealed)
-	if sealed == "" || sealed[0:3] != "v1:" {
+	if sealed == "" || sealed[0:3] != "v2:" {
 		t.Fatal("config not encrypted")
 	}
 	start := func() (string, string) {

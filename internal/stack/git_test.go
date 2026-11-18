@@ -13,7 +13,7 @@ import (
 	"pier/internal/application"
 	"pier/internal/platform/apperr"
 	"pier/internal/platform/executor"
-	"pier/internal/platform/secretbox"
+	"pier/internal/platform/secretbox/testbox"
 )
 
 const (
@@ -36,7 +36,7 @@ func (k fakeKeys) Material(_ context.Context, id string) (string, error) {
 func newGitService(t *testing.T) (*Service, *executor.Fake) {
 	t.Helper()
 	service, fake := newService(t)
-	box, _ := secretbox.New("test-passphrase-123456")
+	box := testbox.Box(t)
 	service.SetGitSupport(box, fakeKeys{})
 	return service, fake
 }

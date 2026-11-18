@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"pier/internal/platform/i18n"
-	"pier/internal/platform/secretbox"
+	"pier/internal/platform/secretbox/testbox"
 	"pier/internal/platform/sqlite"
 	"strings"
 	"testing"
@@ -29,7 +29,7 @@ func TestPasswordResetUsesOnlyAccountRecipientAndRequiresTLS(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	box, _ := secretbox.New("reset-mailer-test-key")
+	box := testbox.Box(t)
 	s := NewService(db, box, slog.New(slog.DiscardHandler))
 	capture := &resetCapture{}
 	s.senders[KindEmail] = capture
@@ -65,7 +65,7 @@ func TestPasswordResetSpeaksTheLanguageOfTheRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	box, _ := secretbox.New("reset-mailer-test-key")
+	box := testbox.Box(t)
 	s := NewService(db, box, slog.New(slog.DiscardHandler))
 	capture := &resetCapture{}
 	s.senders[KindEmail] = capture

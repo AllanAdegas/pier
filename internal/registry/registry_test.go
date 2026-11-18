@@ -10,7 +10,7 @@ import (
 
 	"pier/internal/platform/apperr"
 	"pier/internal/platform/executor"
-	"pier/internal/platform/secretbox"
+	"pier/internal/platform/secretbox/testbox"
 	"pier/internal/platform/sqlite"
 )
 
@@ -23,10 +23,7 @@ func newTestService(t *testing.T) *Service {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
-	box, err := secretbox.New("a-long-enough-passphrase")
-	if err != nil {
-		t.Fatal(err)
-	}
+	box := testbox.Box(t)
 	return New(db, box)
 }
 

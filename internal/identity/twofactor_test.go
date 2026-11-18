@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"pier/internal/platform/apperr"
-	"pier/internal/platform/secretbox"
+	"pier/internal/platform/secretbox/testbox"
 	"pier/internal/platform/sqlite"
 )
 
@@ -29,10 +29,7 @@ func newAccountFixture(t *testing.T) *accountFixture {
 		t.Fatalf("open database: %v", err)
 	}
 	t.Cleanup(func() { db.Close() })
-	box, err := secretbox.New("identity-test-passphrase")
-	if err != nil {
-		t.Fatal(err)
-	}
+	box := testbox.Box(t)
 	fixture := &accountFixture{db: db, clock: time.Unix(1_800_000_000, 0)}
 	fixture.service = NewService(NewStore(db), time.Hour)
 	fixture.service.SetSecretBox(box)
@@ -124,7 +121,7 @@ func TestTheSecretAndRecoveryCodesAreNotStoredInClear(t *testing.T) {
 	if err := f.db.QueryRow(`SELECT secret FROM user_totp`).Scan(&stored); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(stored, secret) || !strings.HasPrefix(stored, "v1:") {
+	if strings.Contains(stored, secret) || !strings.HasPrefix(stored, "v2:") {
 		t.Fatalf("the TOTP secret must be sealed, got %q", stored)
 	}
 	rows, err := f.db.Query(`SELECT code_hash FROM recovery_codes`)

@@ -18,7 +18,7 @@ import (
 	"pier/internal/platform/executor"
 	"pier/internal/platform/i18n"
 	"pier/internal/platform/oplog"
-	"pier/internal/platform/secretbox"
+	"pier/internal/platform/secretbox/testbox"
 	"pier/internal/platform/sqlite"
 	"pier/internal/server"
 )
@@ -82,7 +82,7 @@ func newService(t *testing.T) (*Service, *executor.Fake) {
 		VALUES ('srv1', 'test', 'ssh', '/data/pier', '2026-01-01T00:00:00Z')`); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	box, _ := secretbox.New("test-passphrase-123456")
+	box := testbox.Box(t)
 	fake := executor.NewFake()
 	service := NewService(db, box, fakeConnector{fake}, oplog.NewRegistry(), "127.0.0.1")
 	// No real network in tests: every port is free unless a test says otherwise.

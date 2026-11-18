@@ -17,7 +17,7 @@ import (
 	"pier/internal/envvar"
 	"pier/internal/identity"
 	"pier/internal/platform/executor"
-	"pier/internal/platform/secretbox"
+	"pier/internal/platform/secretbox/testbox"
 	"pier/internal/platform/sqlite"
 	"pier/internal/project"
 )
@@ -38,7 +38,7 @@ func newEngineWorld(t *testing.T) engineWorld {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
-	box, _ := secretbox.New("engine-http-testing-passphrase")
+	box := testbox.Box(t)
 	env := envvar.NewStore(db, box)
 	auth := identity.NewService(identity.NewStore(db), time.Hour)
 	token := func(name string) (string, string) {

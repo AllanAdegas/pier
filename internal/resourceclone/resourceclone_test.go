@@ -12,7 +12,7 @@ import (
 	"pier/internal/envvar"
 	"pier/internal/platform/executor"
 	"pier/internal/platform/oplog"
-	"pier/internal/platform/secretbox"
+	"pier/internal/platform/secretbox/testbox"
 	"pier/internal/platform/sqlite"
 	"pier/internal/server"
 	"pier/internal/stack"
@@ -42,7 +42,7 @@ func newCloner(t *testing.T) (*Service, *sql.DB) {
 			t.Fatal(err)
 		}
 	}
-	box, _ := secretbox.New("test-passphrase-123456")
+	box := testbox.Box(t)
 	env := envvar.NewStore(db, box)
 	return &Service{
 		Databases: database.NewService(database.NewStore(db, box), fakeConnector{}, nil),

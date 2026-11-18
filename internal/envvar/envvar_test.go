@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"pier/internal/platform/secretbox"
+	"pier/internal/platform/secretbox/testbox"
 	"pier/internal/platform/sqlite"
 )
 
@@ -17,7 +17,7 @@ func newStore(t *testing.T) *Store {
 		t.Fatalf("open database: %v", err)
 	}
 	t.Cleanup(func() { db.Close() })
-	box, _ := secretbox.New("test-passphrase-123456")
+	box := testbox.Box(t)
 	return NewStore(db, box)
 }
 

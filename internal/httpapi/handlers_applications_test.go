@@ -16,7 +16,7 @@ import (
 	"pier/internal/identity"
 	"pier/internal/platform/apperr"
 	"pier/internal/platform/executor"
-	"pier/internal/platform/secretbox"
+	"pier/internal/platform/secretbox/testbox"
 	"pier/internal/platform/sqlite"
 	"pier/internal/server"
 )
@@ -34,10 +34,7 @@ func engineHTTPFixture(t *testing.T) (*API, *executor.Fake, *http.ServeMux, stri
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
-	box, err := secretbox.New("engine-http-testing-passphrase")
-	if err != nil {
-		t.Fatal(err)
-	}
+	box := testbox.Box(t)
 	env := envvar.NewStore(db, box)
 	auth := identity.NewService(identity.NewStore(db), time.Hour)
 	user, err := auth.CreateUser(context.Background(), "Test", "engine@example.invalid", "testing-password-long")

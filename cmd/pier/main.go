@@ -108,15 +108,15 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	box, err := secretbox.New(key)
-	if err != nil {
-		return err
-	}
 	db, err := sqlite.Open(ctx, cfg.DatabasePath())
 	if err != nil {
 		return err
 	}
 	defer db.Close()
+	box, err := openSecretBox(ctx, db, key, logger)
+	if err != nil {
+		return err
+	}
 	if err := restrictDataDir(cfg); err != nil {
 		return err
 	}

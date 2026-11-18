@@ -68,3 +68,7 @@ frontend image `ghcr.io/railwayapp/railpack-frontend:v0.43.0` pinned by digest.
 
 - Railpack v0.43.0 (CLI and BuildKit frontend) — MIT, https://github.com/railwayapp/railpack/blob/v0.43.0/LICENSE.
   Copyright (c) 2025 Railway Corp.
+
+## Secrets at rest
+
+- `golang.org/x/crypto` v0.59.0 — BSD-3-Clause; Argon2id key derivation (existing pinned Go module), https://pkg.go.dev/golang.org/x/crypto/argon2.

@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"pier/internal/platform/executor"
-	"pier/internal/platform/secretbox"
+	"pier/internal/platform/secretbox/testbox"
 	"pier/internal/platform/sqlite"
 	"pier/internal/server"
 )
@@ -82,7 +82,7 @@ func (c *capture) server(t *testing.T) *httptest.Server {
 func (c *capture) count() int { c.mu.Lock(); defer c.mu.Unlock(); return len(c.bodies) }
 
 func newTestService(t *testing.T, db *sql.DB, ex executor.Executor, redactors RedactorSource) *Service {
-	box, _ := secretbox.New("logdrain-test-key")
+	box := testbox.Box(t)
 	service := NewService(db, box, fakeConnector{ex}, redactors, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	service.forwarder.retries = []time.Duration{time.Millisecond}
 	return service
