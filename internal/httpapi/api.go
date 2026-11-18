@@ -46,6 +46,7 @@ type Dependencies struct {
 	Provisioning     *provision.Service
 	LogDrains        *logdrain.Service
 	GitProviders     *gitprovider.Service
+	GitFeedback      *gitprovider.Queue
 	MultiServer      *application.MultiServer
 	Registries       *registry.Service
 	Instance         *instance.Service
@@ -151,6 +152,7 @@ func (a *API) Handler() http.Handler {
 	a.registerClusterRoutes(mux)
 	a.registerMiscRoutes(mux)
 	a.registerGitProviderRoutes(mux)
+	a.registerGitFeedbackRoutes(mux)
 	a.registerUpdateRoutes(mux)
 	a.registerTerminalRoutes(mux)
 	a.registerEngineRoutes(mux)
