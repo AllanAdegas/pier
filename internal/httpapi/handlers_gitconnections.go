@@ -2,8 +2,12 @@ package httpapi
 
 import (
 	"net/http"
-	"pier/internal/gitprovider"
+	"net/url"
 	"strconv"
+
+	"pier/internal/gitprovider"
+	"pier/internal/identity"
+	"pier/internal/platform/apperr"
 )
 
 func (a *API) registerGitConnectionRoutes(mux *http.ServeMux) {
@@ -92,10 +96,17 @@ func (a *API) registerGitConnectionRoutes(mux *http.ServeMux) {
 			return noContent(w)
 		})
 		a.route(mux, "PUT "+base, canWrite, func(w http.ResponseWriter, r *http.Request) error {
+			if _, err := a.authorizeScope(r.Context(), principalFrom(r.Context()), "", identity.AbilityWrite, ""); err != nil {
+				return err
+			}
 			input, err := decode[struct {
 				ConnectionID string `json:"connection_id"`
 				Repository   string `json:"repository"`
 			}](w, r)
+			if err != nil {
+				return err
+			}
+			baseURL, err := a.managedWebhookBaseURL(r)
 			if err != nil {
 				return err
 			}
@@ -116,11 +127,44 @@ func (a *API) registerGitConnectionRoutes(mux *http.ServeMux) {
 			if err != nil {
 				return err
 			}
-			link, err := c.Connect(r.Context(), gitprovider.LinkRequest{Kind: kind, ResourceID: r.PathValue("id"), ConnectionID: input.ConnectionID, Repository: input.Repository, Source: source, Hook: gitprovider.HookTarget{URL: a.publicURL(r) + "/webhooks/" + kind + "s/" + r.PathValue("id") + "/" + connection.Provider, Secret: secret}})
+			link, err := c.Connect(r.Context(), gitprovider.LinkRequest{Kind: kind, ResourceID: r.PathValue("id"), ConnectionID: input.ConnectionID, Repository: input.Repository, Source: source, Hook: gitprovider.HookTarget{URL: baseURL + "/webhooks/" + kind + "s/" + r.PathValue("id") + "/" + connection.Provider, Secret: secret}})
 			if err != nil {
 				return err
 			}
 			return ok(w, link)
 		})
 	}
+}
+
+// Managed callbacks are sent to a Git provider and must use the address
+// configured by an instance administrator.
+func (a *API) managedWebhookBaseURL(r *http.Request) (string, error) {
+	if a.Settings != nil {
+		current, err := a.Settings.Get(r.Context())
+		if err != nil {
+			return "", err
+		}
+		parsed, err := url.Parse(current.PublicURL)
+		if err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") &&
+			parsed.Hostname() != "" && parsed.User == nil && !parsed.ForceQuery && parsed.RawQuery == "" && parsed.Fragment == "" {
+			return current.PublicURL, nil
+		}
+	}
+	return "", apperr.Invalid("Endereço de webhook inválido. Confira a URL pública do Pier em Configurações.")
+}
+
+func (a *API) linkedWebhookURL(r *http.Request, kind string) (string, error) {
+	if a.GitConnections == nil {
+		return "", nil
+	}
+	id := r.PathValue("id")
+	link, err := a.GitConnections.Link(r.Context(), kind, id)
+	if err != nil || !link.Linked {
+		return "", err
+	}
+	baseURL, err := a.managedWebhookBaseURL(r)
+	if err != nil {
+		return "", err
+	}
+	return baseURL + "/webhooks/" + kind + "s/" + id + "/" + link.Provider, nil
 }

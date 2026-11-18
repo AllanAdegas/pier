@@ -48,6 +48,8 @@ Em **Integração Git** de uma aplicação ou stack existente, escolha **Conexã
 
 O Pier cria ou atualiza um webhook por recurso: `active` indica sucesso, `manual` indica falta de permissão (configure o webhook na área de automação), e `failed` indica outro erro. Vincular novamente tenta registrar de novo sem duplicar o webhook conhecido. A rotação do segredo atualiza o webhook remoto. **Desvincular** remove o webhook; falhas temporárias são tentadas novamente em segundo plano. Remover recursos também agenda essa limpeza. **Remover conexão** exige desvincular os recursos primeiro.
 
-As rotas globais de conexões exigem acesso de instância; a listagem de repositórios e branches exige escrita. Os vínculos exigem acesso ao projeto do recurso (leitura para consultar, escrita para alterar). Os testes usam HTTP simulado e SQLite temporário; nenhum provedor real foi validado.
+Defina a **URL pública** em **Configurações** antes de vincular o repositório ou girar o segredo de um webhook gerenciado. O provedor precisa alcançar esse endereço.
+
+Vincular um repositório exige escrita na instância e no projeto do recurso. Para consultar ou remover um vínculo, é preciso ter permissão de leitura ou escrita, respectivamente, no projeto do recurso.
 
 O mesmo seletor aparece na criação de aplicações e Git stacks. A seleção é vinculada antes do primeiro deploy, desde que o endereço da origem não tenha sido alterado.

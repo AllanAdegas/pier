@@ -48,6 +48,8 @@ In **Git integration** on an existing application or stack, select **Git connect
 
 Pier creates or updates one webhook per resource: `active` means success, `manual` means insufficient permission (configure the webhook in the automation area), and `failed` means another error. Linking again retries registration without duplicating the known webhook. Secret rotation updates the remote webhook. **Unlink** removes the webhook; temporary failures are retried in the background. Removing resources also schedules cleanup. **Remove connection** requires unlinking resources first.
 
-Global connection routes require instance access; repository and branch listings require write access. Links require access to the resource project (read to inspect, write to change). Tests use simulated HTTP and temporary SQLite; no real provider was validated.
+Set the **Public URL** in **Settings** before you link a repository or rotate a managed webhook secret. The provider must be able to reach that address.
+
+Linking a repository requires write access to both the instance and the resource project. Viewing or removing a link requires read or write access, respectively, to the resource project.
 
 The same picker appears when creating applications and Git stacks. The selection is linked before the first deployment, provided the source address has not been changed.
