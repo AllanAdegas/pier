@@ -30,6 +30,9 @@ func (d *Deployer) SetMultiServer(m *MultiServer) {
 // placementHook runs a deployment through its placement when the
 // application has one; handled is false for single-server applications.
 func (d *Deployer) placementHook(ctx context.Context, deployment Deployment, app Application, log *deployLog) (bool, error) {
+	if isRolloutAction(deployment.Trigger) {
+		return true, d.recoverRollout(ctx, deployment, app, log)
+	}
 	if d.multi == nil || deployment.Trigger == TriggerPreview {
 		return false, nil
 	}
@@ -61,6 +64,14 @@ type rollout struct {
 	log        *deployLog
 	image      string
 	released   []releasedServer
+	// done are servers already on the image (a resumed rollout skips them).
+	done map[string]bool
+	// known holds what a server ran before the rollout, from the journal; a
+	// live inspection could see the new version left by a crash.
+	known map[string]string
+	// gate runs before each server of a resumed rollout (environment
+	// freeze); a refusal interrupts the rollout instead of compensating.
+	gate func(context.Context) error
 }
 
 // releasedServer is a server that runs the new version and what it ran before.
@@ -70,8 +81,35 @@ type releasedServer struct {
 }
 
 func (r *rollout) run(ctx context.Context) error {
+	journal, found, err := r.journal().load(ctx, r.app.ID)
+	if err != nil {
+		return err
+	}
+	if found && journal.State != RolloutCompleted && journal.State != RolloutFailed && journal.State != RolloutRolledBack {
+		return i18n.Errorf("Esta aplicação tem rollout interrompido. Retome ou reverta antes de outro deploy.")
+	}
 	r.log.repository(r.app.Config.Source.Repository)
 	r.log.Info("Iniciando o deploy de %q em %d servidor(es), com gatilho %s.", r.app.Name, len(r.plan.servers), r.deployment.Trigger)
+	if err := r.journal().begin(ctx, r.app.ID, r.deployment.ID, r.plan.servers); err != nil {
+		return i18n.Errorf("registrar o rollout: %w", err)
+	}
+	if err := r.prepare(ctx); err != nil {
+		r.setJournalState(ctx, RolloutFailed, err)
+		return err
+	}
+	if err := r.releaseAll(ctx); err != nil {
+		return err
+	}
+	if err := r.conclude(ctx); err != nil {
+		return err
+	}
+	r.decommission(context.WithoutCancel(ctx))
+	return nil
+}
+
+// prepare checks every server, produces and pins the image and pulls it
+// everywhere. No server changes before it succeeds.
+func (r *rollout) prepare(ctx context.Context) error {
 	for _, id := range append([]string{r.plan.buildServer}, r.plan.servers...) {
 		if err := server.CheckConnectorDeployment(ctx, r.d.connector, id); err != nil {
 			return err
@@ -83,14 +121,40 @@ func (r *rollout) run(ctx context.Context) error {
 	if err := r.d.store.setDeploymentImage(ctx, r.deployment.ID, r.image); err != nil {
 		return err
 	}
+	if err := r.journal().setImage(ctx, r.app.ID, r.image); err != nil {
+		return err
+	}
 	if err := r.distribute(ctx); err != nil {
 		return err
 	}
+	return r.journal().setState(ctx, r.app.ID, RolloutReleasing, "")
+}
+
+// releaseAll releases every server not done yet, in order, and compensates
+// on the first failure.
+func (r *rollout) releaseAll(ctx context.Context) error {
 	for index, id := range r.plan.servers {
+		if r.done[id] {
+			continue
+		}
+		if r.gate != nil {
+			if err := r.gate(ctx); err != nil {
+				message := r.log.mask(describeFailure(err))
+				if journalErr := r.journal().interrupt(context.WithoutCancel(ctx), r.app.ID, RolloutReleasing, message); journalErr != nil {
+					r.log.Info("Não foi possível registrar o estado do rollout: %s", journalErr)
+				}
+				return err
+			}
+		}
 		if err := r.releaseOn(ctx, id, index); err != nil {
 			return r.compensate(ctx, id, err)
 		}
 	}
+	return nil
+}
+
+// conclude records the image as current once every server runs it.
+func (r *rollout) conclude(ctx context.Context) error {
 	if err := r.d.store.setCurrentImage(ctx, r.app.ID, r.image); err != nil {
 		return err
 	}
@@ -105,8 +169,29 @@ func (r *rollout) run(ctx context.Context) error {
 			}
 		}
 	}
-	r.decommission(context.WithoutCancel(ctx))
+	r.setJournalState(ctx, RolloutCompleted, nil)
 	return nil
+}
+
+func (r *rollout) journal() rolloutJournal { return r.d.multi.journal }
+
+// setJournalState records the outcome of the rollout; like record, a
+// failure to write only changes what the panel shows.
+func (r *rollout) setJournalState(ctx context.Context, state string, cause error) {
+	message := ""
+	if cause != nil {
+		message = r.log.mask(describeFailure(cause))
+	}
+	if err := r.journal().setState(context.WithoutCancel(ctx), r.app.ID, state, message); err != nil {
+		r.log.Info("Não foi possível registrar o estado do rollout: %s", err)
+	}
+}
+
+// setStep records the progress on one server after it changed.
+func (r *rollout) setStep(ctx context.Context, serverID, state string) {
+	if err := r.journal().step(context.WithoutCancel(ctx), r.app.ID, serverID, state, nil); err != nil {
+		r.log.Info("Não foi possível registrar o estado do rollout: %s", err)
+	}
 }
 
 // job prepares the working state of this deployment on one server, with
@@ -145,10 +230,18 @@ func (r *rollout) releaseOn(ctx context.Context, serverID string, index int) err
 		r.record(ctx, serverID, PlacementFailed, "", "", err)
 		return err
 	}
-	previous, err := previousImage(ctx, j)
-	if err != nil {
+	previous, known := r.known[serverID]
+	if !known {
+		if previous, err = previousImage(ctx, j); err != nil {
+			r.record(ctx, serverID, PlacementFailed, "", "", err)
+			return err
+		}
+	}
+	// Written before the server changes: a crash from here on is recovered
+	// with this previous version.
+	if err := r.journal().step(ctx, r.app.ID, serverID, StepReleasing, &previous); err != nil {
 		r.record(ctx, serverID, PlacementFailed, "", "", err)
-		return err
+		return i18n.Errorf("registrar o rollout: %w", err)
 	}
 	r.record(ctx, serverID, PlacementDeploying, r.image, previous, nil)
 	if index > 0 {
@@ -160,11 +253,14 @@ func (r *rollout) releaseOn(ctx context.Context, serverID string, index int) err
 	if err != nil {
 		if recovery.touched || runsDeployment(context.WithoutCancel(ctx), j) {
 			r.released = append(r.released, releasedServer{id: serverID, name: j.server.Name, previous: previous, recovery: recovery})
+		} else {
+			r.setStep(ctx, serverID, StepFailed)
 		}
 		r.record(ctx, serverID, PlacementFailed, previous, "", err)
 		return err
 	}
 	r.released = append(r.released, releasedServer{id: serverID, name: j.server.Name, previous: previous, recovery: recovery})
+	r.setStep(ctx, serverID, StepReleased)
 	r.record(ctx, serverID, PlacementHealthy, r.image, previous, nil)
 	r.d.pruneImages(context.WithoutCancel(ctx), j)
 	return nil
@@ -177,28 +273,69 @@ func (r *rollout) compensate(ctx context.Context, failedID string, cause error) 
 	if _, target, err := r.d.connector.Executor(context.WithoutCancel(ctx), failedID); err == nil {
 		failedName = target.Name
 	}
+	var outcome error
 	if len(r.released) == 0 {
-		return i18n.Errorf("o deploy falhou em %s; os servidores continuam na versão anterior: %w", failedName, cause)
+		outcome = i18n.Errorf("o deploy falhou em %s; os servidores continuam na versão anterior: %w", failedName, cause)
+		r.finishCompensation(ctx, outcome)
+		return outcome
 	}
+	if err := r.journal().setState(context.WithoutCancel(ctx), r.app.ID, RolloutCompensating, ""); err != nil {
+		return errors.Join(cause, err)
+	}
+	if failures, restoreErr := r.restoreReleased(ctx); len(failures) > 0 {
+		cause = errors.Join(cause, restoreErr)
+		outcome = i18n.Errorf("o deploy falhou em %s e a reversão falhou em %s; verifique esses servidores: %w",
+			failedName, strings.Join(failures, ", "), cause)
+		_ = r.journal().interrupt(context.WithoutCancel(ctx), r.app.ID, RolloutCompensating, r.log.mask(describeFailure(outcome)))
+		return outcome
+	} else {
+		outcome = i18n.Errorf("o deploy falhou em %s; os servidores já atualizados voltaram para a versão anterior: %w", failedName, cause)
+	}
+	r.finishCompensation(ctx, outcome)
+	return outcome
+}
+
+// finishCompensation must not discard an unresolved step from an earlier crash.
+// A resumed release can fail before releaseOn adds that server to released.
+func (r *rollout) finishCompensation(ctx context.Context, cause error) {
+	cleanup := context.WithoutCancel(ctx)
+	journal, _, err := r.journal().load(cleanup, r.app.ID)
+	if err != nil {
+		// Keep the active state recoverable if its outcome cannot be established.
+		return
+	}
+	for _, step := range journal.Servers {
+		if step.State == StepReleasing || step.State == StepReleased || step.State == StepRestoreFailed {
+			if err := r.journal().interrupt(cleanup, r.app.ID, RolloutCompensating, r.log.mask(describeFailure(cause))); err != nil {
+				r.log.Info("Não foi possível registrar o estado do rollout: %s", err)
+			}
+			return
+		}
+	}
+	r.setJournalState(ctx, RolloutFailed, cause)
+}
+
+// restoreReleased puts the previous version back on every released server,
+// newest first, and returns the servers where that failed, with the errors.
+func (r *rollout) restoreReleased(ctx context.Context) ([]string, error) {
 	cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), compensationTimeout)
 	defer cancel()
 	failures := []string{}
+	var errs error
 	for index := len(r.released) - 1; index >= 0; index-- {
 		released := r.released[index]
 		r.log.Info("Revertendo %s para a versão anterior.", released.name)
 		if err := r.restore(cleanup, released); err != nil {
+			r.setStep(cleanup, released.id, StepRestoreFailed)
 			r.record(cleanup, released.id, PlacementRollbackFailed, r.image, released.previous, err)
 			failures = append(failures, released.name)
-			cause = errors.Join(cause, err)
+			errs = errors.Join(errs, err)
 			continue
 		}
+		r.setStep(cleanup, released.id, StepRestored)
 		r.record(cleanup, released.id, PlacementRolledBack, released.previous, r.image, nil)
 	}
-	if len(failures) > 0 {
-		return i18n.Errorf("o deploy falhou em %s e a reversão falhou em %s; verifique esses servidores: %w",
-			failedName, strings.Join(failures, ", "), cause)
-	}
-	return i18n.Errorf("o deploy falhou em %s; os servidores já atualizados voltaram para a versão anterior: %w", failedName, cause)
+	return failures, errs
 }
 
 // restore releases the previous image again (without release command or

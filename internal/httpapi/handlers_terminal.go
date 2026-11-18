@@ -66,6 +66,12 @@ func (a *API) terminalTicketFor(kind terminal.Kind) handlerFunc {
 		if request.ServerID, err = a.terminalServer(r.Context(), kind, request.ResourceID); err != nil {
 			return err
 		}
+		if kind == terminal.KindApplication {
+			_, request.ServerID, err = a.Applications.ServerFor(r.Context(), request.ResourceID, r.URL.Query().Get("server_id"))
+			if err != nil {
+				return err
+			}
+		}
 		if kind == terminal.KindContainer {
 			request.ResourceID = r.PathValue("container")
 		}

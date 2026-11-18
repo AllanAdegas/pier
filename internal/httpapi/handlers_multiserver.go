@@ -2,6 +2,8 @@ package httpapi
 
 import (
 	"net/http"
+	"pier/internal/docker"
+	"strconv"
 
 	"pier/internal/application"
 	"pier/internal/registry"
@@ -79,6 +81,30 @@ func (a *API) registerPlacementRoutes(mux *http.ServeMux) {
 		return ok(w, saved)
 	})
 	a.route(mux, "GET "+base+"/servers", canRead, a.placementServers)
+	a.route(mux, "GET "+base+"/rollout", canRead, func(w http.ResponseWriter, r *http.Request) error {
+		journal, err := a.MultiServer.Rollout(r.Context(), r.PathValue("id"))
+		if err != nil {
+			return err
+		}
+		return ok(w, journal)
+	})
+
+	a.route(mux, "POST "+base+"/rollout/resume", canDeploy, func(w http.ResponseWriter, r *http.Request) error {
+		deployment, err := a.Applications.ResumeRollout(r.Context(), r.PathValue("id"))
+		if err != nil {
+			return err
+		}
+		return created(w, deployment)
+	})
+	a.route(mux, "POST "+base+"/rollout/rollback", canDeploy, func(w http.ResponseWriter, r *http.Request) error {
+		deployment, err := a.Applications.RollBackRollout(r.Context(), r.PathValue("id"))
+		if err != nil {
+			return err
+		}
+		return created(w, deployment)
+	})
+	a.route(mux, "GET /api/v1/applications/{id}/containers/{container}/logs", canRead, a.applicationContainerLogs)
+
 }
 
 // placementServerView is one server of an application as the panel shows
@@ -116,4 +142,23 @@ func (a *API) placementServers(w http.ResponseWriter, r *http.Request) error {
 		views = append(views, view)
 	}
 	return ok(w, views)
+}
+
+func (a *API) applicationContainerLogs(w http.ResponseWriter, r *http.Request) error {
+	if err := requireSensitive(r); err != nil {
+		return err
+	}
+	source, err := a.Applications.ContainerLogSource(r.Context(), r.PathValue("id"), r.URL.Query().Get("server_id"), r.PathValue("container"))
+	if err != nil {
+		return err
+	}
+	tail := defaultLogTail
+	if requested, err := strconv.Atoi(r.URL.Query().Get("tail")); err == nil && requested > 0 {
+		tail = min(requested, maxLogTail)
+	}
+	stream := newEventStream(w)
+	var sequence int64
+	_ = source.Executor.Stream(r.Context(), docker.LogsCommand(source.ContainerID, tail, true), func(line string) { sequence++; _ = stream.send("log", sequence, map[string]string{"line": line}) })
+	_ = stream.send("done", 0, map[string]bool{"done": true})
+	return nil
 }
