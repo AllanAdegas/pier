@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.9.0](https://github.com/AllanAdegas/pier/compare/v0.8.0...v0.9.0) (2026-11-18)
+
+
+### Features
+
+* **web:** show saved SSO setup, rollout progress and Git delivery queue ([#23](https://github.com/AllanAdegas/pier/issues/23)) ([2dc2bed](https://github.com/AllanAdegas/pier/commit/2dc2bed732523ab6a77e9b8d1121cd450ce4187d))
+
+
+### Bug Fixes
+
+* **web:** restyle team access and split long settings and security pages ([#21](https://github.com/AllanAdegas/pier/issues/21)) ([822b001](https://github.com/AllanAdegas/pier/commit/822b00194b24552d44f0c1debdc20104e7decdae))
+
 ## [0.8.0](https://github.com/AllanAdegas/pier/compare/v0.7.0...v0.8.0) (2026-11-18)
 
 
