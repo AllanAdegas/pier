@@ -69,6 +69,18 @@ func TestRegistryAndPlacementRoutesNeverReturnSecretsAndCheckAbilities(t *testin
 		mux.ServeHTTP(response, request)
 		return response
 	}
+
+	for _, action := range []string{"resume", "rollback"} {
+		if response := call("POST", "/applications/"+app.ID+"/placement/rollout/"+action, "{}", reader); response.Code != http.StatusForbidden {
+			t.Fatalf("reader recovery: %d", response.Code)
+		}
+	}
+	if response := call("GET", "/applications/"+app.ID+"/placement/rollout", "", reader); response.Code != http.StatusOK {
+		t.Fatalf("journal: %d", response.Code)
+	}
+	if response := call("GET", "/applications/"+app.ID+"/containers/foreign/logs?server_id=foreign", "", writer); response.Code == http.StatusOK {
+		t.Fatal("foreign logs allowed")
+	}
 	secret := `{"name":"GHCR","host":"ghcr.io","username":"bot","password":"ghp-http-secret-value"}`
 	if response := call("POST", "/registries", secret, reader); response.Code != http.StatusForbidden {
 		t.Fatalf("reader created a registry: %d", response.Code)

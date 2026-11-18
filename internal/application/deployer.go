@@ -250,6 +250,7 @@ func (d *Deployer) produceImage(ctx context.Context, j *job) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	d.reportDeploymentBuilding(ctx, j)
 	return strategy.build(ctx, j)
 }
 

@@ -20,7 +20,7 @@ Se um destino falhar, ele preserva a versão anterior; os destinos já atualizad
 
 ## Acompanhar e promover
 
-A aba **Destinos** mostra estado do rollout, digest, versão anterior, containers, CPU, memória e logs por servidor. O rollback usa o fluxo de rollback da aplicação.
+A aba **Destinos** mostra estado do rollout, digest, versão anterior, containers, CPU, memória, logs e terminal por servidor. O rollback usa o fluxo de rollback da aplicação.
 
 Uma promoção entre servidores pode reutilizar o mesmo digest já publicado, sem reconstruir ou reenviar a imagem. A aplicação de destino recebe suas próprias variáveis. O registry precisa manter o artefato disponível; configure retenção para preservar as versões de rollback.
 
@@ -29,8 +29,8 @@ Uma promoção entre servidores pode reutilizar o mesmo digest já publicado, se
 - O rollout é **sequencial**, não uma transação atômica. Servidores podem atender versões diferentes por algum tempo.
 - Rollback de imagem não desfaz migrations ou alterações em serviços externos.
 - Volumes não são compartilhados. Uploads locais e bancos precisam de arquitetura própria; réplicas de aplicação não replicam dados.
-- Não há retomada automática de rollout interrompido. Depois de reiniciar o Pier durante uma atualização, confira cada destino antes de tentar de novo.
-- Previews, tarefas agendadas, terminal e aba Logs ainda usam o servidor original da aplicação; use a visão de destinos para os demais. O histórico de métricas agrega os destinos configurados: [entenda totais e lacunas](/docs/alertas/#historico-de-metricas).
+- O Pier registra o progresso antes de alterar um servidor. Após reiniciar, tenta recuperar uma vez: retoma durante o release e reverte durante a compensação. Congelamento, manutenção ou comando único de resultado incerto deixam a recuperação para o operador. Use **Retomar rollout** ou **Reverter rollout** em **Destinos**. Verifique migrações do banco antes de reverter.
+- Previews, tarefas agendadas e aba Logs ainda usam o servidor original da aplicação; use a visão de destinos para os demais. O histórico de métricas agrega os destinos configurados: [entenda totais e lacunas](/docs/alertas/#historico-de-metricas).
 - Registry HTTP inseguro não é suportado. Não há provisionamento automático de DNS ou balanceador.
 
 A integração foi exercitada em testes com executores simulados e servidores HTTP de teste. Não foi validada contra registries ou múltiplos servidores reais nesta etapa. Antes de usar produção, teste publicação privada, falha parcial, rollback e recuperação no seu ambiente.
