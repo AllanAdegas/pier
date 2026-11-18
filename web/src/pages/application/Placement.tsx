@@ -67,6 +67,7 @@ function PlacementSettings(props: { application: Application }) {
           <Show when={draft()}>
             {(current) => (
               <div class="stack">
+                <TextInput label={t("ID do alvo Swarm")} value={current().swarm_cluster_id ?? ""} onValue={(value) => change({ swarm_cluster_id: value.trim() })} />
                 <fieldset class="stack-sm">
                   <legend class="field-label">{t("Servidores que rodam a aplicação")}</legend>
                   <For each={list()}>

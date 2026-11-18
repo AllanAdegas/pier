@@ -37,6 +37,7 @@ func newAccessWorld(t *testing.T) accessWorld {
 	mux := http.NewServeMux()
 	stub := func(w http.ResponseWriter, r *http.Request) error { return noContent(w) }
 	for pattern, required := range map[string]access{
+		"PUT /api/v1/applications/{id}/placement": canWrite,
 		"GET /api/v1/applications/{id}":           canRead,
 		"PATCH /api/v1/applications/{id}":         canWrite,
 		"POST /api/v1/applications/{id}/deploy":   canDeploy,
@@ -98,6 +99,8 @@ func TestProjectRoleMatrixAndIsolation(t *testing.T) {
 	cases := []accessCase{
 		{"GET", "/api/v1/applications/appa", "", every(204)},
 		{"GET", "/api/v1/applications/appb", "", every(403)},
+		{"PUT", "/api/v1/applications/appa/placement", `{"swarm_cluster_id":"sw"}`, from(rbac.Admin)},
+		{"PUT", "/api/v1/applications/appb/placement", `{"swarm_cluster_id":"sw"}`, every(403)},
 		{"POST", "/api/v1/applications/appa/deploy", "", from(rbac.Developer)},
 		{"POST", "/api/v1/applications/appb/deploy", "", every(403)},
 		{"PATCH", "/api/v1/applications/appa", `{"name":"x"}`, from(rbac.Admin)},

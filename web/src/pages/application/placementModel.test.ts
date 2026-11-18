@@ -22,3 +22,7 @@ Deno.test("digests are shortened for display", () => {
   assertEquals(shortImage("ghcr.io/acme/api@sha256:" + "a".repeat(64)), "ghcr.io/acme/api@aaaaaaaaaaaa");
   assertEquals(shortImage("nginx:1.27"), "nginx:1.27");
 });
+
+Deno.test("Swarm builds require a registry even on the application server", () => {
+ assertEquals(needsRegistry({ swarm_cluster_id: "cluster", build_server_id: "", registry_id: "", repository: "", destinations: ["primary"] }, "primary", false), true);
+});

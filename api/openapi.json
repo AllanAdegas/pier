@@ -793,10 +793,14 @@
           },
           "repository": {
             "type": "string"
+          },
+          "swarm_cluster_id": {
+            "type": "string"
           }
         },
         "type": "object",
         "x-json-always-serialized": [
+          "swarm_cluster_id",
           "build_server_id",
           "registry_id",
           "repository",
@@ -2091,6 +2095,99 @@
           "type",
           "resource_id",
           "deployment"
+        ]
+      },
+      "docker.SwarmNode": {
+        "properties": {
+          "availability": {
+            "type": "string"
+          },
+          "engine_version": {
+            "type": "string"
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "manager_status": {
+            "type": "string"
+          },
+          "node_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "x-json-always-serialized": [
+          "node_id",
+          "hostname",
+          "status",
+          "availability",
+          "manager_status",
+          "engine_version"
+        ]
+      },
+      "docker.SwarmService": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "process": {
+            "type": "string"
+          },
+          "replicas": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "x-json-always-serialized": [
+          "id",
+          "name",
+          "replicas",
+          "image",
+          "process"
+        ]
+      },
+      "docker.SwarmTask": {
+        "properties": {
+          "current_state": {
+            "type": "string"
+          },
+          "desired_state": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "node": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "x-json-always-serialized": [
+          "id",
+          "name",
+          "node",
+          "desired_state",
+          "current_state",
+          "error",
+          "image"
         ]
       },
       "engine.Container": {
@@ -5865,6 +5962,153 @@
         "x-json-always-serialized": [
           "set",
           "source"
+        ]
+      },
+      "swarm.Cluster": {
+        "properties": {
+          "advertise_addr": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/swarm.Node"
+            },
+            "type": "array"
+          },
+          "swarm_id": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "x-json-always-serialized": [
+          "id",
+          "name",
+          "description",
+          "swarm_id",
+          "advertise_addr",
+          "nodes",
+          "created_at"
+        ]
+      },
+      "swarm.Confirmation": {
+        "properties": {
+          "confirmation": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "x-json-always-serialized": [
+          "confirmation"
+        ]
+      },
+      "swarm.CreateInput": {
+        "properties": {
+          "advertise_addr": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "manager_server_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "x-json-always-serialized": [
+          "name",
+          "description",
+          "manager_server_id",
+          "advertise_addr"
+        ]
+      },
+      "swarm.DeployInput": {
+        "properties": {
+          "image": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "replicas": {
+            "type": "integer"
+          }
+        },
+        "type": "object",
+        "x-json-always-serialized": [
+          "name",
+          "image",
+          "replicas"
+        ]
+      },
+      "swarm.JoinInput": {
+        "properties": {
+          "advertise_addr": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "server_id": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "x-json-always-serialized": [
+          "server_id",
+          "role",
+          "advertise_addr"
+        ]
+      },
+      "swarm.Node": {
+        "properties": {
+          "advertise_addr": {
+            "type": "string"
+          },
+          "joined_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "node_id": {
+            "type": "string"
+          },
+          "primary": {
+            "type": "boolean"
+          },
+          "role": {
+            "type": "string"
+          },
+          "server_id": {
+            "type": "string"
+          },
+          "server_name": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "x-json-always-serialized": [
+          "server_id",
+          "server_name",
+          "node_id",
+          "role",
+          "primary",
+          "advertise_addr",
+          "joined_at"
         ]
       },
       "terminal.Container": {
@@ -48474,6 +48718,2078 @@
         "x-source": "internal/httpapi/handlers_stack_git.go"
       }
     },
+    "/api/v1/swarm": {
+      "get": {
+        "operationId": "GET__api_v1_swarm",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/swarm.Cluster"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\tv, e := a.Swarm.List(r.Context())\n\tif e != nil {\n\t\treturn e\n\t}\n\treturn ok(w, v)\n}",
+        "tags": [
+          "swarm"
+        ],
+        "x-pier-ability": "read",
+        "x-pier-access": "canRead",
+        "x-pier-session-only": false,
+        "x-source": "internal/httpapi/handlers_swarm.go"
+      },
+      "post": {
+        "operationId": "POST__api_v1_swarm",
+        "parameters": [
+          {
+            "description": "Required for cookie-authenticated mutations (CSRF protection); bearer-token requests do not require it.",
+            "in": "header",
+            "name": "X-Pier-Client",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/swarm.CreateInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/swarm.Cluster"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\ti, e := decode[swarm.CreateInput](w, r)\n\tif e != nil {\n\t\treturn e\n\t}\n\tv, e := a.Swarm.Create(r.Context(), i)\n\tif e != nil {\n\t\treturn e\n\t}\n\treturn created(w, v)\n}",
+        "tags": [
+          "swarm"
+        ],
+        "x-pier-ability": "write",
+        "x-pier-access": "canWrite",
+        "x-pier-session-only": false,
+        "x-source": "internal/httpapi/handlers_swarm.go"
+      }
+    },
+    "/api/v1/swarm/{id}": {
+      "get": {
+        "operationId": "GET__api_v1_swarm_id",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/swarm.Cluster"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\tv, e := a.Swarm.Get(r.Context(), r.PathValue(\"id\"))\n\tif e != nil {\n\t\treturn e\n\t}\n\treturn ok(w, v)\n}",
+        "tags": [
+          "swarm"
+        ],
+        "x-pier-ability": "read",
+        "x-pier-access": "canRead",
+        "x-pier-session-only": false,
+        "x-source": "internal/httpapi/handlers_swarm.go"
+      }
+    },
+    "/api/v1/swarm/{id}/delete": {
+      "post": {
+        "operationId": "POST__api_v1_swarm_id_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Required for cookie-authenticated mutations (CSRF protection); bearer-token requests do not require it.",
+            "in": "header",
+            "name": "X-Pier-Client",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/swarm.Confirmation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Shape not statically inferred; see x-schema-inference.",
+                  "x-go-expression": "nil"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\ti, e := decode[swarm.Confirmation](w, r)\n\tif e != nil {\n\t\treturn e\n\t}\n\tif e = a.Swarm.Delete(r.Context(), r.PathValue(\"id\"), i.Confirmation); e != nil {\n\t\treturn e\n\t}\n\treturn ok(w, nil)\n}",
+        "tags": [
+          "swarm"
+        ],
+        "x-pier-ability": "write",
+        "x-pier-access": "canWrite",
+        "x-pier-session-only": false,
+        "x-schema-inference": [
+          "response nil"
+        ],
+        "x-source": "internal/httpapi/handlers_swarm.go"
+      }
+    },
+    "/api/v1/swarm/{id}/nodes": {
+      "get": {
+        "operationId": "GET__api_v1_swarm_id_nodes",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/docker.SwarmNode"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\tv, e := a.Swarm.Nodes(r.Context(), r.PathValue(\"id\"))\n\tif e != nil {\n\t\treturn e\n\t}\n\treturn ok(w, v)\n}",
+        "tags": [
+          "swarm"
+        ],
+        "x-pier-ability": "read",
+        "x-pier-access": "canRead",
+        "x-pier-session-only": false,
+        "x-source": "internal/httpapi/handlers_swarm.go"
+      },
+      "post": {
+        "operationId": "POST__api_v1_swarm_id_nodes",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Required for cookie-authenticated mutations (CSRF protection); bearer-token requests do not require it.",
+            "in": "header",
+            "name": "X-Pier-Client",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/swarm.JoinInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Shape not statically inferred; see x-schema-inference.",
+                  "x-go-expression": "nil"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\ti, e := decode[swarm.JoinInput](w, r)\n\tif e != nil {\n\t\treturn e\n\t}\n\tif e = a.Swarm.Join(r.Context(), r.PathValue(\"id\"), i); e != nil {\n\t\treturn e\n\t}\n\treturn ok(w, nil)\n}",
+        "tags": [
+          "swarm"
+        ],
+        "x-pier-ability": "write",
+        "x-pier-access": "canWrite",
+        "x-pier-session-only": false,
+        "x-schema-inference": [
+          "response nil"
+        ],
+        "x-source": "internal/httpapi/handlers_swarm.go"
+      }
+    },
+    "/api/v1/swarm/{id}/nodes/{node}/availability": {
+      "post": {
+        "operationId": "POST__api_v1_swarm_id_nodes_node_availability",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "node",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Required for cookie-authenticated mutations (CSRF protection); bearer-token requests do not require it.",
+            "in": "header",
+            "name": "X-Pier-Client",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "availability": {
+                    "type": "string"
+                  }
+                },
+                "type": "object",
+                "x-json-always-serialized": [
+                  "availability"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Shape not statically inferred; see x-schema-inference.",
+                  "x-go-expression": "nil"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\ti, e := decode[struct {\n\t\tAvailability string `json:\"availability\"`\n\t}](w, r)\n\tif e != nil {\n\t\treturn e\n\t}\n\tif e = a.Swarm.Availability(r.Context(), r.PathValue(\"id\"), r.PathValue(\"node\"), i.Availability); e != nil {\n\t\treturn e\n\t}\n\treturn ok(w, nil)\n}",
+        "tags": [
+          "swarm"
+        ],
+        "x-pier-ability": "write",
+        "x-pier-access": "canWrite",
+        "x-pier-session-only": false,
+        "x-schema-inference": [
+          "response nil"
+        ],
+        "x-source": "internal/httpapi/handlers_swarm.go"
+      }
+    },
+    "/api/v1/swarm/{id}/nodes/{node}/remove": {
+      "post": {
+        "operationId": "POST__api_v1_swarm_id_nodes_node_remove",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "node",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Required for cookie-authenticated mutations (CSRF protection); bearer-token requests do not require it.",
+            "in": "header",
+            "name": "X-Pier-Client",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/swarm.Confirmation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Shape not statically inferred; see x-schema-inference.",
+                  "x-go-expression": "nil"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\ti, e := decode[swarm.Confirmation](w, r)\n\tif e != nil {\n\t\treturn e\n\t}\n\tif e = a.Swarm.RemoveNode(r.Context(), r.PathValue(\"id\"), r.PathValue(\"node\"), i.Confirmation); e != nil {\n\t\treturn e\n\t}\n\treturn ok(w, nil)\n}",
+        "tags": [
+          "swarm"
+        ],
+        "x-pier-ability": "write",
+        "x-pier-access": "canWrite",
+        "x-pier-session-only": false,
+        "x-schema-inference": [
+          "response nil"
+        ],
+        "x-source": "internal/httpapi/handlers_swarm.go"
+      }
+    },
+    "/api/v1/swarm/{id}/services": {
+      "get": {
+        "operationId": "GET__api_v1_swarm_id_services",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/docker.SwarmService"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\tv, e := a.Swarm.Services(r.Context(), r.PathValue(\"id\"))\n\tif e != nil {\n\t\treturn e\n\t}\n\treturn ok(w, v)\n}",
+        "tags": [
+          "swarm"
+        ],
+        "x-pier-ability": "read",
+        "x-pier-access": "canRead",
+        "x-pier-session-only": false,
+        "x-source": "internal/httpapi/handlers_swarm.go"
+      },
+      "post": {
+        "operationId": "POST__api_v1_swarm_id_services",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Required for cookie-authenticated mutations (CSRF protection); bearer-token requests do not require it.",
+            "in": "header",
+            "name": "X-Pier-Client",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/swarm.DeployInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Shape not statically inferred; see x-schema-inference.",
+                  "x-go-expression": "nil"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\ti, e := decode[swarm.DeployInput](w, r)\n\tif e != nil {\n\t\treturn e\n\t}\n\tif e = a.Swarm.Deploy(r.Context(), r.PathValue(\"id\"), i); e != nil {\n\t\treturn e\n\t}\n\treturn ok(w, nil)\n}",
+        "tags": [
+          "swarm"
+        ],
+        "x-pier-ability": "deploy",
+        "x-pier-access": "canDeploy",
+        "x-pier-session-only": false,
+        "x-schema-inference": [
+          "response nil"
+        ],
+        "x-source": "internal/httpapi/handlers_swarm.go"
+      }
+    },
+    "/api/v1/swarm/{id}/services/{service}": {
+      "post": {
+        "operationId": "POST__api_v1_swarm_id_services_service",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "service",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Required for cookie-authenticated mutations (CSRF protection); bearer-token requests do not require it.",
+            "in": "header",
+            "name": "X-Pier-Client",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "replicas": {
+                    "type": "integer"
+                  }
+                },
+                "type": "object",
+                "x-json-always-serialized": [
+                  "action",
+                  "replicas"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Shape not statically inferred; see x-schema-inference.",
+                  "x-go-expression": "nil"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\ti, e := decode[struct {\n\t\tAction   string `json:\"action\"`\n\t\tReplicas int    `json:\"replicas\"`\n\t}](w, r)\n\tif e != nil {\n\t\treturn e\n\t}\n\tif e = a.Swarm.Action(r.Context(), r.PathValue(\"id\"), r.PathValue(\"service\"), i.Action, i.Replicas); e != nil {\n\t\treturn e\n\t}\n\treturn ok(w, nil)\n}",
+        "tags": [
+          "swarm"
+        ],
+        "x-pier-ability": "deploy",
+        "x-pier-access": "canDeploy",
+        "x-pier-session-only": false,
+        "x-schema-inference": [
+          "response nil"
+        ],
+        "x-source": "internal/httpapi/handlers_swarm.go"
+      }
+    },
+    "/api/v1/swarm/{id}/services/{service}/logs": {
+      "get": {
+        "operationId": "GET__api_v1_swarm_id_services_service_logs",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "service",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Server-sent event stream; client must handle disconnect/reconnect."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\tv, e := a.Swarm.Logs(r.Context(), r.PathValue(\"id\"), r.PathValue(\"service\"))\n\tif e != nil {\n\t\treturn e\n\t}\n\treturn ok(w, map[string]string{\"logs\": v})\n}",
+        "tags": [
+          "swarm"
+        ],
+        "x-pier-ability": "read",
+        "x-pier-access": "canRead",
+        "x-pier-session-only": false,
+        "x-source": "internal/httpapi/handlers_swarm.go"
+      }
+    },
+    "/api/v1/swarm/{id}/services/{service}/tasks": {
+      "get": {
+        "operationId": "GET__api_v1_swarm_id_services_service_tasks",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "service",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/docker.SwarmTask"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\tv, e := a.Swarm.Tasks(r.Context(), r.PathValue(\"id\"), r.PathValue(\"service\"))\n\tif e != nil {\n\t\treturn e\n\t}\n\treturn ok(w, v)\n}",
+        "tags": [
+          "swarm"
+        ],
+        "x-pier-ability": "read",
+        "x-pier-access": "canRead",
+        "x-pier-session-only": false,
+        "x-source": "internal/httpapi/handlers_swarm.go"
+      }
+    },
     "/api/v1/tasks/{id}": {
       "delete": {
         "operationId": "DELETE__api_v1_tasks_id",
@@ -51642,6 +53958,6 @@
       "url": "/"
     }
   ],
-  "x-route-count": 304,
-  "x-route-inventory-sha256": "97fe11edd648e70218e8b498c3e32c7be04e5a56425c5fc835cb9d94a8aa47d5"
+  "x-route-count": 317,
+  "x-route-inventory-sha256": "8f31d293a251f3701d830e0e9500b1ce862aa0d08acb2ba0aa3b75ce56f3909d"
 }

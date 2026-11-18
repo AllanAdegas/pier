@@ -36,6 +36,9 @@ func (d *Deployer) placementHook(ctx context.Context, deployment Deployment, app
 	if d.multi == nil || deployment.Trigger == TriggerPreview {
 		return false, nil
 	}
+	if handled, err := d.swarmHook(ctx, deployment, app, log); handled {
+		return true, err
+	}
 	plan, ok, err := d.multi.plan(ctx, app)
 	if err != nil {
 		return true, err
