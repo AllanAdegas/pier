@@ -7,6 +7,7 @@ import (
 	"errors"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"pier/internal/platform/apperr"
@@ -72,15 +73,19 @@ func (p placementPlan) distributed() bool {
 
 // MultiServer stores placements and the per-server rollout state.
 type MultiServer struct {
-	db     *sql.DB
-	apps   *Store
-	guard  DeployGuard
-	images *registry.Service
+	db      *sql.DB
+	apps    *Store
+	guard   DeployGuard
+	images  *registry.Service
+	journal rolloutJournal
+	// actionMu serializes resume and rollback requests, so two clicks never
+	// queue two actions for one interrupted rollout.
+	actionMu sync.Mutex
 }
 
 // NewMultiServer creates the placement service.
 func NewMultiServer(db *sql.DB, apps *Store, guard DeployGuard, images *registry.Service) *MultiServer {
-	return &MultiServer{db: db, apps: apps, guard: guard, images: images}
+	return &MultiServer{db: db, apps: apps, guard: guard, images: images, journal: rolloutJournal{db: db}}
 }
 
 // Settings returns the placement of an application (empty when it has none).
@@ -222,11 +227,28 @@ func (s *MultiServer) Status(ctx context.Context, id string) ([]DestinationStatu
 }
 
 // Recover marks rollouts cut by a restart: the dispatcher already failed
-// their deployments, and the next deployment reconciles the servers.
+// their deployments; the journal says which rollouts changed servers and are
+// now interrupted (Service.RecoverRollouts acts on them once workers run).
 func (s *MultiServer) Recover(ctx context.Context) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE placement_status SET status = ?, updated_at = ? WHERE status = ?`,
 		PlacementInterrupted, sqlite.FormatTime(time.Now()), PlacementDeploying)
-	return err
+	if err != nil {
+		return err
+	}
+	return s.journal.recoverAfterRestart(ctx)
+}
+
+// Rollout returns the journal of the last multi-server rollout of the
+// application, or nil when it never had one.
+func (s *MultiServer) Rollout(ctx context.Context, id string) (*RolloutJournal, error) {
+	if _, err := s.apps.Get(ctx, id); err != nil {
+		return nil, notFound(err, "Aplicação")
+	}
+	journal, found, err := s.journal.load(ctx, id)
+	if err != nil || !found {
+		return nil, err
+	}
+	return &journal, nil
 }
 
 func (s *MultiServer) record(ctx context.Context, appID string, status DestinationStatus) error {

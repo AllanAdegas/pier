@@ -88,10 +88,15 @@ func (r *rollout) pin(ctx context.Context, j *job, local string) (string, error)
 // distribute pulls the pinned image on every server before any of them
 // changes, and refuses a platform the server cannot run.
 func (r *rollout) distribute(ctx context.Context) error {
+	return r.distributeTo(ctx, r.plan.servers)
+}
+
+// distributeTo pulls the pinned image on the given servers.
+func (r *rollout) distributeTo(ctx context.Context, servers []string) error {
 	if !registry.Immutable(r.image) {
 		return nil
 	}
-	for _, id := range r.plan.servers {
+	for _, id := range servers {
 		j, err := r.job(ctx, id)
 		if err == nil {
 			err = r.d.ensureImage(ctx, j, r.image)
