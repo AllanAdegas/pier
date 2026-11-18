@@ -99,6 +99,13 @@ func (a *API) RegisterAccessRoutes(mux *http.ServeMux, service *rbac.Service) {
 
 // RegisterOIDCRoutes must be called only when an allowlisted provider is enabled.
 func (a *API) RegisterOIDCRoutes(mux *http.ServeMux, provider *identity.OIDCService) {
+	a.route(mux, "GET /api/v1/access/oidc", sessionOnly, func(w http.ResponseWriter, r *http.Request) error {
+		settings, err := provider.Settings(r.Context(), principalFrom(r.Context()).User.ID)
+		if err != nil {
+			return err
+		}
+		return ok(w, settings)
+	})
 	a.route(mux, "DELETE /api/v1/access/oidc", sessionOnly, func(w http.ResponseWriter, r *http.Request) error {
 		if err := provider.Disable(r.Context(), principalFrom(r.Context()).User.ID); err != nil {
 			return err

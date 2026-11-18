@@ -29,7 +29,7 @@ Uma promoção entre servidores pode reutilizar o mesmo digest já publicado, se
 - O rollout é **sequencial**, não uma transação atômica. Servidores podem atender versões diferentes por algum tempo.
 - Rollback de imagem não desfaz migrations ou alterações em serviços externos.
 - Volumes não são compartilhados. Uploads locais e bancos precisam de arquitetura própria; réplicas de aplicação não replicam dados.
-- O Pier registra o progresso antes de alterar um servidor. Após reiniciar, tenta recuperar uma vez: retoma durante o release e reverte durante a compensação. Congelamento, manutenção ou comando único de resultado incerto deixam a recuperação para o operador. Use **Retomar rollout** ou **Reverter rollout** em **Destinos**. Verifique migrações do banco antes de reverter.
+- O Pier registra o progresso antes de alterar um servidor. Após reiniciar, tenta recuperar uma vez: retoma durante o release e reverte durante a compensação. Congelamento, manutenção ou comando único de resultado incerto deixam a recuperação para o operador. Em **Destinos**, o painel **Último rollout** mostra a imagem, a ordem dos servidores e o estado de cada um. Quando o rollout fica interrompido, use **Retomar rollout** ou **Reverter rollout** (que pede confirmação). Verifique migrações do banco antes de reverter: a reversão troca a imagem, não desfaz migrações.
 - Previews, tarefas agendadas e aba Logs ainda usam o servidor original da aplicação; use a visão de destinos para os demais. O histórico de métricas agrega os destinos configurados: [entenda totais e lacunas](/docs/alertas/#historico-de-metricas).
 - Registry HTTP inseguro não é suportado. Não há provisionamento automático de DNS ou balanceador.
 

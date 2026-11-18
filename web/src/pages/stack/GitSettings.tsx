@@ -11,6 +11,7 @@ import { t } from "../../i18n";
 import { RISK_LABELS } from "../new/CatalogStackForm";
 import { draftFrom, inputFrom, parseLines, shortCommit, usesSsh, withAcceptedRisks } from "./gitSource";
 import { GitIntegration } from "../settings/GitIntegration";
+import { GitFeedbackReports } from "../settings/GitFeedbackReports";
 
 /** What the last deployment of a Git stack ran: repository, ref and commit. */
 export function GitSummary(props: { git: StackGitSource }) {
@@ -157,6 +158,7 @@ export function GitSettings(props: { stack: Stack; git: StackGitSource; onSaved:
       </form>
       <Webhook stack={props.stack} git={props.git} draftAutoDeploy={draft().autoDeploy} onToggle={(autoDeploy) => change({ autoDeploy })} />
       <GitIntegration kind="stacks" id={props.stack.id} repository={props.git.repository} />
+      <GitFeedbackReports kind="stacks" id={props.stack.id} />
     </div>
   );
 }

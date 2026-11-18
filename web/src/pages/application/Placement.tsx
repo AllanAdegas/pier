@@ -6,6 +6,7 @@ import { Checkbox, Select, TextInput } from "../../components/Form";
 import { LogStream } from "../../components/LogViewer";
 import { Section } from "../../components/Page";
 import { t } from "../../i18n";
+import { RolloutPanel } from "./Rollout";
 import { api } from "../../lib/api";
 import { containerStatus, formatRelative } from "../../lib/format";
 import { createAction, createQuery } from "../../lib/query";
@@ -28,7 +29,7 @@ export function PlacementTab(props: { application: Application }) {
   return (
     <div class="stack-lg">
       <PlacementSettings application={props.application} />
-      <RolloutRecovery applicationId={props.application.id} />
+      <RolloutPanel applicationId={props.application.id} />
       <PlacementServers applicationId={props.application.id} />
       <RegistriesSection />
     </div>
@@ -223,17 +224,4 @@ function ServerCard(props: { applicationId: string; server: PlacementServer }) {
       </Show>
     </article>
   );
-}
-
-function RolloutRecovery(props: { applicationId: string }) {
- const journal = createQuery(() => props.applicationId, id => api.get<{state: string; message: string} | null>(`/applications/${id}/placement/rollout`), {pollMs: 4000});
- const resume = createAction(() => api.post(`/applications/${props.applicationId}/placement/rollout/resume`, {}));
- const rollback = createAction(() => api.post(`/applications/${props.applicationId}/placement/rollout/rollback`, {}));
- return <Show when={journal.data()?.state === "interrupted"}>
-  <Section title={t("Rollout interrompido")} description={t("Retome a imagem fixada ou restaure a versão anterior. Comandos de release podem exigir verificação manual.")}>
-   <p>{journal.data()?.message}</p>
-   <div class="row"><Button pending={resume.pending()} disabled={rollback.pending()} onClick={() => void resume.run()}>{t("Retomar rollout")}</Button>
-   <Button pending={rollback.pending()} disabled={resume.pending()} onClick={() => void rollback.run()}>{t("Reverter rollout")}</Button></div>
-  </Section>
- </Show>;
 }

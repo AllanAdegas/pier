@@ -84,10 +84,10 @@ export function ProjectsPage() {
             <div class="grid-cards">
               <For each={list()}>
                 {(project) => (
-                  <A href={`/projects/${project.id}`} class="card card-link stack-sm">
+                  <A href={`/projects/${project.id}`} class="card card-link">
                     <span class="card-title truncate">{project.name}</span>
                     <span class="small muted">{project.description || t("Sem descrição.")}</span>
-                    <div class="row" style={{ "margin-top": "var(--space-2)" }}>
+                    <div class="row card-tags">
                       <For each={project.environments}>{(environment) => <span class="tag">{environment.name}</span>}</For>
                     </div>
                   </A>

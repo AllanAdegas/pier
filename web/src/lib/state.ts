@@ -113,3 +113,13 @@ export function readOnboardingDismissals(userID: string): string[] {
 export function saveOnboardingDismissals(userID: string,items: string[]): void {
  try {localStorage.setItem(`pier.onboarding.${userID}`,JSON.stringify(items));} catch { /* Dismissals remain in memory when storage is unavailable. */ }
 }
+
+/** How the "Getting started" card shows for one user: open, collapsed to its title, or closed. */
+export type OnboardingView = "open" | "collapsed" | "closed";
+
+export function readOnboardingView(userID: string): OnboardingView {
+ try {const value=localStorage.getItem(`pier.onboarding.view.${userID}`);return value==="collapsed"||value==="closed"?value:"open";} catch {return "open";}
+}
+export function saveOnboardingView(userID: string,view: OnboardingView): void {
+ try {localStorage.setItem(`pier.onboarding.view.${userID}`,view);} catch { /* The choice lasts for this page view when storage is unavailable. */ }
+}

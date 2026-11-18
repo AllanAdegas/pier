@@ -42,3 +42,26 @@ Deno.test("onboarding dismissal parsing tolerates broken or blocked storage and 
  assertEquals(state.readOnboardingDismissals("alice"),[]);state.saveOnboardingDismissals("alice",["backup"]);
  } finally {if(old)Object.defineProperty(globalThis,"localStorage",old);else Reflect.deleteProperty(globalThis,"localStorage");}
 });
+
+Deno.test("the getting started card remembers per user whether it is collapsed or closed", async () => {
+  const oldWindow=Object.getOwnPropertyDescriptor(globalThis,"window");
+  const oldDocument=Object.getOwnPropertyDescriptor(globalThis,"document");
+  const oldStorage=Object.getOwnPropertyDescriptor(globalThis,"localStorage");
+  const store=new Map<string,string>();
+  Object.defineProperty(globalThis,"window",{configurable:true,value:{matchMedia:()=>({matches:false})}});
+  Object.defineProperty(globalThis,"document",{configurable:true,value:{documentElement:{dataset:{}}}});
+  Object.defineProperty(globalThis,"localStorage",{configurable:true,value:{getItem:(k:string)=>store.get(k)??null,setItem:(k:string,v:string)=>void store.set(k,v)}});
+  try {
+    const state=await import("./state.ts");
+    assertEquals(state.readOnboardingView("ana"),"open");
+    state.saveOnboardingView("ana","collapsed");
+    state.saveOnboardingView("bia","closed");
+    assertEquals([state.readOnboardingView("ana"),state.readOnboardingView("bia")],["collapsed","closed"]);
+    store.set("pier.onboarding.view.ana","tampered");
+    assertEquals(state.readOnboardingView("ana"),"open");
+  } finally {
+    for (const [name,descriptor] of [["window",oldWindow],["document",oldDocument],["localStorage",oldStorage]] as const) {
+      if (descriptor) Object.defineProperty(globalThis,name,descriptor); else delete (globalThis as Record<string,unknown>)[name];
+    }
+  }
+});

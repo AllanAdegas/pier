@@ -29,7 +29,7 @@ A promotion between servers can reuse the same digest that was already published
 - The rollout is **sequential**, not an atomic transaction. Servers can serve different versions for some time.
 - An image rollback does not undo migrations or changes in external services.
 - Volumes are not shared. Local uploads and databases need their own architecture; application replicas do not replicate data.
-- Pier records rollout progress before changing a server. After a restart it attempts recovery once: resume while releasing, rollback while compensating. A freeze, maintenance or an ambiguous one-shot command leaves recovery for the operator. Use **Resume rollout** or **Roll back rollout** in **Destinations**. Verify database migrations before rolling back.
+- Pier records rollout progress before changing a server. After a restart it attempts recovery once: resume while releasing, rollback while compensating. A freeze, maintenance or an ambiguous one-shot command leaves recovery for the operator. In **Destinations**, the **Last rollout** panel shows the image, the server order and the state of each server. When the rollout is interrupted, use **Resume rollout** or **Roll back rollout** (which asks for confirmation). Verify database migrations before rolling back: the rollback swaps the image, it does not undo migrations.
 - Previews, scheduled tasks and the Logs tab still use the application's original server; use the destinations view for the rest. The metrics history adds up the configured destinations: [understand totals and gaps](/en/docs/alerts/#metrics-history).
 - An insecure HTTP registry is not supported. There is no automatic provisioning of DNS or a load balancer.
 

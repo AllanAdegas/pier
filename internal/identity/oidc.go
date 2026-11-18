@@ -84,6 +84,9 @@ func (s *OIDCService) Configure(ctx context.Context, actor string, c OIDCConfig)
 	if err := validateRoleMapping(c); err != nil {
 		return err
 	}
+	if err := s.keepStoredSecret(ctx, &c); err != nil {
+		return err
+	}
 	raw, err := json.Marshal(c)
 	if err != nil {
 		return err
