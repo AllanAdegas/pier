@@ -24,7 +24,7 @@ var referenceKinds = foldedKeys(map[string]string{
 // sharedTargets are the servers resources run on. Choosing one needs only
 // the ability on the resource's project: servers are a pool shared by every
 // project. Any other *_id (keys, registries, users...) is instance-level.
-var sharedTargets = foldedKeys(map[string]string{"server_id": "", "build_server_id": ""})
+var sharedTargets = foldedKeys(map[string]string{"server_id": "", "build_server_id": "", "swarm_cluster_id": ""})
 
 func foldedKeys(source map[string]string) map[string]string {
 	folded := make(map[string]string, len(source))

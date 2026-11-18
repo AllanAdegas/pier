@@ -72,6 +72,7 @@ func insertRow(t *testing.T, db *sql.DB, table string, values map[string]any, se
 var placeholderOverrides = map[string]any{
 	"git_provider_feedback.kind":     "application",
 	"git_provider_feedback.provider": "gitlab",
+	"git_connections.provider":       "gitlab",
 	"access_oidc_config.id":          1,
 	"git_provider_config.id":         1,
 	"cloud_credentials.provider":     "hetzner",

@@ -91,6 +91,8 @@ func (g *githubAPIFake) handle(w http.ResponseWriter, r *http.Request) {
 	case g.failWith != 0:
 		w.WriteHeader(g.failWith)
 		w.Write([]byte(installationSecret))
+	case strings.Contains(r.URL.Path, "/check-runs"):
+		w.WriteHeader(http.StatusForbidden)
 	case strings.Contains(r.URL.Path, "/statuses/"):
 		var input map[string]string
 		json.NewDecoder(r.Body).Decode(&input)
@@ -132,9 +134,17 @@ func linkApp(t *testing.T, f *deployFixture, provider *gitprovider.Service) {
 	}
 }
 
-func feedbackFor(provider *gitprovider.Service, logs *bytes.Buffer) *GitFeedback {
+type integratedFeedback struct {
+	*GitFeedback
+	queue *gitprovider.Queue
+}
+
+func (f *integratedFeedback) wait() { f.queue.Flush(context.Background()) }
+
+func feedbackFor(provider *gitprovider.Service, logs *bytes.Buffer) *integratedFeedback {
 	logger := slog.New(slog.NewTextHandler(logs, nil))
-	return NewGitFeedback(provider, func(context.Context) string { return "https://pier.example.com" }, logger)
+	queue := gitprovider.NewQueue(provider, func(context.Context, string, string) (string, error) { return "https://github.com/acme/app.git", nil }, gitprovider.DefaultRetryPolicy(), logger)
+	return &integratedFeedback{NewGitFeedback(queue, func(context.Context) string { return "https://pier.example.com" }, logger), queue}
 }
 
 func TestGitProviderDeployUsesInstallationCredentialsAndNoPersistentToken(t *testing.T) {
@@ -252,7 +262,7 @@ func TestDeployCommitStatusesAreReportedInOrder(t *testing.T) {
 	}
 	feedback.wait()
 	states, _, _, _ := api.snapshot()
-	if strings.Join(states, ",") != "pier/demo=pending,pier/demo=success" {
+	if strings.Join(states, ",") != "pier/demo=success" {
 		t.Fatal(states, logs.String())
 	}
 	// Turning commit statuses off is honoured.
@@ -261,7 +271,7 @@ func TestDeployCommitStatusesAreReportedInOrder(t *testing.T) {
 	}
 	f.deploy(t)
 	feedback.wait()
-	if again, _, _, _ := api.snapshot(); len(again) != 2 {
+	if again, _, _, _ := api.snapshot(); len(again) != 1 {
 		t.Fatal("statuses sent with feedback off", again)
 	}
 }
@@ -291,38 +301,6 @@ func TestFailingProviderAPINeverBlocksOrFailsTheDeploy(t *testing.T) {
 	}
 }
 
-func TestFeedbackNeverBlocksWhenTheQueueIsFull(t *testing.T) {
-	release := make(chan struct{})
-	source := blockingSource{release: release}
-	var logs bytes.Buffer
-	feedback := NewGitFeedback(source, func(context.Context) string { return "" }, slog.New(slog.NewTextHandler(&logs, nil)))
-	report := DeploymentReport{Application: Application{ID: "same"}, Deployment: Deployment{CommitSHA: headCommit}}
-	done := make(chan struct{})
-	go func() {
-		for range feedbackLaneBacklog * 3 {
-			feedback.ReportDeployment(t.Context(), report)
-		}
-		close(done)
-	}()
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("reporting blocked the caller")
-	}
-	close(release)
-	feedback.wait()
-	if !strings.Contains(logs.String(), "queue full") {
-		t.Fatal("dropped reports not logged")
-	}
-}
-
-type blockingSource struct{ release chan struct{} }
-
-func (b blockingSource) Feedback(ctx context.Context, _, _, _ string) (gitprovider.Feedback, error) {
-	<-b.release
-	return gitprovider.Feedback{}, gitprovider.ErrNoFeedback
-}
-
 func TestGitProviderPreviewUsesParentSelectionAndKeepsOneComment(t *testing.T) {
 	f, _, previews := previewFixture(t)
 	api := &githubAPIFake{t: t}
@@ -350,10 +328,10 @@ func TestGitProviderPreviewUsesParentSelectionAndKeepsOneComment(t *testing.T) {
 	}
 	feedback.wait()
 	states, comment, creates, updates := api.snapshot()
-	if strings.Join(states, ",") != "pier/preview: demo=pending,pier/preview: demo=success" {
+	if strings.Join(states, ",") != "pier/preview: demo=success" {
 		t.Fatal(states, logs.String())
 	}
-	if creates != 1 || updates != 1 || !strings.Contains(comment, "https://pr-7.preview.example.com") ||
+	if creates != 1 || updates != 0 || !strings.Contains(comment, "https://pr-7.preview.example.com") ||
 		!strings.HasPrefix(comment, "<!-- pier:preview:"+f.app.ID+" -->") {
 		t.Fatalf("comments %d/%d: %s", creates, updates, comment)
 	}

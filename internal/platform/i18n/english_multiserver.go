@@ -1,6 +1,25 @@
 package i18n
 
 var englishMultiserver = map[string]string{
+	"registrar o rollout: %w": "record rollout: %w",
+	"Interrompido pela reinicialização do Pier antes de mudar qualquer servidor.": "Interrupted by a Pier restart before changing any server.",
+	"Revertendo o rollout interrompido para a versão anterior.":                   "Rolling the interrupted rollout back to the previous version.",
+	"a reversão falhou em %s; o rollout continua interrompido: %w":                "rollback failed on %s; the rollout remains interrupted: %w",
+	"Não foi possível registrar o estado do rollout: %s":                          "Could not record rollout state: %s",
+	"Os servidores alterados voltaram para a versão anterior.":                    "Changed servers returned to the previous version.",
+	"os destinos múltiplos não estão disponíveis":                                 "multiple destinations are unavailable",
+	"Não há rollout interrompido para esta ação; nenhum servidor foi alterado.":   "There is no interrupted rollout for this action; no server was changed.",
+	"o rollout interrompido não tem imagem fixada; use Reverter rollout":          "the interrupted rollout has no pinned image; use Roll back rollout",
+	"Retomando o rollout interrompido em %d servidor(es) com a imagem %s.":        "Resuming the interrupted rollout on %d server(s) with image %s.",
+	"%s já roda a nova versão.":                                                   "%s already runs the new version.",
+	"Já há uma ação em andamento para este rollout. Aguarde a conclusão.":         "An action is already in progress for this rollout. Wait for it to finish.",
+	"A ação automática foi recusada: %s":                                          "The automatic action was refused: %s",
+	"Esta aplicação não tem rollout interrompido.":                                "This application has no interrupted rollout.",
+	"O rollout parou antes de fixar a imagem; só é possível revertê-lo.":          "The rollout stopped before pinning the image; it can only be rolled back.",
+	"Informe o container.": "Enter the container.",
+	"O primeiro servidor foi interrompido durante o release; verifique os comandos antes de reverter o rollout.": "The first server was interrupted during release; verify commands before rolling back the rollout.",
+	"Esta aplicação tem rollout interrompido. Retome ou reverta antes de outro deploy.":                          "This application has an interrupted rollout. Resume or roll back before another deploy.",
+
 	"Cada servidor pode aparecer uma vez só.":                                                 "Each server may appear only once.",
 	"Um dos servidores escolhidos não existe mais.":                                           "One of the chosen servers no longer exists.",
 	"Escolha no máximo %d servidores.":                                                        "Choose at most %d servers.",

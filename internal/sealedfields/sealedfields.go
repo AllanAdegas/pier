@@ -38,6 +38,7 @@ var registry = []entry{
 	whole("internal/database/store.go", "databases", "credentials"),
 	whole("internal/envvar/envvar.go", "env_vars", "value"),
 	whole("internal/envvar/shared.go", "shared_variables", "value"),
+	whole("internal/gitprovider/connections_service.go", "git_connections", "encrypted_token"),
 	whole("internal/gitprovider/feedback.go", "git_provider_feedback", "encrypted_token"),
 	whole("internal/gitprovider/service.go", "git_provider_config", "encrypted"),
 	whole("internal/identity/oidc.go", "access_oidc_config", "sealed"),

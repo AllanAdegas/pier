@@ -11,7 +11,8 @@ import (
 	"pier/internal/platform/i18n"
 )
 
-// GitCredentials resolves optional per-resource GitHub App selections. Only a
+// GitCredentials resolves optional per-resource GitHub App selections and
+// provider connection links (gitprovider.Credentials). Only a
 // missing selection permits the ordinary public/deploy-key clone fallback.
 type GitCredentials interface {
 	WithCredentials(context.Context, string, string, func(repository, token string) error) error
@@ -28,14 +29,19 @@ func CloneGitProvider(ctx context.Context, provider GitCredentials, kind, id str
 	selected := false
 	err = provider.WithCredentials(ctx, kind, id, func(repository, token string) error {
 		selected = true
-		if !sameGitHubRepository(request.Repository, repository) {
-			return i18n.Errorf("O repositório da origem não corresponde à seleção do GitHub App. Selecione o repositório de novo.")
+		if !gitprovider.SameRepositoryURL(request.Repository, repository) {
+			return i18n.Errorf("O repositório da origem não corresponde ao repositório vinculado. Selecione o repositório de novo.")
 		}
 		parsed, parseErr := url.Parse(repository)
 		if parseErr != nil {
 			return parseErr
 		}
-		parsed.User = url.UserPassword("x-access-token", token)
+		// Connections name their clone user; GitHub App tokens use x-access-token.
+		user := "x-access-token"
+		if parsed.User != nil && parsed.User.Username() != "" {
+			user = parsed.User.Username()
+		}
+		parsed.User = url.UserPassword(user, token)
 		request.Repository = parsed.String()
 		request.PrivateKey = ""
 		log.Redact(token)

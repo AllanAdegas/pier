@@ -1,3 +1,4 @@
+import { ConnectionChoice } from "./GitConnections";
 import { createSignal, Show } from "solid-js";
 import { Select } from "../../components/Form";
 import { api } from "../../lib/api";
@@ -34,6 +35,8 @@ export function GitRepositoryPicker(props: { onPick: (pick: GitHubPick | null, c
     props.onPick({ installation_id: Number(installation()), repository: value }, githubCloneURL(value));
   };
   return (
+    <>
+    <ConnectionChoice onPick={props.onPick} />
     <Show when={status.data()?.configured}>
       <div class="grid-2">
         <Select
@@ -59,6 +62,7 @@ export function GitRepositoryPicker(props: { onPick: (pick: GitHubPick | null, c
         />
       </div>
     </Show>
+    </>
   );
 }
 
@@ -70,6 +74,6 @@ export async function linkPickedRepository(
   repository: string,
 ): Promise<void> {
   if (pickStillApplies(pick, repository)) {
-    await api.put(`/${kind}/${id}/git-provider`, pick);
+    await api.put(`/${kind}/${id}/${pick.connection_id ? "git-connection" : "git-provider"}`, pick);
   }
 }

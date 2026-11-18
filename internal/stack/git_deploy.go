@@ -16,7 +16,7 @@ import (
 // into a scratch directory and inspected there; only a checkout that passes
 // replaces the one the running stack was started from. Then the pipeline is
 // the one of a folder: validation by docker, Pier's override, build, up.
-func (s *Service) deployGit(ctx context.Context, run *stackRun) error {
+func (s *Service) deployGit(ctx context.Context, run *stackRun) (err error) {
 	git := run.stack.Git
 	run.operation.Say("Repositório: %s (%s)", application.WithoutCredentials(git.Repository), git.Ref())
 	s.withPendingCertificates(ctx, run)
@@ -27,6 +27,8 @@ func (s *Service) deployGit(ctx context.Context, run *stackRun) error {
 	if err != nil {
 		return err
 	}
+	report := s.startGitRun(ctx, run.stack, sha)
+	defer func() { report.finish(ctx, err) }()
 	root := application.CheckoutPath(scratch)
 	raw, err := s.inspectCheckout(ctx, run, root)
 	if err != nil {

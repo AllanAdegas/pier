@@ -31,7 +31,10 @@ go test -race ./...                       # the same thing CI runs
 cd web && deno task typecheck && deno task test
 cd site && deno task test
 make docpairs     # only the English/Portuguese pair checks
+make install-test # real Docker: clean install, upgrade from the last release, rollback (builds the image, pulls the old one; a few minutes)
 ```
+
+`make install-test` runs `tools/installtest/` against your local Docker with containers, network and data named `pier-v08-installtest-*`, and removes everything when it ends, also on failure. In CI the `Install test` workflow runs it on Ubuntu 24.04 (clean install, upgrade from the published release, rollback) and runs clean install, upgrade and rollback in a Debian 12 amd64 container, when `install.sh`, `compose*.yaml`, the `Dockerfile`, the migrations or the scripts change, weekly, and on demand. The Debian job uses explicit `docker run --network host` and drives the runner's Docker through its socket instead of running a nested daemon, so it proves the Debian userland (dash, apt-installed Docker CLI), not a Debian host kernel or Docker engine. It never needs secrets.
 
 Rules:
 

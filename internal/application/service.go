@@ -18,6 +18,7 @@ import (
 	"pier/internal/platform/shell"
 	"pier/internal/platform/sqlite"
 	"pier/internal/server"
+	"pier/internal/swarm"
 )
 
 const deploymentListLimit = 50
@@ -158,6 +159,17 @@ func (s *Service) Delete(ctx context.Context, id string, deleteVolumes, force bo
 		return err
 	}
 	cleanup := s.removePreviewsFromServer(ctx, app)
+	if s.multi != nil {
+		p, e := s.multi.settings(ctx, id)
+		cleanup = errors.Join(cleanup, e)
+		if e == nil && p.SwarmClusterID != "" {
+			ex, e := swarm.NewService(s.multi.db, s.connector).Manager(ctx, p.SwarmClusterID)
+			if e == nil {
+				e = docker.RemoveSwarmStack(ctx, ex, "pier-"+id)
+			}
+			cleanup = errors.Join(cleanup, e)
+		}
+	}
 	for _, target := range targets {
 		view := app
 		view.ServerID = target

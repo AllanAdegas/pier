@@ -38,6 +38,13 @@ func (s *Service) Select(ctx context.Context, kind, id string, selection Selecti
 	if err := s.requireResource(ctx, kind, id); err != nil {
 		return err
 	}
+	var linked int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM git_connection_links WHERE kind=? AND resource_id=? AND orphaned=0`, kind, id).Scan(&linked); err != nil {
+		return err
+	}
+	if linked > 0 {
+		return apperr.Conflict("Desvincule a conexão Git antes de usar o GitHub App.")
+	}
 	rows, err := s.Repositories(ctx, selection.InstallationID)
 	if err != nil {
 		return err
@@ -75,12 +82,15 @@ func (s *Service) WithCredentials(ctx context.Context, kind, id string, fn func(
 	if err != nil {
 		return err
 	}
+	if err := s.requireBoundSource(ctx, kind, id, s.cloneURL(ctx, selection)); err != nil {
+		return err
+	}
 	key := tokenKey{installation: selection.InstallationID, repository: selection.Repository, purpose: purposeClone}
 	token, err := s.installationToken(ctx, key)
 	if err != nil {
 		return err
 	}
-	return fn(selection.CloneURL(), token)
+	return fn(s.cloneURL(ctx, selection), token)
 }
 
 // ClearSelection restores the ordinary public/deploy-key source authentication.
@@ -128,4 +138,28 @@ func (s *Service) requireResource(ctx context.Context, kind, id string) error {
 		return apperr.NotFound(what)
 	}
 	return err
+}
+
+// requireBoundSource prevents a changed source from borrowing a stored binding.
+func (s *Service) requireBoundSource(ctx context.Context, kind, id, repository string) error {
+	var source sql.NullString
+	if kind == KindStack {
+		var sealed string
+		if err := s.db.QueryRowContext(ctx, "SELECT repository FROM stack_git_sources WHERE stack_id=?", id).Scan(&sealed); err != nil {
+			return err
+		}
+		raw, err := s.box.Open(sealed)
+		if err != nil {
+			return err
+		}
+		source = sql.NullString{String: raw, Valid: true}
+	} else {
+		if err := s.db.QueryRowContext(ctx, "SELECT json_extract(config, '$.source.repository') FROM applications WHERE id=?", id).Scan(&source); err != nil {
+			return err
+		}
+	}
+	if !source.Valid || !SameRepositoryURL(source.String, repository) {
+		return apperr.Invalid("O repositório da origem não corresponde ao repositório vinculado. Selecione o repositório de novo.")
+	}
+	return nil
 }

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"pier/internal/platform/apperr"
@@ -32,10 +33,11 @@ const (
 // placement (or with only that server and no build server) the application
 // is deployed exactly as a single-server application.
 type Placement struct {
-	BuildServerID string   `json:"build_server_id"`
-	RegistryID    string   `json:"registry_id"`
-	Repository    string   `json:"repository"`
-	Destinations  []string `json:"destinations"`
+	SwarmClusterID string   `json:"swarm_cluster_id"`
+	BuildServerID  string   `json:"build_server_id"`
+	RegistryID     string   `json:"registry_id"`
+	Repository     string   `json:"repository"`
+	Destinations   []string `json:"destinations"`
 }
 
 // DestinationStatus is the last known rollout state on one server.
@@ -72,15 +74,19 @@ func (p placementPlan) distributed() bool {
 
 // MultiServer stores placements and the per-server rollout state.
 type MultiServer struct {
-	db     *sql.DB
-	apps   *Store
-	guard  DeployGuard
-	images *registry.Service
+	db      *sql.DB
+	apps    *Store
+	guard   DeployGuard
+	images  *registry.Service
+	journal rolloutJournal
+	// actionMu serializes resume and rollback requests, so two clicks never
+	// queue two actions for one interrupted rollout.
+	actionMu sync.Mutex
 }
 
 // NewMultiServer creates the placement service.
 func NewMultiServer(db *sql.DB, apps *Store, guard DeployGuard, images *registry.Service) *MultiServer {
-	return &MultiServer{db: db, apps: apps, guard: guard, images: images}
+	return &MultiServer{db: db, apps: apps, guard: guard, images: images, journal: rolloutJournal{db: db}}
 }
 
 // Settings returns the placement of an application (empty when it has none).
@@ -104,7 +110,14 @@ func (s *MultiServer) settings(ctx context.Context, id string) (Placement, error
 		return p, err
 	}
 	p.BuildServerID, p.RegistryID = build.String, registryID.String
-	return p, json.Unmarshal([]byte(raw), &p.Destinations)
+	err = json.Unmarshal([]byte(raw), &p.Destinations)
+	if err == nil {
+		e := s.db.QueryRowContext(ctx, "SELECT cluster_id FROM application_swarm WHERE application_id = ?", id).Scan(&p.SwarmClusterID)
+		if e != nil && !errors.Is(e, sql.ErrNoRows) {
+			return p, e
+		}
+	}
+	return p, err
 }
 
 // Save validates and stores a placement. It takes effect on the next
@@ -123,14 +136,25 @@ func (s *MultiServer) Save(ctx context.Context, id string, p Placement) (Placeme
 	if err := s.validate(ctx, app, p); err != nil {
 		return Placement{}, err
 	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Placement{}, err
+	}
+	defer tx.Rollback()
+	if err := s.saveSwarmTarget(ctx, tx, app, p); err != nil {
+		return Placement{}, err
+	}
 	raw, _ := json.Marshal(p.Destinations)
-	_, err = s.db.ExecContext(ctx, `INSERT INTO application_placements
+	_, err = tx.ExecContext(ctx, `INSERT INTO application_placements
 		(application_id, build_server_id, registry_id, repository, destinations, updated_at) VALUES (?, ?, ?, ?, ?, ?)
 		ON CONFLICT(application_id) DO UPDATE SET build_server_id = excluded.build_server_id,
 		registry_id = excluded.registry_id, repository = excluded.repository,
 		destinations = excluded.destinations, updated_at = excluded.updated_at`,
 		id, nullable(p.BuildServerID), nullable(p.RegistryID), p.Repository, string(raw), sqlite.FormatTime(time.Now()))
 	if err != nil {
+		return Placement{}, err
+	}
+	if err = tx.Commit(); err != nil {
 		return Placement{}, err
 	}
 	return s.settings(ctx, id)
@@ -184,7 +208,7 @@ func (s *MultiServer) validate(ctx context.Context, app Application, p Placement
 	if p.RegistryID != "" && p.Repository == "" {
 		fields.Add("repository", "Informe o repositório onde as imagens serão enviadas.")
 	}
-	travels := len(p.Destinations) > 1 || p.BuildServerID != ""
+	travels := p.SwarmClusterID != "" || len(p.Destinations) > 1 || p.BuildServerID != ""
 	if travels && app.Config.Build.Pack != PackImage && p.RegistryID == "" {
 		fields.Add("registry_id", "Escolha um registro: a imagem construída precisa chegar aos outros servidores.")
 	}
@@ -222,11 +246,28 @@ func (s *MultiServer) Status(ctx context.Context, id string) ([]DestinationStatu
 }
 
 // Recover marks rollouts cut by a restart: the dispatcher already failed
-// their deployments, and the next deployment reconciles the servers.
+// their deployments; the journal says which rollouts changed servers and are
+// now interrupted (Service.RecoverRollouts acts on them once workers run).
 func (s *MultiServer) Recover(ctx context.Context) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE placement_status SET status = ?, updated_at = ? WHERE status = ?`,
 		PlacementInterrupted, sqlite.FormatTime(time.Now()), PlacementDeploying)
-	return err
+	if err != nil {
+		return err
+	}
+	return s.journal.recoverAfterRestart(ctx)
+}
+
+// Rollout returns the journal of the last multi-server rollout of the
+// application, or nil when it never had one.
+func (s *MultiServer) Rollout(ctx context.Context, id string) (*RolloutJournal, error) {
+	if _, err := s.apps.Get(ctx, id); err != nil {
+		return nil, notFound(err, "Aplicação")
+	}
+	journal, found, err := s.journal.load(ctx, id)
+	if err != nil || !found {
+		return nil, err
+	}
+	return &journal, nil
 }
 
 func (s *MultiServer) record(ctx context.Context, appID string, status DestinationStatus) error {

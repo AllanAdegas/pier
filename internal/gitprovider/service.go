@@ -42,6 +42,9 @@ type Config struct {
 	Slug          string `json:"slug,omitempty"`
 	PrivateKey    string `json:"private_key,omitempty"`
 	WebhookSecret string `json:"webhook_secret,omitempty"`
+	// APIURL is the API of a GitHub Enterprise Server (https://<host>/api/v3);
+	// empty means github.com.
+	APIURL string `json:"api_url,omitempty"`
 }
 
 // Status describes the configured GitHub App without any secret.
@@ -50,6 +53,8 @@ type Status struct {
 	AppID      int64  `json:"app_id,omitempty"`
 	Slug       string `json:"slug,omitempty"`
 	InstallURL string `json:"install_url,omitempty"`
+	// APIURL is set for a GitHub Enterprise Server.
+	APIURL string `json:"api_url,omitempty"`
 }
 
 // Service is the Git provider integration. Tokens live only in memory.
@@ -63,6 +68,9 @@ type Service struct {
 	tokens       map[tokenKey]cachedToken
 	blockedUntil time.Time
 	manifests    map[string]time.Time
+	// checksRefused holds installations whose App cannot write check runs,
+	// until when commit statuses are used instead.
+	checksRefused map[int64]time.Time
 }
 
 // New creates the service with the production HTTP client.
@@ -82,6 +90,7 @@ func NewWithHTTPClient(db *sql.DB, box *secretbox.Box, client *http.Client) *Ser
 	return &Service{
 		db: db, box: box, client: &configured, now: time.Now,
 		tokens: map[tokenKey]cachedToken{}, manifests: map[string]time.Time{},
+		checksRefused: map[int64]time.Time{},
 	}
 }
 
@@ -105,6 +114,11 @@ func (s *Service) store(ctx context.Context, c Config) error {
 	if _, err := parseKey(c.PrivateKey); err != nil {
 		return invalid()
 	}
+	api, err := normalizeGitHubAPI(c.APIURL)
+	if err != nil {
+		return err
+	}
+	c.APIURL = api
 	raw, err := json.Marshal(c)
 	if err != nil {
 		return err
@@ -151,9 +165,9 @@ func (s *Service) Status(ctx context.Context) Status {
 	if err != nil {
 		return Status{}
 	}
-	status := Status{Configured: true, AppID: c.AppID, Slug: c.Slug}
+	status := Status{Configured: true, AppID: c.AppID, Slug: c.Slug, APIURL: c.APIURL}
 	if c.Slug != "" {
-		status.InstallURL = "https://github.com/apps/" + c.Slug + "/installations/new"
+		status.InstallURL = githubInstallURL(c)
 	}
 	return status
 }

@@ -23,6 +23,29 @@ import { englishLocalization } from "./en-localization";
 // interface passes to t(), msg() or <Trans> must be here (i18n.test.ts).
 
 const base: Record<string, string> = {
+  "ID do alvo Swarm": "Swarm target ID",
+ "Rollback":"Rollback",
+ "Logs":"Logs",
+ "Nome do Swarm para confirmar":"Swarm name to confirm",
+ "Remover worker":"Remove worker",
+ "Excluir Swarm vazio":"Delete empty Swarm",
+"Crie um Swarm em servidores cadastrados e implante imagens acessíveis a todos os nós.":"Create a Swarm on registered servers and deploy images accessible to every node.",
+"Criar Swarm":"Create Swarm",
+"Swarm":"Swarm",
+"Selecione um Swarm":"Select a Swarm",
+"Servidor manager": "Manager server",
+"Servidor worker": "Worker server",
+"IP anunciado (opcional)": "Advertised IP (optional)",
+"Em branco, o Pier usa o endereço do servidor cadastrado.": "Leave blank to use the registered server address.",
+"Nenhum Swarm": "No Swarms",
+"Adicionar worker":"Add worker",
+"Nós Swarm":"Swarm nodes",
+"Alternar drenagem":"Toggle drain",
+"Implantar serviço":"Deploy service",
+"Escalar serviço":"Scale service",
+"Remover este serviço e suas tarefas?":"Remove this service and its tasks?",
+"Remover serviço":"Remove service",
+
   "Servidor associado": "Associated server",
   "Atualizar": "Refresh",
   "Total": "Total",
@@ -589,8 +612,8 @@ const base: Record<string, string> = {
   "Nome da instância": "Instance name",
   "URL pública do Pier": "Pier's public URL",
   "https://pier.exemplo.com": "https://pier.example.com",
-  "Usada para montar as URLs de webhook mostradas nas aplicações. Vazio, usa o endereço pelo qual você acessa o painel.":
-    "Used to build the webhook URLs shown in applications. Empty, it uses the address you open the panel with.",
+  "Obrigatória para webhooks gerenciados de GitLab, Gitea e Bitbucket. Informe o endereço pelo qual os provedores chegam ao Pier.":
+    "Required for GitLab, Gitea and Bitbucket managed webhooks. Enter the address those providers use to reach Pier.",
   "Idioma do servidor": "Server language",
   "Usado nos logs de deploy, nas notificações e nas respostas da API a quem não informa um idioma.":
     "Used in deployment logs, notifications and API answers to clients that do not ask for a language.",

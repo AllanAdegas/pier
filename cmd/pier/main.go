@@ -43,6 +43,7 @@ import (
 	"pier/internal/server"
 	"pier/internal/settings"
 	"pier/internal/stack"
+	"pier/internal/swarm"
 	"pier/internal/terminal"
 	"pier/internal/updates"
 	"pier/internal/version"
@@ -164,14 +165,20 @@ func run() error {
 	applications.SetMultiServer(multi)
 	previews := application.NewPreviewService(applications, logger)
 	gitProviders := gitprovider.New(db, box)
-	deployer.SetGitProvider(gitProviders)
-	gitFeedback := application.NewGitFeedback(gitProviders, func(ctx context.Context) string {
+	gitConnections := gitprovider.NewConnections(gitProviders)
+	go gitConnections.RunSweeper(ctx, gitprovider.DefaultSweepInterval, logger)
+	gitCredentials := gitprovider.Credentials{App: gitProviders, Connections: gitConnections}
+	deployer.SetGitProvider(gitCredentials)
+	publicURL := func(ctx context.Context) string {
 		current, err := instanceSettings.Get(ctx)
 		if err != nil {
 			return ""
 		}
 		return current.PublicURL
-	}, logger)
+	}
+	feedbackSources := &feedbackRepositories{applications: applications}
+	gitFeedbackQueue := gitprovider.NewQueue(gitProviders, feedbackSources.repository, gitprovider.DefaultRetryPolicy(), logger)
+	gitFeedback := application.NewGitFeedback(gitFeedbackQueue, publicURL, logger)
 	previews.SetReporter(gitFeedback)
 	deployer.SetDeploymentReporter(gitFeedback)
 	applications.SetCommitResolver(gitProviders)
@@ -186,7 +193,10 @@ func run() error {
 	stacks.SetDeployGuard(projects)
 	stacks.SetDomainChecker(servers)
 	stacks.SetGitSupport(box, keys)
-	stacks.SetGitProvider(gitProviders)
+	stacks.SetGitProvider(gitCredentials)
+	stacks.SetGitFeedback(gitFeedbackQueue, publicURL, logger)
+	feedbackSources.stacks = stacks
+	go gitFeedbackQueue.Run(ctx)
 	clusters := cluster.NewService(db, box, connector, oplog.NewRegistry(), cfg.LocalHost)
 	tasks := schedule.NewTaskService(db, applications, connector, notifications)
 
@@ -218,6 +228,11 @@ func run() error {
 	}
 	if err := dispatcher.Start(ctx, cfg.DeployConcurrency); err != nil {
 		return err
+	}
+	// After the workers start: an interrupted multi-server rollout is resumed
+	// or rolled back once; a refusal leaves it for the operator.
+	if err := applications.RecoverRollouts(ctx); err != nil {
+		logger.Warn("recover multi-server rollouts", "error", err)
 	}
 	scheduler.Start(ctx)
 	defer scheduler.Stop()
@@ -253,13 +268,14 @@ func run() error {
 		APIRateLimit: apiRateLimit,
 		Access:       accessService,
 		OIDC:         identity.NewOIDC(db, box, strings.Fields(os.Getenv("PIER_OIDC_ISSUERS")), os.Getenv("PIER_OIDC_CALLBACK")),
-		GitProviders: gitProviders,
-		MultiServer:  multi,
-		Registries:   images,
-		Identity:     identities, Instance: backups, Audit: &audit.Store{DB: db}, Monitoring: alerts, MetricsHistory: metricsHistory, CookieSecure: os.Getenv("PIER_COOKIE_SECURE") == "1",
+		GitProviders: gitProviders, GitConnections: gitConnections,
+		GitFeedback: gitFeedbackQueue,
+		MultiServer: multi,
+		Registries:  images,
+		Identity:    identities, Instance: backups, Audit: &audit.Store{DB: db}, Monitoring: alerts, MetricsHistory: metricsHistory, CookieSecure: os.Getenv("PIER_COOKIE_SECURE") == "1",
 		Servers: servers, ServerOperations: serverOperations, DockerInstaller: dockerInstaller, Provisioning: provisioning, LogDrains: logDrains, Keys: keys, Proxy: server.NewProxyService(connector), Connector: connector,
 		Projects: projects, Applications: applications, Previews: previews, LogHub: logHub, Env: env,
-		Databases: databases, Stacks: stacks, VolumeBackups: volumeBackups, Engine: engine.NewService(connector), Clusters: clusters,
+		Databases: databases, Stacks: stacks, Swarm: swarm.NewService(db, connector), VolumeBackups: volumeBackups, Engine: engine.NewService(connector), Clusters: clusters,
 		Tasks: tasks, Notifications: notifications,
 		Terminal: terminals, Settings: instanceSettings, Updates: updateChecker, Logger: logger, WebUI: webui.Files(), SessionTTL: cfg.SessionTTL,
 		TrustedProxies: cfg.TrustedProxies,
