@@ -1,69 +1,151 @@
-import { SSOSettings } from "./SSO";
-import { InstanceRoles } from "./InstanceRoles";
-import { createResource, createSignal, For, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import { useParams } from "@solidjs/router";
-import { api, errorMessage } from "../../lib/api";
+import { api } from "../../lib/api";
+import { createAction, createQuery } from "../../lib/query";
 import { t } from "../../i18n";
 import { formatDateTime } from "../../lib/format";
+import type { Project } from "../../lib/types";
+import { Button } from "../../components/Button";
+import { EmptyState, QueryView } from "../../components/Feedback";
+import { Select, TextInput } from "../../components/Form";
+import { CopyField, PageHeader, Section } from "../../components/Page";
 import { grantableRoles, type Role } from "./can";
-import { accessSummary, allowed, refreshAccess } from "./permissions";
+import { accessSummary, allowed } from "./permissions";
+import { roleLabels } from "./roleLabels";
 
 type Member = { user_id: string; email: string; role: Role };
 type Invite = { id: string; email: string; role: Role; expires_at: number; consumed_at: number | null; revoked_at: number | null };
+
+/** Who can act on one project, and invitations to it. */
 export function TeamPage() {
   const params = useParams();
   const base = () => `/projects/${encodeURIComponent(params.id ?? "")}`;
-  const [members, memberActions] = createResource(() => params.id, () => api.get<Member[]>(base() + "/members"));
+  const project = createQuery(() => params.id, () => api.get<Project>(base()));
+  const members = createQuery(() => params.id, () => api.get<Member[]>(base() + "/members"));
   // Managing members needs admin or owner on the project; the API enforces it.
   const manages = () => allowed("write", params.id);
   const grantable = () => grantableRoles(accessSummary(), params.id ?? "");
-  const [invites, inviteActions] = createResource(() => manages() && params.id, () => api.get<Invite[]>(base() + "/invites"));
+  const options = (roles: Role[]) => roles.map((role) => ({ value: role, label: roleLabels()[role] }));
+  const changeRole = createAction((member: Member, role: string) =>
+    api.put(`${base()}/members/${encodeURIComponent(member.user_id)}`, { role }), {
+    success: t("Alteração salva."),
+    onSuccess: () => void members.refetch(),
+  });
+
+  return (
+    <div class="page">
+      <PageHeader
+        crumbs={[
+          { label: t("Projetos"), href: "/projects" },
+          { label: project.data()?.name ?? "…", href: base() },
+          { label: t("Equipe") },
+        ]}
+        title={t("Equipe e permissões")}
+        description={t("Permissões valem somente para este projeto. Convites expiram em 24 horas.")}
+      />
+      <Section title={t("Membros do projeto")}>
+        <QueryView query={members}>
+          {(list) => (
+            <Show
+              when={list().length > 0}
+              fallback={<EmptyState icon="shield" title={t("Nenhum membro explícito neste projeto.")}>
+                {t("Papéis na instância continuam valendo aqui. Convide alguém para dar acesso só a este projeto.")}
+              </EmptyState>}
+            >
+              <div class="list">
+                <For each={list()}>
+                  {(member) => (
+                    <div class="list-item">
+                      <span class="grow truncate">{member.email}</span>
+                      <Show when={manages() && grantable().includes(member.role)} fallback={<span class="tag">{roleLabels()[member.role]}</span>}>
+                        <div class="inline-select">
+                          <Select
+                            label={t("Papel do membro")}
+                            value={member.role}
+                            disabled={changeRole.pending()}
+                            options={options(grantable())}
+                            onValue={(role) => void changeRole.run(member, role)}
+                          />
+                        </div>
+                        <Button small variant="ghost" pending={changeRole.pending()} onClick={() => void changeRole.run(member, "")}>
+                          {t("Remover acesso")}
+                        </Button>
+                      </Show>
+                    </div>
+                  )}
+                </For>
+              </div>
+            </Show>
+          )}
+        </QueryView>
+      </Section>
+      <Show when={manages()}>
+        <InviteSection base={base()} roles={options(grantable().filter((role) => role !== "owner"))} />
+      </Show>
+    </div>
+  );
+}
+
+function InviteSection(props: { base: string; roles: { value: string; label: string }[] }) {
+  const invites = createQuery(() => props.base, () => api.get<Invite[]>(props.base + "/invites"));
   const [email, setEmail] = createSignal("");
-  const [role, setRole] = createSignal<Role>("viewer");
-  const [acceptToken, setAcceptToken] = createSignal("");
+  const [role, setRole] = createSignal("viewer");
   const [token, setToken] = createSignal("");
-  const [message, setMessage] = createSignal("");
-  const [busy, setBusy] = createSignal(false);
-  async function run(action: () => Promise<unknown>) {
-    setBusy(true); setMessage("");
-    try { await action(); await Promise.all([memberActions.refetch(), inviteActions.refetch()]); }
-    catch (error) { setMessage(errorMessage(error)); }
-    finally { setBusy(false); }
-  }
-  const labels: Record<Role, string> = { owner: t("Proprietário"), admin: t("Administrador"), developer: t("Desenvolvedor"), viewer: t("Somente leitura") };
-  return <main>
-    <h1>{t("Equipe e permissões")}</h1>
-    <p>{t("Permissões valem somente para este projeto. Convites expiram em 24 horas.")}</p>
-    <Show when={message()}><p role="alert">{message()}</p></Show>
-    <Show when={members.loading || invites.loading}><p aria-live="polite">{t("Carregando equipe…")}</p></Show>
-    <Show when={members.error || invites.error}><p role="alert">{errorMessage(members.error || invites.error)}</p><button onClick={() => run(async () => {})}>{t("Tentar novamente")}</button></Show>
-    <section><h2>{t("Membros do projeto")}</h2>
-      <For each={members()} fallback={<p>{t("Nenhum membro explícito neste projeto.")}</p>}>{member => <div>
-        <span>{member.email}</span>
-        <Show when={manages() && grantable().includes(member.role)} fallback={<span>{labels[member.role]}</span>}>
-          <select aria-label={t("Papel do membro")} value={member.role} disabled={busy()} onChange={e => { const value = e.currentTarget.value; void run(() => api.put(`${base()}/members/${encodeURIComponent(member.user_id)}`, { role: value })); }}>
-            <For each={grantable()}>{r => <option value={r}>{labels[r]}</option>}</For>
-          </select>
-          <button disabled={busy()} onClick={() => run(() => api.put(`${base()}/members/${encodeURIComponent(member.user_id)}`, { role: "" }))}>{t("Remover acesso")}</button>
-        </Show>
-      </div>}</For>
-    </section>
-    <Show when={manages()}><section><h2>{t("Convidar para o projeto")}</h2>
-      <form onSubmit={e => { e.preventDefault(); void run(async () => { const result = await api.post<{ token: string }>(base() + "/invites", { email: email(), role: role() }); setToken(result.token); setEmail(""); }); }}>
-        <label>{t("Email do convidado")}<input type="email" required value={email()} onInput={e => setEmail(e.currentTarget.value)} /></label>
-        <label>{t("Papel do convite")}<select value={role()} onChange={e => setRole(e.currentTarget.value as Role)}><For each={grantable().filter(r => r !== "owner")}>{r => <option value={r}>{labels[r]}</option>}</For></select></label>
-        <button disabled={busy()} type="submit">{t("Criar convite")}</button>
+  const create = createAction(() => api.post<{ token: string }>(props.base + "/invites", { email: email(), role: role() }), {
+    onSuccess: (result) => {
+      setToken(result.token);
+      setEmail("");
+      void invites.refetch();
+    },
+  });
+  const revoke = createAction((id: string) => api.delete(`${props.base}/invites/${encodeURIComponent(id)}`), {
+    success: t("Convite revogado."),
+    onSuccess: () => void invites.refetch(),
+  });
+  const pending = () => (invites.data() ?? []).filter((invite) => !invite.revoked_at && !invite.consumed_at);
+
+  return (
+    <Section title={t("Convidar para o projeto")} description={t("A pessoa aceita o convite em Segurança, com o token gerado aqui.")}>
+      <form class="stack" onSubmit={(event) => { event.preventDefault(); void create.run(); }}>
+        <div class="grid-2">
+          <TextInput label={t("Email do convidado")} type="email" required value={email()} onValue={setEmail}
+            error={create.errors().email} />
+          <Select label={t("Papel do convite")} value={role()} onValue={setRole} options={props.roles} />
+        </div>
+        <div class="form-actions">
+          <Button type="submit" variant="primary" icon="plus" pending={create.pending()}>{t("Criar convite")}</Button>
+        </div>
       </form>
-      <Show when={token()}><p>{t("Copie o token agora. Ele aparece somente nesta resposta.")}</p><output>{token()}</output><button onClick={() => setToken("")}>{t("Ocultar token")}</button></Show>
-      <For each={invites()}>{invite => <div><span>{invite.email} · {labels[invite.role]} · {formatDateTime(new Date(invite.expires_at * 1000).toISOString())}</span><button disabled={busy() || !!invite.revoked_at || !!invite.consumed_at} onClick={() => run(() => api.delete(`${base()}/invites/${encodeURIComponent(invite.id)}`))}>{t("Revogar convite")}</button></div>}</For>
-    </section></Show>
-    <section><h2>{t("Aceitar convite")}</h2><form onSubmit={e => { e.preventDefault(); void run(async () => { await api.post("/access/accept", { token: acceptToken() }); setAcceptToken(""); await refreshAccess(); }); }}>
-      <label>{t("Token do convite")}<input type="password" required value={acceptToken()} onInput={e => setAcceptToken(e.currentTarget.value)} /></label>
-      <button disabled={busy()} type="submit">{t("Aceitar convite")}</button>
-    </form></section>
-    <Show when={allowed("write", undefined, "owner")}>
-      <InstanceRoles />
-      <SSOSettings />
-    </Show>
-  </main>;
+      <Show when={token()}>
+        <div class="stack-sm">
+          <CopyField label={t("Token do convite")} value={token()} secret hint={t("Copie o token agora. Ele aparece somente nesta resposta.")} />
+          <div><Button small variant="ghost" onClick={() => setToken("")}>{t("Ocultar token")}</Button></div>
+        </div>
+      </Show>
+      <Show when={pending().length > 0}>
+        <h3 class="section-title">{t("Convites pendentes")}</h3>
+        <div class="list">
+          <For each={pending()}>
+            {(invite) => (
+              <div class="list-item">
+                <div class="grow stack-xs">
+                  <strong class="truncate">{invite.email}</strong>
+                  <span class="small muted">
+                    {roleLabelOf(invite.role)} · {t("expira em {date}", { date: formatDateTime(new Date(invite.expires_at * 1000).toISOString()) })}
+                  </span>
+                </div>
+                <Button small variant="ghost" pending={revoke.pending()} onClick={() => void revoke.run(invite.id)}>
+                  {t("Revogar convite")}
+                </Button>
+              </div>
+            )}
+          </For>
+        </div>
+      </Show>
+    </Section>
+  );
+}
+
+function roleLabelOf(role: Role): string {
+  return roleLabels()[role];
 }

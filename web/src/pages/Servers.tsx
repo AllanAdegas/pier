@@ -139,7 +139,7 @@ function NewServerModal(props: { onClose: () => void; onSaved: (server: Server) 
           <Alert tone="warning">
             <Trans
               text="Nenhuma chave cadastrada. {link} antes de adicionar o servidor."
-              values={{ link: <A href="/security">{t("Crie uma chave em Segurança")}</A> }}
+              values={{ link: <A href="/security?tab=access">{t("Crie uma chave em Segurança")}</A> }}
             />
           </Alert>
         </Show>
@@ -183,7 +183,7 @@ export function ServersPage() {
                   <span class="muted">
                     <Icon name="server" size={20} />
                   </span>
-                  <div class="grow stack-sm" style={{ gap: "0" }}>
+                  <div class="grow stack-xs">
                     <strong class="truncate">{server.name}</strong>
                     <span class="small muted truncate">
                       {server.kind === "local" ? t("Máquina local") : `${server.user}@${server.host}:${server.port}`}

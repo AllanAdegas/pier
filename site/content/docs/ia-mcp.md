@@ -4,7 +4,7 @@ O Pier tem um servidor [MCP](https://modelcontextprotocol.io), o protocolo que a
 
 ## Criar o acesso
 
-1. Em **Segurança › IA e agentes (MCP)**, crie um token dedicado ao agente.
+1. Em **Segurança › Chaves e tokens**, seção **IA e agentes (MCP)**, crie um token dedicado ao agente.
 2. Escolha a permissão mínima:
    - `read` para o agente só consultar e diagnosticar;
    - `deploy` para também implantar e reiniciar.

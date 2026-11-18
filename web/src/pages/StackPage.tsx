@@ -161,7 +161,7 @@ function OverviewTab(props: { git?: StackGitSource | null; stackId: string; stac
             <For each={props.containers}>
               {(container) => (
                 <div class="list-item">
-                  <div class="grow stack-sm" style={{ gap: "0" }}>
+                  <div class="grow stack-xs">
                     <span class="mono truncate">{container.name}</span>
                     <span class="small muted mono truncate">{container.image}</span>
                   </div>

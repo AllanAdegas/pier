@@ -109,7 +109,7 @@ export function NotificationsPage() {
               <For each={list()}>
                 {(channel) => (
                   <div class="list-item">
-                    <div class="grow stack-sm" style={{ gap: "0" }}>
+                    <div class="grow stack-xs">
                       <strong class="truncate">{channel.name}</strong>
                       <span class="small muted truncate">
                         {KINDS[channel.kind]?.label ?? channel.kind} · {channel.events.map((event) => EVENT_LABEL[event] ?? event).join(", ")}

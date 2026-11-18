@@ -54,7 +54,7 @@ export function ExpectedVariables(props: { stackId: string }) {
           <For each={relevant()}>
             {(variable) => (
               <div class="list-item">
-                <div class="stack-sm" style={{ gap: "0", flex: "1 1 220px", "min-width": "0" }}>
+                <div class="stack-xs" style={{ flex: "1 1 220px" }}>
                   <span class="mono truncate">{variable.name}</span>
                   <span class="small muted truncate">
                     {variable.kind === "address"

@@ -107,6 +107,14 @@ textarea {
   gap: var(--space-2);
 }
 
+/* Title and subtitle of one list row: read as a single unit. */
+.stack-xs {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+}
+
 .stack-lg {
   display: flex;
   flex-direction: column;
@@ -128,6 +136,10 @@ textarea {
   flex-wrap: wrap;
 }
 
+.align-end {
+  align-self: flex-end;
+}
+
 .grow {
   flex: 1 1 auto;
   min-width: 0;
@@ -143,6 +155,25 @@ textarea {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: var(--space-4);
+}
+
+/* Dashboard counters: six equal tiles, never one left alone on a row. */
+.grid-stats {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+@media (max-width: 1100px) {
+  .grid-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .grid-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .grid-2 {

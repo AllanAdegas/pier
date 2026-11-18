@@ -170,7 +170,7 @@ function MachineRow(props: { machine: CloudMachine; onChanged: () => void }) {
   return (
     <div class="list-item stack-sm" style={{ "align-items": "stretch" }}>
       <div class="row-between">
-        <div class="stack-sm" style={{ gap: "0" }}>
+        <div class="stack-xs">
           <strong>{props.machine.name}</strong>
           <span class="small muted">
             {PROVIDERS[props.machine.provider]} · {props.machine.region} · {props.machine.size} · {props.machine.image}

@@ -14,7 +14,7 @@ If the code fails, synchronize the clock of your phone and of the server. A code
 
 **Forgot my password** only appears when the instance has a public URL and an email channel configured. The link expires in 30 minutes and works once. The response does not confirm whether the email exists. Resetting the password ends sessions but keeps 2FA: keep your recovery codes.
 
-Under **Account sessions**, check the IP, browser and last activity. Revoke unknown sessions or use the option to close the other sessions. There is no guaranteed geographic location from the IP.
+Under **Security › Your account › Account sessions**, check the IP, browser and last activity. Revoke unknown sessions or use the option to close the other sessions. There is no guaranteed geographic location from the IP.
 
 ## Offline recovery by the operator
 

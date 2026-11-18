@@ -72,7 +72,7 @@ export function ClustersPage() {
                     <span class="muted">
                       <Icon name="cluster" size={20} />
                     </span>
-                    <div class="grow stack-sm" style={{ gap: "0" }}>
+                    <div class="grow stack-xs">
                       <strong class="truncate">{cluster.name}</strong>
                       <span class="small muted truncate">
                         {cluster.source === "k3s" ? t("K3s em container") : t("Importado")} · {cluster.endpoint}

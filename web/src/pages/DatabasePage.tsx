@@ -268,7 +268,7 @@ function BackupsTab(props: { database: Database; supported: boolean; onSaved: (d
                     {(backup) => (
                       <div class="list-item">
                         <StatusBadge status={backupStatus(backup.status)} />
-                        <div class="grow stack-sm" style={{ gap: "0" }}>
+                        <div class="grow stack-xs">
                           <span>
                             {formatDateTime(backup.started_at)} · {TRIGGER_LABEL[backup.trigger] ?? backup.trigger}
                           </span>

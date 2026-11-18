@@ -1,11 +1,12 @@
 import { GitProviders } from "./settings/GitProviders";
 import { GitConnections } from "./settings/GitConnections";
 import { EngineSettings } from "./settings/EngineSettings";
-import { createSignal } from "solid-js";
+import { createSignal, Match, Switch } from "solid-js";
+import { useLocation, useSearchParams } from "@solidjs/router";
 import { S3Settings } from "./settings/S3Settings";
 import { Button } from "../components/Button";
 import { QueryView } from "../components/Feedback";
-import { PageHeader, Section } from "../components/Page";
+import { PageHeader, Section, Tabs } from "../components/Page";
 import { api } from "../lib/api";
 import { createAction, createQuery } from "../lib/query";
 import { currentUser, signIn } from "../lib/state";
@@ -18,18 +19,39 @@ export function SettingsPage() {
     () => true,
     () => api.get<InstanceSettings>("/settings"),
   );
+  const [search, setSearch] = useSearchParams<{ tab?: string }>();
+  const location = useLocation();
+  // Old deep links (#instance-backup) still land on the right tab.
+  const tab = () => search.tab ?? (location.hash === "#instance-backup" ? "backups" : "instance");
+  const tabs = () => [
+    { id: "instance", label: t("Instância") },
+    { id: "backups", label: t("Backups") },
+    { id: "git", label: "Git" },
+    { id: "account", label: t("Sua conta") },
+  ];
   return (
     <div class="page">
       <PageHeader title={t("Configurações")} description={t("Preferências da instância e da sua conta.")} />
-      <QueryView query={settings}>{(data) => <InstanceForm settings={data()} />}</QueryView>
-      <InstanceBackup />
-      <S3Settings />
-      <GitProviders />
-      <GitConnections />
-      <EngineSettings />
-      <InterfaceLanguage />
-      <ProfileForm />
-      <PasswordForm />
+      <Tabs tabs={tabs()} selected={tab()} onSelect={(id) => setSearch({ tab: id })} />
+      <Switch>
+        <Match when={tab() === "instance"}>
+          <QueryView query={settings}>{(data) => <InstanceForm settings={data()} />}</QueryView>
+          <EngineSettings />
+        </Match>
+        <Match when={tab() === "backups"}>
+          <InstanceBackup />
+          <S3Settings />
+        </Match>
+        <Match when={tab() === "git"}>
+          <GitProviders />
+          <GitConnections />
+        </Match>
+        <Match when={tab() === "account"}>
+          <InterfaceLanguage />
+          <ProfileForm />
+          <PasswordForm />
+        </Match>
+      </Switch>
     </div>
   );
 }

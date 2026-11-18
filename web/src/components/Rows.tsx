@@ -54,7 +54,7 @@ export function ResourceList(props: { resources: Resources }) {
             <span class="muted">
               <Icon name={row.icon} size={20} />
             </span>
-            <div class="grow stack-sm" style={{ gap: "0" }}>
+            <div class="grow stack-xs">
               <strong class="truncate">{row.name}</strong>
               <span class="small muted truncate">{row.detail}</span>
             </div>
@@ -77,7 +77,7 @@ export function DeploymentList(props: { deployments: Deployment[]; showApplicati
         {(deployment) => (
           <A href={`/deployments/${deployment.id}`} class="list-item">
             <StatusBadge status={deploymentStatus(deployment.status)} />
-            <div class="grow stack-sm" style={{ gap: "0" }}>
+            <div class="grow stack-xs">
               <strong class="truncate">
                 <Show when={props.showApplication} fallback={deployment.commit_message || TRIGGER_LABEL[deployment.trigger]}>
                   {deployment.application_name}

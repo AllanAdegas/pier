@@ -1,8 +1,9 @@
-import { createSignal, For, Show } from "solid-js";
+import { createSignal, For, Match, Show, Switch } from "solid-js";
+import { useSearchParams } from "@solidjs/router";
 import { Button, IconButton } from "../components/Button";
 import { Alert, EmptyState, QueryView } from "../components/Feedback";
-import { Modal } from "../components/Modal";
-import { CopyField, PageHeader, Section } from "../components/Page";
+import { ConfirmDelete, Modal } from "../components/Modal";
+import { CopyField, PageHeader, Section, Tabs } from "../components/Page";
 import { api } from "../lib/api";
 import { formatDateTime, formatRelative } from "../lib/format";
 import { createAction, createQuery } from "../lib/query";
@@ -14,18 +15,42 @@ import { McpSection } from "./security/McpSection";
 import { TokenForm } from "./security/TokenForm";
 import { t } from "../i18n";
 import { Checkbox, TextArea, TextInput } from "../components/Form";
+import { AcceptInvite } from "./access/AcceptInvite";
+import { createInstanceRoles, InstanceRoleSelect } from "./access/InstanceRoles";
+import { allowed } from "./access/permissions";
+import { SSOSettings } from "./access/SSO";
 
 export function SecurityPage() {
   const [tokensVersion, setTokensVersion] = createSignal(0);
+  const [search, setSearch] = useSearchParams<{ tab?: string }>();
+  const tab = () => search.tab ?? "account";
+  const tabs = () => [
+    { id: "account", label: t("Sua conta") },
+    { id: "access", label: t("Chaves e tokens") },
+    { id: "users", label: t("Usuários") },
+    { id: "audit", label: t("Auditoria") },
+  ];
   return (
     <div class="page">
       <PageHeader title={t("Segurança")} description={t("Chaves SSH, tokens de API, acesso de IA e quem pode entrar no painel.")} />
-      <AccountSecurity />
-      <KeysSection />
-      <TokensSection version={tokensVersion()} />
-      <McpSection onTokenCreated={() => setTokensVersion(tokensVersion() + 1)} />
-      <UsersSection />
-      <AuditSection />
+      <Tabs tabs={tabs()} selected={tab()} onSelect={(id) => setSearch({ tab: id })} />
+      <Switch>
+        <Match when={tab() === "account"}>
+          <AccountSecurity />
+          <AcceptInvite />
+        </Match>
+        <Match when={tab() === "access"}>
+          <KeysSection />
+          <TokensSection version={tokensVersion()} />
+          <McpSection onTokenCreated={() => setTokensVersion(tokensVersion() + 1)} />
+        </Match>
+        <Match when={tab() === "users"}>
+          <UsersSection />
+        </Match>
+        <Match when={tab() === "audit"}>
+          <AuditSection />
+        </Match>
+      </Switch>
     </div>
   );
 }
@@ -64,7 +89,7 @@ function KeysSection() {
               <For each={list()}>
                 {(key) => (
                   <div class="list-item">
-                    <div class="grow stack-sm" style={{ gap: "0" }}>
+                    <div class="grow stack-xs">
                       <strong class="truncate">{key.name}</strong>
                       <span class="small muted mono truncate">{key.fingerprint}</span>
                     </div>
@@ -184,7 +209,7 @@ function TokensSection(props: { version: number }) {
               <For each={list()}>
                 {(token) => (
                   <div class="list-item">
-                    <div class="grow stack-sm" style={{ gap: "0" }}>
+                    <div class="grow stack-xs">
                       <strong class="truncate">{token.name}</strong>
                       <span class="small muted">
                         {token.last_used_at ? t("Usado {name}", { name: formatRelative(token.last_used_at) }) : t("Nunca usado")} ·{" "}
@@ -233,53 +258,86 @@ function UsersSection() {
     () => true,
     () => api.get<User[]>("/users"),
   );
+  const isOwner = () => allowed("write", undefined, "owner");
+  const roles = createInstanceRoles(isOwner);
   const [adding, setAdding] = createSignal(false);
+  const [removing, setRemoving] = createSignal<User | null>(null);
   const remove = createAction((id: string) => api.delete(`/users/${id}`), {
     success: t("Usuário removido."),
-    onSuccess: () => void users.refetch(),
+    onSuccess: () => {
+      setRemoving(null);
+      void users.refetch();
+      void roles.members.refetch();
+    },
   });
 
   return (
-    <Section
-      title={t("Usuários")}
-      description={t("Todos os usuários têm acesso total ao painel.")}
-      actions={
-        <Button small icon="plus" onClick={() => setAdding(true)}>{t("Novo usuário")}
-        </Button>
-      }
-    >
-      <QueryView query={users}>
-        {(list) => (
-          <div class="list">
-            <For each={list()}>
-              {(user) => (
-                <div class="list-item">
-                  <div class="grow stack-sm" style={{ gap: "0" }}>
-                    <strong class="truncate">{user.name}</strong>
-                    <span class="small muted truncate">{user.email}</span>
+    <>
+      <Section
+        title={t("Usuários")}
+        description={t("O papel na instância vale para todos os projetos e para servidores, configurações e usuários. Com “Somente projetos”, a pessoa vê apenas os projetos em que for membro.")}
+        actions={
+          <Button small icon="plus" onClick={() => setAdding(true)}>{t("Novo usuário")}
+          </Button>
+        }
+      >
+        <QueryView query={users}>
+          {(list) => (
+            <div class="list">
+              <For each={list()}>
+                {(user) => (
+                  <div class="list-item">
+                    <div class="grow stack-xs">
+                      <strong class="truncate">{user.name}</strong>
+                      <span class="small muted truncate">{user.email}</span>
+                    </div>
+                    <Show when={isOwner() && roles.members.data()}>
+                      <InstanceRoleSelect
+                        userId={user.id}
+                        role={roles.roleOf(user.id) ?? ""}
+                        pending={roles.change.pending()}
+                        onChange={(role) => void roles.change.run(user.id, role)}
+                      />
+                    </Show>
+                    <Show
+                      when={user.id !== currentUser()?.id}
+                      fallback={<span class="tag">{t("você")}</span>}
+                    >
+                      <IconButton icon="trash" label={t("Remover {name}", { name: user.name })} onClick={() => setRemoving(user)} />
+                    </Show>
                   </div>
-                  <Show
-                    when={user.id !== currentUser()?.id}
-                    fallback={<span class="tag">{t("você")}</span>}
-                  >
-                    <IconButton icon="trash" label={t("Remover {name}", { name: user.name })} onClick={() => void remove.run(user.id)} />
-                  </Show>
-                </div>
-              )}
-            </For>
-          </div>
-        )}
-      </QueryView>
-      <Show when={adding()}>
-        <UserForm
-          onClose={() => setAdding(false)}
-          onSaved={() => {
-            setAdding(false);
-            void users.refetch();
-          }}
-        />
+                )}
+              </For>
+            </div>
+          )}
+        </QueryView>
+        <Show when={adding()}>
+          <UserForm
+            onClose={() => setAdding(false)}
+            onSaved={() => {
+              setAdding(false);
+              void users.refetch();
+              void roles.members.refetch();
+            }}
+          />
+        </Show>
+        <Show when={removing()}>
+          {(user) => (
+            <ConfirmDelete
+              title={t("Remover usuário")}
+              resourceName={user().email}
+              description={t("A pessoa perde o acesso ao painel e as sessões abertas dela são encerradas.")}
+              pending={remove.pending()}
+              onConfirm={() => void remove.run(user().id)}
+              onClose={() => setRemoving(null)}
+            />
+          )}
+        </Show>
+      </Section>
+      <Show when={isOwner()}>
+        <SSOSettings members={roles.members.data() ?? []} />
       </Show>
-    </Section>
+    </>
   );
 }
 

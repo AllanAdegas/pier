@@ -14,7 +14,7 @@ Se o código falhar, sincronize o relógio do celular e do servidor. Um código 
 
 **Esqueci minha senha** só aparece quando a instância tem URL pública e canal de e-mail configurados. O link expira em 30 minutos e funciona uma vez. A resposta não confirma se o e-mail existe. Redefinir a senha encerra sessões, mas mantém o 2FA: guarde os códigos de recuperação.
 
-Em **Sessões da conta**, confira IP, navegador e última atividade. Revogue sessões desconhecidas ou use a opção de encerrar as outras sessões. Não há localização geográfica garantida pelo IP.
+Em **Segurança › Sua conta › Sessões da conta**, confira IP, navegador e última atividade. Revogue sessões desconhecidas ou use a opção de encerrar as outras sessões. Não há localização geográfica garantida pelo IP.
 
 ## Recuperação offline pelo operador
 

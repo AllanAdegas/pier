@@ -68,7 +68,7 @@ export function OverviewTab(props: { application: Application; containers: Conta
             <For each={props.containers}>
               {(container) => (
                 <div class="list-item">
-                  <div class="grow stack-sm" style={{ gap: "0" }}>
+                  <div class="grow stack-xs">
                     <span class="row">
                       <span class="mono truncate">{container.name}</span>
                       <Show when={container.process}>

@@ -5,7 +5,7 @@ Há dois tipos de backup, e você precisa dos dois:
 
 ## Backup da instância
 
-Em **Configurações › Backup da instância**:
+Em **Configurações › Backups**, seção **Backup da instância**:
 
 - **Baixar backup criptografado:** gera um arquivo `.pierbak`. Você escolhe uma frase-senha de pelo menos 16 caracteres.
 - **Backup automático local:** escolha a pasta de destino no servidor, um horário em cron (por exemplo `0 2 * * *`) e quantos backups manter.

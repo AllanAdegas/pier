@@ -125,7 +125,7 @@ function OverviewTab(props: { cluster: Cluster }) {
                 <For each={data().nodes}>
                   {(node) => (
                     <div class="list-item">
-                      <div class="grow stack-sm" style={{ gap: "0" }}>
+                      <div class="grow stack-xs">
                         <span class="mono truncate">{node.name}</span>
                         <span class="small muted truncate">{node.info}</span>
                       </div>
@@ -141,7 +141,7 @@ function OverviewTab(props: { cluster: Cluster }) {
                   <For each={data().events}>
                     {(event) => (
                       <div class="list-item">
-                        <div class="grow stack-sm" style={{ gap: "0" }}>
+                        <div class="grow stack-xs">
                           <span class="small">{event.info}</span>
                           <span class="small muted">
                             {event.namespace} · {formatRelative(event.created)}

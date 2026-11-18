@@ -40,7 +40,7 @@ For GitLab/Gitea/Forgejo instances on your own domain, choose the provider expli
 
 ## GitLab, Gitea and Bitbucket connections
 
-In **Settings**, open **Git connections**. Choose GitLab, Gitea / Forgejo or Bitbucket Cloud, enter the name, HTTPS address and **Access token**, then click **Save connection**. GitLab accepts subpaths; Bitbucket only accepts bitbucket.org, with an optional workspace. The token is validated and stored encrypted; responses never return it. To rotate it, fill **Access token** and click **Replace token** on the desired connection.
+In **Settings › Git**, open **Git connections**. Choose GitLab, Gitea / Forgejo or Bitbucket Cloud, enter the name, HTTPS address and **Access token**, then click **Save connection**. GitLab accepts subpaths; Bitbucket only accepts bitbucket.org, with an optional workspace. The token is validated and stored encrypted; responses never return it. To rotate it, fill **Access token** and click **Replace token** on the desired connection.
 
 GitLab requires `api`. Gitea/Forgejo requires user read and repository write. Bitbucket requires repository read and webhook write; it accepts Bearer or `username:app-password`. Restrict credentials to the necessary repositories.
 

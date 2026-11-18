@@ -29,7 +29,7 @@ cd pier-cli && make build      # gera bin/pierctl
 
 ## Conectar a uma instância
 
-Crie um token em **Segurança › Tokens de API** e salve a instância como um contexto:
+Crie um token em **Segurança › Chaves e tokens**, seção **Tokens de API**, e salve a instância como um contexto:
 
 ```sh
 printf %s "$TOKEN" | pierctl login https://pier.seudominio.com --token-stdin
