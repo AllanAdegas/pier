@@ -120,7 +120,7 @@ func TestServerContainerRouteReachesUnmanagedContainers(t *testing.T) {
 	if err != nil || ticket.Container.ID != "cccccccccccc1111" {
 		t.Fatalf("%+v err=%v", ticket, err)
 	}
-	session, err := service.Open(context.Background(), alice, ticket.Ticket, executor.WindowSize{Cols: 999, Rows: 999})
+	session, err := service.Open(context.Background(), alice, ticket.Ticket, executor.WindowSize{Cols: 999, Rows: 999}, allowTerminal)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,24 +145,24 @@ func TestTicketsAreSingleUseBoundToTheSessionAndExpire(t *testing.T) {
 		return ticket.Ticket
 	}
 	token := issue()
-	if _, err := service.Open(ctx, Owner{UserID: "alice", SessionID: "other"}, token, executor.WindowSize{}); errorKind(err) != apperr.KindUnauthorized {
+	if _, err := service.Open(ctx, Owner{UserID: "alice", SessionID: "other"}, token, executor.WindowSize{}, allowTerminal); errorKind(err) != apperr.KindUnauthorized {
 		t.Fatalf("other session redeemed: %v", err)
 	}
-	if _, err := service.Open(ctx, alice, token, executor.WindowSize{}); errorKind(err) != apperr.KindUnauthorized {
+	if _, err := service.Open(ctx, alice, token, executor.WindowSize{}, allowTerminal); errorKind(err) != apperr.KindUnauthorized {
 		t.Fatalf("leaked ticket still valid: %v", err)
 	}
 	token = issue()
-	session, err := service.Open(ctx, alice, token, executor.WindowSize{})
+	session, err := service.Open(ctx, alice, token, executor.WindowSize{}, allowTerminal)
 	if err != nil {
 		t.Fatal(err)
 	}
 	session.Close()
-	if _, err := service.Open(ctx, alice, token, executor.WindowSize{}); errorKind(err) != apperr.KindUnauthorized {
+	if _, err := service.Open(ctx, alice, token, executor.WindowSize{}, allowTerminal); errorKind(err) != apperr.KindUnauthorized {
 		t.Fatalf("ticket reused: %v", err)
 	}
 	token = issue()
 	service.tickets.now = func() time.Time { return time.Now().Add(time.Minute) }
-	if _, err := service.Open(ctx, alice, token, executor.WindowSize{}); errorKind(err) != apperr.KindUnauthorized {
+	if _, err := service.Open(ctx, alice, token, executor.WindowSize{}, allowTerminal); errorKind(err) != apperr.KindUnauthorized {
 		t.Fatalf("expired ticket: %v", err)
 	}
 }
@@ -175,7 +175,7 @@ func TestCapsPerUserAndPerServer(t *testing.T) {
 		if err != nil {
 			return nil, err
 		}
-		return service.Open(ctx, owner, ticket.Ticket, executor.WindowSize{})
+		return service.Open(ctx, owner, ticket.Ticket, executor.WindowSize{}, allowTerminal)
 	}
 	var sessions []*Session
 	for range 2 {
@@ -274,7 +274,7 @@ func openSession(t *testing.T, ex *executor.Fake, limits Limits) (*Service, *Ses
 	if err != nil {
 		t.Fatal(err)
 	}
-	session, err := service.Open(context.Background(), alice, ticket.Ticket, executor.WindowSize{Cols: 80, Rows: 24})
+	session, err := service.Open(context.Background(), alice, ticket.Ticket, executor.WindowSize{Cols: 80, Rows: 24}, allowTerminal)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -393,7 +393,7 @@ func TestShutdownClosesAllSessionsAndRefusesNewTickets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	session, err := s.Open(context.Background(), alice, ticket.Ticket, executor.WindowSize{})
+	session, err := s.Open(context.Background(), alice, ticket.Ticket, executor.WindowSize{}, allowTerminal)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -407,3 +407,24 @@ func TestShutdownClosesAllSessionsAndRefusesNewTickets(t *testing.T) {
 	}
 	s.Close()
 }
+
+func TestOpenAuthorizedFailsClosedBeforeConnecting(t *testing.T) {
+	service := NewService(nil)
+	for _, check := range []func(context.Context, Grant) error{nil, func(context.Context, Grant) error { return apperr.Forbidden("Acesso não autorizado.") }} {
+		token, err := service.tickets.issue(alice, Grant{ServerID: "srv"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := service.Open(context.Background(), alice, token, executor.WindowSize{}, check); errorKind(err) != apperr.KindForbidden {
+			t.Fatalf("expected forbidden, got %v", err)
+		}
+		if service.OpenCount() != 0 {
+			t.Fatal("denial reserved capacity")
+		}
+		if _, err := service.Open(context.Background(), alice, token, executor.WindowSize{}, check); errorKind(err) != apperr.KindUnauthorized {
+			t.Fatalf("denied ticket was reusable: %v", err)
+		}
+	}
+}
+
+func allowTerminal(context.Context, Grant) error { return nil }

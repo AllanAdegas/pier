@@ -65,12 +65,18 @@ func (s *Service) Issue(ctx context.Context, owner Owner, request Request) (Tick
 	return Ticket{Ticket: token, ExpiresIn: int(s.limits.TicketTTL.Seconds()), Container: container, Shell: request.Shell}, nil
 }
 
-// Open redeems a ticket, takes a slot and starts the shell. ctx must live as
-// long as the terminal: the session ends when it is cancelled. The caller
-// must Close the returned session or Serve it.
-func (s *Service) Open(ctx context.Context, owner Owner, token string, size executor.WindowSize) (*Session, error) {
+// Open consumes the ticket and checks current resource authorization before
+// reserving capacity, connecting to a server or starting a shell. A failed
+// check burns the ticket. The caller must Close or Serve the returned session.
+func (s *Service) Open(ctx context.Context, owner Owner, token string, size executor.WindowSize, authorize func(context.Context, Grant) error) (*Session, error) {
 	grant, err := s.tickets.redeem(owner, token)
 	if err != nil {
+		return nil, err
+	}
+	if authorize == nil {
+		return nil, apperr.Forbidden("Acesso não autorizado.")
+	}
+	if err := authorize(ctx, grant); err != nil {
 		return nil, err
 	}
 	release, err := s.reserve(owner.UserID, grant.ServerID)
