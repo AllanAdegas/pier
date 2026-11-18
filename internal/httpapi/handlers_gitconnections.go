@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"pier/internal/gitprovider"
-	"pier/internal/identity"
 	"pier/internal/platform/apperr"
 )
 
@@ -96,9 +95,6 @@ func (a *API) registerGitConnectionRoutes(mux *http.ServeMux) {
 			return noContent(w)
 		})
 		a.route(mux, "PUT "+base, canWrite, func(w http.ResponseWriter, r *http.Request) error {
-			if _, err := a.authorizeScope(r.Context(), principalFrom(r.Context()), "", identity.AbilityWrite, ""); err != nil {
-				return err
-			}
 			input, err := decode[struct {
 				ConnectionID string `json:"connection_id"`
 				Repository   string `json:"repository"`
