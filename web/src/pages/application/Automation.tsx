@@ -10,13 +10,17 @@ import type { Application, ScheduledTask, TaskExecution, WebhookInfo } from "../
 import { t } from "../../i18n";
 import { Checkbox, TextInput } from "../../components/Form";
 import { GitIntegration } from "../settings/GitIntegration";
+import { GitFeedbackReports } from "../settings/GitFeedbackReports";
 
 /** Automatic deploys (webhooks) and commands that run on a schedule. */
 export function AutomationTab(props: { application: Application; onSaved: (application: Application) => void }) {
   return (
     <div class="stack-lg">
       <WebhooksSection application={props.application} onSaved={props.onSaved} />
-      <Show when={props.application.config.build.pack !== "image"}><GitIntegration kind="applications" id={props.application.id} repository={props.application.config.source.repository} /></Show>
+      <Show when={props.application.config.build.pack !== "image"}>
+        <GitIntegration kind="applications" id={props.application.id} repository={props.application.config.source.repository} />
+        <GitFeedbackReports kind="applications" id={props.application.id} />
+      </Show>
       <TasksSection applicationId={props.application.id} />
     </div>
   );

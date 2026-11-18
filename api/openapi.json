@@ -3594,6 +3594,89 @@
           "callback"
         ]
       },
+      "identity.OIDCLink": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "x-json-always-serialized": [
+          "issuer",
+          "subject",
+          "user_id",
+          "email"
+        ]
+      },
+      "identity.OIDCSettings": {
+        "properties": {
+          "allowed_issuers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "callback": {
+            "type": "string"
+          },
+          "client_id": {
+            "type": "string"
+          },
+          "client_secret_set": {
+            "type": "boolean"
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "default_role": {
+            "type": "string"
+          },
+          "expected_callback": {
+            "type": "string"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/identity.OIDCLink"
+            },
+            "type": "array"
+          },
+          "role_claim": {
+            "type": "string"
+          },
+          "role_mappings": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          }
+        },
+        "type": "object",
+        "x-json-always-serialized": [
+          "configured",
+          "issuer",
+          "client_id",
+          "client_secret_set",
+          "callback",
+          "role_claim",
+          "role_mappings",
+          "default_role",
+          "allowed_issuers",
+          "expected_callback",
+          "links"
+        ]
+      },
       "identity.Session": {
         "properties": {
           "created_at": {
@@ -7109,6 +7192,135 @@
           }
         ],
         "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\tif err := provider.Disable(r.Context(), principalFrom(r.Context()).User.ID); err != nil {\n\t\treturn err\n\t}\n\treturn noContent(w)\n}",
+        "tags": [
+          "access"
+        ],
+        "x-pier-ability": "write",
+        "x-pier-access": "sessionOnly",
+        "x-pier-session-only": true,
+        "x-source": "internal/httpapi/handlers_access.go"
+      },
+      "get": {
+        "operationId": "GET__api_v1_access_oidc",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/identity.OIDCSettings"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\tsettings, err := provider.Settings(r.Context(), principalFrom(r.Context()).User.ID)\n\tif err != nil {\n\t\treturn err\n\t}\n\treturn ok(w, settings)\n}",
         "tags": [
           "access"
         ],
@@ -55919,6 +56131,6 @@
       "url": "/"
     }
   ],
-  "x-route-count": 329,
-  "x-route-inventory-sha256": "caa47e49168ff89c757093e31b2dfe9b1f8f1c0b3372f62c3b6cf4f78a752a8d"
+  "x-route-count": 330,
+  "x-route-inventory-sha256": "c52e5286310cc68a6b7be26de7914bd375d089dcdb473df83c072b532d4c2f28"
 }

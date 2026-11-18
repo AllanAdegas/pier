@@ -1,5 +1,5 @@
 export const englishRbac: Record<string, string> = {
- "Revogar identidade SSO": "Revoke SSO identity", "Desativar SSO": "Disable SSO",
+ "Desativar SSO": "Disable SSO",
  "SSO OpenID Connect": "OpenID Connect SSO",
  "Somente o proprietário da instância configura SSO. Autorize cada identidade pelo subject; emails não criam vínculos.": "Only the instance owner configures SSO. Authorize each identity by subject; emails do not create links.",
  "Alteração salva.": "Change saved.", "Issuer permitido": "Allowed issuer", "Client ID": "Client ID", "Client secret": "Client secret", "Callback HTTPS": "HTTPS callback", "Salvar SSO": "Save SSO", "Subject autorizado": "Authorized subject", "Autorizar identidade SSO": "Authorize SSO identity", "Aceitar convite": "Accept invitation", "Token do convite": "Invitation token",

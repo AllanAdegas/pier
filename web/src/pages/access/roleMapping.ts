@@ -17,3 +17,8 @@ export function parseRoleMappings(text: string): { mappings: Record<string, Role
   }
   return { mappings, invalid };
 }
+
+/** Writes a stored mapping back as sorted "group=role" lines for editing. */
+export function formatRoleMappings(mappings: Record<string, string>): string {
+  return Object.keys(mappings).sort().map((group) => `${group}=${mappings[group]}`).join("\n");
+}
