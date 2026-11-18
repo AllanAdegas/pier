@@ -24,7 +24,7 @@ const NAVIGATION: NavItem[] = [
   { href: "/", label: t("Painel"), icon: "dashboard" },
   { href: "/projects", label: t("Projetos"), icon: "folder", also: ["/applications", "/databases", "/stacks"] },
   { href: "/deployments", label: "Deploys", icon: "rocket" },
-  { href: "/servers", label: t("Infraestrutura"), icon: "server", also: ["/clusters", "/monitoring"] },
+  { href: "/servers", label: t("Infraestrutura"), icon: "server", also: ["/clusters", "/swarm", "/monitoring"] },
   { href: "/security", label: t("Segurança"), icon: "shield" },
   { href: "/notifications", label: t("Notificações"), icon: "bell" },
   { href: "/settings", label: t("Configurações"), icon: "settings" },

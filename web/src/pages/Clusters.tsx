@@ -13,13 +13,14 @@ import { t } from "../i18n";
 import { NumberInput, Select, TextArea, TextInput } from "../components/Form";
 
 /** Servers and clusters are the two halves of "where things run". */
-export function InfrastructureTabs(props: { current: "servers" | "clusters" | "monitoring" }) {
+export function InfrastructureTabs(props: { current: "servers" | "clusters" | "swarm" | "monitoring" }) {
   const navigate = useNavigate();
   return (
     <Tabs
       tabs={[
         { id: "servers", label: t("Servidores Docker") },
         { id: "clusters", label: t("Clusters Kubernetes") },
+        { id: "swarm", label: "Docker Swarm" },
         { id: "monitoring", label: t("Monitoramento") },
       ]}
       selected={props.current}
@@ -48,7 +49,6 @@ export function ClustersPage() {
         }
       />
       <InfrastructureTabs current="clusters" />
-      <a href="/swarm">Docker Swarm</a>
       <QueryView query={clusters}>
         {(list) => (
           <Show
