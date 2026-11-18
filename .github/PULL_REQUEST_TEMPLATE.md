@@ -17,5 +17,6 @@
 - [ ] New tests for the new behavior; `make test` passes / Testes novos para o comportamento novo; `make test` passa
 - [ ] New routes declare the permission (`read`/`deploy`/`write`), validate input and do not expose secrets / Rotas novas declaram a permissão, validam a entrada e não expõem segredos
 - [ ] Every user-facing text I changed exists in English and Portuguese (UI, docs, site, installer, CLI) / Todo texto visível que alterei existe em inglês e em português
+- [ ] Commits are signed off (`git commit -s`) and I license this contribution as described in CONTRIBUTING / Commits assinados (`git commit -s`) e licencio esta contribuição como descrito no CONTRIBUTING
 - [ ] New dependencies have a license compatible with Apache-2.0 and are in `THIRD_PARTY_NOTICES.md` / Dependências novas têm licença compatível com Apache-2.0 e estão em `THIRD_PARTY_NOTICES.md`
 - [ ] I did not edit the version or `CHANGELOG.md` (release-please handles it) / Não editei versão nem `CHANGELOG.md` (o release-please cuida)

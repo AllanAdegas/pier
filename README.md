@@ -2,7 +2,7 @@ English | [Português](README.pt-BR.md)
 
 # Pier
 
-[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE) [![CI](https://github.com/AllanAdegas/pier/actions/workflows/ci.yml/badge.svg)](https://github.com/AllanAdegas/pier/actions/workflows/ci.yml)
+[![License: Apache-2.0 + Commons Clause](https://img.shields.io/badge/license-Apache--2.0%20%2B%20Commons%20Clause-blue.svg)](LICENSE) [![CI](https://github.com/AllanAdegas/pier/actions/workflows/ci.yml/badge.svg)](https://github.com/AllanAdegas/pier/actions/workflows/ci.yml)
 
 Self-hosted dashboard for putting projects on your own servers: applications, databases and compose services, with a domain, HTTPS and deploys that wait for readiness and roll back on failure. Written in Go and SolidJS.
 
@@ -122,7 +122,7 @@ Every user is an administrator. An API token can be `read`, `deploy` or `write`;
 
 ## Contributing
 
-Pier is free software and built to keep going without a dedicated maintainer: CI validates, releases go out on their own and dependencies update through automation. Read [CONTRIBUTING.md](CONTRIBUTING.md), [GOVERNANCE.md](GOVERNANCE.md) and the [Code of Conduct](CODE_OF_CONDUCT.md). Vulnerabilities: [SECURITY.md](SECURITY.md).
+Pier is source-available ([license](#license)) and built to keep going without a dedicated maintainer: CI validates, releases go out on their own and dependencies update through automation. Read [CONTRIBUTING.md](CONTRIBUTING.md), [GOVERNANCE.md](GOVERNANCE.md) and the [Code of Conduct](CODE_OF_CONDUCT.md). Vulnerabilities: [SECURITY.md](SECURITY.md).
 
 ## Development
 
@@ -157,7 +157,7 @@ web/             SolidJS interface
 
 ## License
 
-[Apache License 2.0](LICENSE). Third-party notices in [NOTICE](NOTICE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Source-available: [Apache License 2.0 with the Commons Clause](LICENSE). Use it freely, including commercially inside your company; **selling** Pier or a product or service based on it, even with small changes, requires a [commercial license](COMMERCIAL.md). Versions up to 0.9.0 remain under plain Apache-2.0. Third-party notices in [NOTICE](NOTICE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Documentation
 

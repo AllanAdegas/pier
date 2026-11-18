@@ -2,7 +2,7 @@
 
 # Pier 0.6.0 — beta
 
-Painel self-hosted Apache-2.0 para equipes pequenas. Esta linha continua em beta: os recursos e limites abaixo devem orientar a adoção. Os controles locais passaram por três rodadas de QA com escopo delimitado. Consulte os limites abaixo; disponibilidade dos artefatos e instalação pública exigem verificação após a publicação.
+Painel self-hosted com código-fonte disponível para equipes pequenas (Apache-2.0 com a Commons Clause a partir da versão seguinte à 0.9.0). Esta linha continua em beta: os recursos e limites abaixo devem orientar a adoção. Os controles locais passaram por três rodadas de QA com escopo delimitado. Consulte os limites abaixo; disponibilidade dos artefatos e instalação pública exigem verificação após a publicação.
 
 - Autenticação TOTP/recovery, redefinição de senha, sessões e SSO OIDC; papéis de instância/projeto e convites.
 - Previews isolados por identidade, com forks desligados por padrão; Git stacks e integrações GitHub App/provedores.

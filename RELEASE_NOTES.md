@@ -2,7 +2,7 @@ English | [Português](RELEASE_NOTES.pt-BR.md)
 
 # Pier 0.6.0 — beta
 
-Self-hosted Apache-2.0 panel for small teams. This line remains in beta: the features and limits below should guide adoption. The local controls went through three rounds of QA with a bounded scope. See the limits below; artifact availability and public installation require verification after publication.
+Self-hosted, source-available panel for small teams (Apache-2.0 with the Commons Clause from the release after 0.9.0). This line remains in beta: the features and limits below should guide adoption. The local controls went through three rounds of QA with a bounded scope. See the limits below; artifact availability and public installation require verification after publication.
 
 - TOTP/recovery authentication, password reset, sessions and OIDC SSO; instance/project roles and invitations.
 - Previews isolated by identity, with forks off by default; Git stacks and GitHub App/provider integrations.

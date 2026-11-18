@@ -199,7 +199,7 @@ pierctl up            # envia a pasta atual e implanta`,
     betaTextHtml: (version) =>
       `A versão do código é ${version}. Estes guias acompanham o desenvolvimento da linha PIER 0.6; a tag publicada indicada acima pode ainda não conter os recursos novos. Confira as notas da release antes de instalar. As limitações de integração e validação aparecem em cada guia. Ainda é beta: teste o que for usar antes de colocar algo crítico, e faça o backup da instância logo no primeiro dia.`,
     licenseHtml: (governanceHref) =>
-      `Licença Apache-2.0. A automação reduz manutenção rotineira; revisão humana, decisões de segurança e recuperação continuam necessárias. <a href="${governanceHref}">Licença e governança</a>.`,
+      `Licença Apache-2.0 com Commons Clause: uso livre, inclusive comercial dentro da empresa; vender o Pier exige licença comercial. A automação reduz manutenção rotineira; revisão humana, decisões de segurança e recuperação continuam necessárias. <a href="${governanceHref}">Licença e governança</a>.`,
     notYetLink: "O que o Pier ainda não faz →",
   },
 };
@@ -311,7 +311,7 @@ pierctl up            # uploads the current folder and deploys`,
     betaTextHtml: (version) =>
       `The code version is ${version}. These guides follow the development of the PIER 0.6 line; the published tag shown above may not include the new features yet. Check the release notes before installing. The integration and validation limits are listed in each guide. It is still beta: test what you will use before putting anything critical on it, and back up the instance on the very first day.`,
     licenseHtml: (governanceHref) =>
-      `Apache-2.0 license. Automation reduces routine maintenance; human review, security decisions and recovery are still needed. <a href="${governanceHref}">License and governance</a>.`,
+      `Apache-2.0 license with the Commons Clause: free to use, including commercially inside your company; selling Pier requires a commercial license. Automation reduces routine maintenance; human review, security decisions and recovery are still needed. <a href="${governanceHref}">License and governance</a>.`,
     notYetLink: "What Pier does not do yet →",
   },
 };

@@ -10,7 +10,7 @@ Pier was designed to **keep working without a dedicated maintainer**: where othe
 2. **Releases are automatic.** release-please turns Conventional Commits into a version, `CHANGELOG.md` and a tag; the image and the site are published by the workflows. Nobody bumps versions by hand.
 3. **Dependencies update themselves.** Dependabot opens grouped weekly PRs; *patch* and *minor* updates go in by auto-merge when CI passes. *Major* updates wait for human review.
 4. **Decisions are written down.** Discussions, issues and PRs are the record; relevant design changes become an issue labeled `design` or a document in the repository.
-5. **Forking is a right, not a threat.** The license is Apache-2.0 and the image, the installer and the workflows work in any fork (swap the owner in `ghcr.io/<owner>/pier` and in the workflows). If the project stops, the community can carry on.
+5. **Forking is a right, not a threat.** The license (Apache-2.0 with the Commons Clause, see [COMMERCIAL.md](COMMERCIAL.md)) allows forks for any use except selling, and the image, the installer and the workflows work in any fork (swap the owner in `ghcr.io/<owner>/pier` and in the workflows). If the project stops, the community can carry on.
 
 ## How a change gets in
 

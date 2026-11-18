@@ -164,8 +164,8 @@ export const sections: DocSection[] = [
         slug: { pt: "comunidade", en: "community" },
         title: { pt: "Licença e governança", en: "License and governance" },
         description: {
-          pt: "Apache-2.0, contribuição e responsabilidade humana.",
-          en: "Apache-2.0, contributing and human responsibility.",
+          pt: "Apache-2.0 com Commons Clause, licença comercial, contribuição e responsabilidade humana.",
+          en: "Apache-2.0 with the Commons Clause, commercial license, contributing and human responsibility.",
         },
       },
       {

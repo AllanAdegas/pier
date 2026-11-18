@@ -1,6 +1,11 @@
 ## Licença e acesso
 
-O Pier usa a licença **Apache-2.0**. Leia [LICENSE]({{repo}}/blob/main/LICENSE), [NOTICE]({{repo}}/blob/main/NOTICE) e os avisos de dependências no repositório antes de redistribuir.
+O Pier tem **código-fonte disponível**, sob a licença **Apache-2.0 com a Commons Clause**. Na prática:
+
+- **Pode, sem pedir nem pagar:** usar na sua empresa, inclusive para fins comerciais; implantar com ele os seus sistemas e os que você desenvolve para clientes, desde que eles não recebam acesso ao Pier; estudar, modificar, fazer fork e distribuir gratuitamente.
+- **Precisa de licença comercial, com royalties:** vender o Pier ou algo cujo valor venha dele, mesmo com poucas alterações. Isso inclui revenda, versão com outra marca (*white label*), painel hospedado ou gerenciado pago e suporte ou consultoria paga do próprio Pier.
+
+Não é "open source" na definição da OSI, porque a venda depende de licença comercial. Versões até a 0.9.0 continuam sob Apache-2.0 pura. Leia [LICENSE]({{repo}}/blob/main/LICENSE), [COMMERCIAL]({{repo}}/blob/main/COMMERCIAL.pt-BR.md), [NOTICE]({{repo}}/blob/main/NOTICE) e os avisos de dependências antes de redistribuir.
 
 ## Contribuir e reportar problemas
 

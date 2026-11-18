@@ -60,6 +60,6 @@ Follow the [installation](/en/docs/installation/) guide: it takes about 10 minut
 
 ## License and responsibility
 
-The code uses Apache-2.0. The repository and the images are public. See [license and governance](/en/docs/community/). Automation reduces maintenance, but it does not replace human review.
+The code uses Apache-2.0 with the Commons Clause: free to use, including commercially inside your company; selling Pier requires a commercial license. See [license and governance](/en/docs/community/). Automation reduces maintenance, but it does not replace human review.
 
 The new guides follow the development of the 0.6 line. The published version {{version}} may not contain all these features until the matching release; check the notes of the tag you choose.

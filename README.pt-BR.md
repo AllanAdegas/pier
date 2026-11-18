@@ -2,7 +2,7 @@
 
 # Pier
 
-[![Licença: Apache-2.0](https://img.shields.io/badge/licen%C3%A7a-Apache--2.0-blue.svg)](LICENSE) [![CI](https://github.com/AllanAdegas/pier/actions/workflows/ci.yml/badge.svg)](https://github.com/AllanAdegas/pier/actions/workflows/ci.yml)
+[![Licença: Apache-2.0 + Commons Clause](https://img.shields.io/badge/licen%C3%A7a-Apache--2.0%20%2B%20Commons%20Clause-blue.svg)](LICENSE) [![CI](https://github.com/AllanAdegas/pier/actions/workflows/ci.yml/badge.svg)](https://github.com/AllanAdegas/pier/actions/workflows/ci.yml)
 
 Painel self-hosted para subir projetos em servidores próprios: aplicações, bancos de dados e serviços compose, com domínio, HTTPS e deploy com verificação de prontidão e compensação de falhas. Escrito em Go e SolidJS.
 
@@ -122,7 +122,7 @@ Todo usuário é administrador. Um token de API pode ser `read`, `deploy` ou `wr
 
 ## Contribuir
 
-O Pier é software livre e feito para seguir sem um mantenedor dedicado: o CI valida, os releases saem sozinhos e as dependências se atualizam por automação. Leia o [CONTRIBUTING.pt-BR.md](CONTRIBUTING.pt-BR.md), o [GOVERNANCE.pt-BR.md](GOVERNANCE.pt-BR.md) e o [Código de Conduta](CODE_OF_CONDUCT.pt-BR.md). Vulnerabilidades: [SECURITY.pt-BR.md](SECURITY.pt-BR.md).
+O Pier tem código-fonte disponível ([licença](#licença)) e é feito para seguir sem um mantenedor dedicado: o CI valida, os releases saem sozinhos e as dependências se atualizam por automação. Leia o [CONTRIBUTING.pt-BR.md](CONTRIBUTING.pt-BR.md), o [GOVERNANCE.pt-BR.md](GOVERNANCE.pt-BR.md) e o [Código de Conduta](CODE_OF_CONDUCT.pt-BR.md). Vulnerabilidades: [SECURITY.pt-BR.md](SECURITY.pt-BR.md).
 
 ## Desenvolver
 
@@ -157,7 +157,7 @@ web/             interface SolidJS
 
 ## Licença
 
-[Apache License 2.0](LICENSE). Avisos de terceiros em [NOTICE](NOTICE) e [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Código-fonte disponível: [Apache License 2.0 com a Commons Clause](LICENSE). Use à vontade, inclusive comercialmente dentro da sua empresa; **vender** o Pier ou um produto ou serviço baseado nele, mesmo com poucas alterações, exige [licença comercial](COMMERCIAL.pt-BR.md). Versões até a 0.9.0 continuam sob Apache-2.0 pura. Avisos de terceiros em [NOTICE](NOTICE) e [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Documentação
 

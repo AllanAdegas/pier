@@ -2,13 +2,17 @@ English | [Português](CONTRIBUTING.pt-BR.md)
 
 # Contributing to Pier
 
-Thank you for wanting to help. Pier is free software under [Apache-2.0](LICENSE) and was designed to keep going **without depending on one person**: CI decides whether a change is safe, release-please publishes versions and Dependabot looks after dependencies. See how decisions are made in [GOVERNANCE.md](GOVERNANCE.md). By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
+Thank you for wanting to help. Pier is source-available under [Apache-2.0 with the Commons Clause](LICENSE): anyone may use it, including commercially in-house, but selling it requires a [commercial license](COMMERCIAL.md). It was designed to keep going **without depending on one person**: CI decides whether a change is safe, release-please publishes versions and Dependabot looks after dependencies. See how decisions are made in [GOVERNANCE.md](GOVERNANCE.md). By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Before you start
 
 - **Bug or idea:** open an issue through the forms (bug, feature). Usage questions go to **Discussions**, not to issues.
 - **Vulnerability:** never in a public issue. See [SECURITY.md](SECURITY.md).
 - Large changes: open an issue or discussion first, to align on the design and avoid rework.
+
+## Licensing of contributions
+
+By submitting a contribution (code, documentation, translations or any other material) you confirm that you have the right to do so, and you license it to the Licensor under the Apache License, Version 2.0, **without** the Commons Clause condition. This lets the Licensor distribute it as part of Pier under the project's license and include it in commercial licenses. You keep the copyright of your contribution. Mark every commit with `git commit -s` (Developer Certificate of Origin).
 
 ## Development environment
 

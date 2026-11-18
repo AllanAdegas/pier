@@ -1,7 +1,11 @@
 Pier
 Copyright 2026 Allan Adegas
 
-Licensed under the Apache License, Version 2.0. See LICENSE.
+Licensed under the Apache License, Version 2.0, with the Commons Clause
+License Condition v1.0 and the Licensor's clarifications. See LICENSE.
+Selling Pier, or a product or service based on it, requires a commercial
+license from the Licensor; see COMMERCIAL.md. Internal use, including
+commercial use, is permitted.
 
 This product includes third-party software, each distributed under its own
 license; see THIRD_PARTY_NOTICES.md and the go.mod and web/deno.lock files.
