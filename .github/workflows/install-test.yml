@@ -1,0 +1,86 @@
+name: Install test / Teste de instalação
+
+# Proves on real Linux amd64 that ./install.sh installs a clean instance and
+# upgrades the last published release without losing data. Private repositories
+# on the free plan pay for minutes, so it runs only when the install path
+# changes, weekly, or on demand. Scripts: tools/installtest (make install-test).
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * 1"
+  pull_request:
+    paths:
+      - install.sh
+      - compose*.yaml
+      - Dockerfile
+      - web/**
+      - internal/**
+      - cmd/**
+      - go.mod
+      - go.sum
+      - .dockerignore
+      - internal/platform/sqlite/migrations/**
+      - tools/installtest/**
+      - .github/workflows/install-test.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: install-test-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Last published release the upgrade starts from (image ghcr.io/allanadegas/pier, public).
+  PIER_OLD_REF: v0.7.0
+
+jobs:
+  ubuntu:
+    name: Ubuntu 24.04 (install/upgrade/rollback; instalação/atualização/rollback)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.PIER_OLD_REF }}
+          path: old-release
+          persist-credentials: false
+      - name: Ensure sqlite3 / Garantir sqlite3
+        run: command -v sqlite3 >/dev/null || sudo apt-get install -y -qq sqlite3
+      - name: Clean install / Instalação limpa
+        run: sh tools/installtest/clean-install.sh
+        env:
+          INSTALLTEST_ROOT: ${{ runner.temp }}/pier-v08-installtest
+      - name: Upgrade and rollback / Atualização e rollback
+        run: sh tools/installtest/upgrade.sh
+        env:
+          INSTALLTEST_ROOT: ${{ runner.temp }}/pier-v08-installtest
+          PIER_OLD_SRC: ${{ github.workspace }}/old-release
+
+  # Explicit docker run supports host networking; Actions job containers do not.
+  debian:
+    name: Debian 12 amd64 / Debian 12 amd64
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.PIER_OLD_REF }}
+          path: old-release
+          persist-credentials: false
+      - name: Install and upgrade in Debian / Instalar e atualizar no Debian
+        run: |
+          docker run --rm --platform linux/amd64 --network host \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE:ro" \
+            -v /opt:/opt -w "$GITHUB_WORKSPACE" \
+            -e PIER_OLD_REF -e PIER_OLD_SRC="$GITHUB_WORKSPACE/old-release" \
+            -e INSTALLTEST_ROOT=/opt/pier-v08-installtest-run \
+            debian:12 sh tools/installtest/debian.sh

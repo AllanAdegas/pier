@@ -1,0 +1,3 @@
+services:
+  pier:
+    image: pier-v08-installtest:current

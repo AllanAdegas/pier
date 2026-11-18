@@ -8,7 +8,7 @@ BINARY := bin/pier
 GOBUILD := CGO_ENABLED=0 go build -trimpath -ldflags="-s -w"
 WEBUI  := internal/webui/dist
 
-.PHONY: all web build test vet run dev-api dev-web docker-build docker-up docker-down lint-workflows docpairs clean
+.PHONY: all web build test vet run dev-api dev-web docker-build docker-up docker-down install-test lint-workflows docpairs clean
 
 all: build
 
@@ -51,6 +51,11 @@ docker-up:
 ## docker-down: stop the Pier container; what it deployed keeps running
 docker-down:
 	docker compose down
+
+## install-test: clean install, upgrade from the last release and rollback against the local Docker (builds the image; pulls the old one)
+install-test:
+	sh tools/installtest/clean-install.sh
+	sh tools/installtest/upgrade.sh
 
 ## lint-workflows: check the GitHub Actions workflows with actionlint (downloads it)
 lint-workflows:
