@@ -31,6 +31,7 @@ import (
 	"pier/internal/server"
 	"pier/internal/settings"
 	"pier/internal/stack"
+	"pier/internal/swarm"
 	"pier/internal/terminal"
 	"pier/internal/updates"
 	"pier/internal/version"
@@ -47,6 +48,7 @@ type Dependencies struct {
 	LogDrains        *logdrain.Service
 	GitConnections   *gitprovider.Connections
 	GitProviders     *gitprovider.Service
+	GitFeedback      *gitprovider.Queue
 	MultiServer      *application.MultiServer
 	Registries       *registry.Service
 	Instance         *instance.Service
@@ -66,6 +68,7 @@ type Dependencies struct {
 	Stacks           *stack.Service
 	VolumeBackups    *volumebackup.Service
 	Engine           *engine.Service
+	Swarm            *swarm.Service
 	Clusters         *cluster.Service
 	Tasks            *schedule.TaskService
 	Notifications    *notify.Service
@@ -150,8 +153,10 @@ func (a *API) Handler() http.Handler {
 	a.registerVolumeBackupRoutes(mux)
 	a.registerDockerRoutes(mux)
 	a.registerClusterRoutes(mux)
+	a.registerSwarmRoutes(mux)
 	a.registerMiscRoutes(mux)
 	a.registerGitProviderRoutes(mux)
+	a.registerGitFeedbackRoutes(mux)
 	a.registerGitConnectionRoutes(mux)
 	a.registerUpdateRoutes(mux)
 	a.registerTerminalRoutes(mux)

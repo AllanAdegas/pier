@@ -180,7 +180,7 @@ func (a *API) listApplicationDeployments(w http.ResponseWriter, r *http.Request)
 }
 
 func (a *API) applicationContainers(w http.ResponseWriter, r *http.Request) error {
-	containers, err := a.Applications.Containers(r.Context(), r.PathValue("id"))
+	containers, err := a.Applications.ContainersOn(r.Context(), r.PathValue("id"), r.URL.Query().Get("server_id"))
 	if err != nil {
 		return err
 	}

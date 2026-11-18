@@ -4,6 +4,7 @@ import type { StatusView } from "../../lib/format";
 // Placement of an application: where it is built and which servers run it.
 
 export interface Placement {
+  swarm_cluster_id?: string;
   build_server_id: string;
   registry_id: string;
   repository: string;
@@ -92,6 +93,7 @@ export function toggleDestination(placement: Placement, primary: string, serverI
 /** A build leaves its server when another server builds or runs it. */
 export function needsRegistry(placement: Placement, primary: string, imagePack: boolean): boolean {
   if (imagePack) return false;
+  if (placement.swarm_cluster_id) return true;
   const build = placement.build_server_id || primary;
   return placement.destinations.some((id) => id !== build) || build !== primary;
 }

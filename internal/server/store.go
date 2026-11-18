@@ -101,7 +101,8 @@ func (s *Store) countResources(ctx context.Context, serverID string) (int, error
 		(SELECT COUNT(*) FROM applications WHERE server_id = ?1) +
 		(SELECT COUNT(*) FROM databases WHERE server_id = ?1) +
 		(SELECT COUNT(*) FROM stacks WHERE server_id = ?1) +
-		(SELECT COUNT(*) FROM clusters WHERE server_id = ?1)`, serverID).Scan(&count)
+		(SELECT COUNT(*) FROM clusters WHERE server_id = ?1) +
+		(SELECT COUNT(*) FROM swarm_nodes WHERE server_id = ?1)`, serverID).Scan(&count)
 	return count, err
 }
 

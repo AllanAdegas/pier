@@ -1,4 +1,5 @@
 import { createEffect, createSignal, For, Show } from "solid-js";
+import { TerminalButton } from "../../components/Terminal";
 import { Button } from "../../components/Button";
 import { Alert, EmptyState, QueryView, StatusBadge } from "../../components/Feedback";
 import { Checkbox, Select, TextInput } from "../../components/Form";
@@ -19,6 +20,7 @@ import {
   shortImage,
   toggleDestination,
 } from "./placementModel";
+import { serverOperationPath } from "./serverOperations";
 import { RegistriesSection } from "./PlacementRegistries";
 
 /** Where the application is built and which servers run it, with their live state. */
@@ -26,6 +28,7 @@ export function PlacementTab(props: { application: Application }) {
   return (
     <div class="stack-lg">
       <PlacementSettings application={props.application} />
+      <RolloutRecovery applicationId={props.application.id} />
       <PlacementServers applicationId={props.application.id} />
       <RegistriesSection />
     </div>
@@ -64,6 +67,7 @@ function PlacementSettings(props: { application: Application }) {
           <Show when={draft()}>
             {(current) => (
               <div class="stack">
+                <TextInput label={t("ID do alvo Swarm")} value={current().swarm_cluster_id ?? ""} onValue={(value) => change({ swarm_cluster_id: value.trim() })} />
                 <fieldset class="stack-sm">
                   <legend class="field-label">{t("Servidores que rodam a aplicação")}</legend>
                   <For each={list()}>
@@ -200,6 +204,7 @@ function ServerCard(props: { applicationId: string; server: PlacementServer }) {
                   <span class="row small muted">
                     <span>CPU {container.cpu_percent || "—"}</span>
                     <span>{t("Memória")} {container.memory_usage || "—"}</span>
+                    <TerminalButton endpoint={serverOperationPath(props.applicationId, props.server.server_id, "terminal")} container={container.name} />
                     <Button small icon="terminal" onClick={() => setLogsOf(logsOf() === container.name ? "" : container.name)}>
                       {logsOf() === container.name ? t("Ocultar logs") : t("Ver logs")}
                     </Button>
@@ -210,7 +215,7 @@ function ServerCard(props: { applicationId: string; server: PlacementServer }) {
           </ul>
           <Show when={logsOf()}>
             <LogStream
-              path={`/servers/${props.server.server_id}/containers/${encodeURIComponent(logsOf())}/logs?tail=300`}
+              path={serverOperationPath(props.applicationId, props.server.server_id, `containers/${encodeURIComponent(logsOf())}/logs`) + "&tail=300"}
               emptyText={t("Aguardando saída do container…")}
             />
           </Show>
@@ -218,4 +223,17 @@ function ServerCard(props: { applicationId: string; server: PlacementServer }) {
       </Show>
     </article>
   );
+}
+
+function RolloutRecovery(props: { applicationId: string }) {
+ const journal = createQuery(() => props.applicationId, id => api.get<{state: string; message: string} | null>(`/applications/${id}/placement/rollout`), {pollMs: 4000});
+ const resume = createAction(() => api.post(`/applications/${props.applicationId}/placement/rollout/resume`, {}));
+ const rollback = createAction(() => api.post(`/applications/${props.applicationId}/placement/rollout/rollback`, {}));
+ return <Show when={journal.data()?.state === "interrupted"}>
+  <Section title={t("Rollout interrompido")} description={t("Retome a imagem fixada ou restaure a versão anterior. Comandos de release podem exigir verificação manual.")}>
+   <p>{journal.data()?.message}</p>
+   <div class="row"><Button pending={resume.pending()} disabled={rollback.pending()} onClick={() => void resume.run()}>{t("Retomar rollout")}</Button>
+   <Button pending={rollback.pending()} disabled={resume.pending()} onClick={() => void rollback.run()}>{t("Reverter rollout")}</Button></div>
+  </Section>
+ </Show>;
 }

@@ -59,6 +59,7 @@ func (s *Service) StartManifest(publicURL, organization string) (ManifestStart, 
 		"public":          false,
 		"default_permissions": map[string]string{
 			"contents": "read", "metadata": "read", "statuses": "write", "pull_requests": "write",
+			"checks": "write",
 		},
 		"default_events": []string{EventPush, EventPullRequest},
 	})

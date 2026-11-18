@@ -1,3 +1,4 @@
+import { SwarmPage } from "./pages/Swarm";
 import { TeamPage } from "./pages/access/Team";
 import { GitProvidersPage } from "./pages/settings/GitProviders";
 import { Route, Router } from "@solidjs/router";
@@ -58,6 +59,7 @@ export function App() {
             <Route path="/servers/:id" component={ServerDetailPage} />
             <Route path="/infrastructure/cloud" component={CloudServersPage} />
             <Route path="/infrastructure/log-drains" component={LogDrainsPage} />
+            <Route path="/swarm" component={SwarmPage} />
             <Route path="/clusters" component={ClustersPage} />
             <Route path="/clusters/:id" component={ClusterPage} />
             <Route path="/security" component={SecurityPage} />

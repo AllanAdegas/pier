@@ -23,6 +23,27 @@ import { englishLocalization } from "./en-localization";
 // interface passes to t(), msg() or <Trans> must be here (i18n.test.ts).
 
 const base: Record<string, string> = {
+  "ID do alvo Swarm": "Swarm target ID",
+ "Rollback":"Rollback",
+ "Logs":"Logs",
+ "Nome do Swarm para confirmar":"Swarm name to confirm",
+ "Remover worker":"Remove worker",
+ "Excluir Swarm vazio":"Delete empty Swarm",
+"Crie um Swarm em servidores cadastrados e implante imagens acessíveis a todos os nós.":"Create a Swarm on registered servers and deploy images accessible to every node.",
+"ID do servidor manager":"Manager server ID",
+"IP anunciado":"Advertised IP",
+"Criar Swarm":"Create Swarm",
+"Swarm":"Swarm",
+"Selecione um Swarm":"Select a Swarm",
+"ID do servidor worker":"Worker server ID",
+"Adicionar worker":"Add worker",
+"Nós Swarm":"Swarm nodes",
+"Alternar drenagem":"Toggle drain",
+"Implantar serviço":"Deploy service",
+"Escalar serviço":"Scale service",
+"Remover este serviço e suas tarefas?":"Remove this service and its tasks?",
+"Remover serviço":"Remove service",
+
   "Servidor associado": "Associated server",
   "Atualizar": "Refresh",
   "Total": "Total",

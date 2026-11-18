@@ -142,7 +142,8 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 		return err
 	}
 	var users int
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM application_placements WHERE registry_id = ?`, id).Scan(&users); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM application_placements WHERE registry_id = ?1) +
+		(SELECT COUNT(*) FROM application_swarm WHERE registry_id = ?1)`, id).Scan(&users); err != nil {
 		return err
 	}
 	if users > 0 {

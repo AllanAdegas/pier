@@ -68,6 +68,9 @@ type Service struct {
 	tokens       map[tokenKey]cachedToken
 	blockedUntil time.Time
 	manifests    map[string]time.Time
+	// checksRefused holds installations whose App cannot write check runs,
+	// until when commit statuses are used instead.
+	checksRefused map[int64]time.Time
 }
 
 // New creates the service with the production HTTP client.
@@ -87,6 +90,7 @@ func NewWithHTTPClient(db *sql.DB, box *secretbox.Box, client *http.Client) *Ser
 	return &Service{
 		db: db, box: box, client: &configured, now: time.Now,
 		tokens: map[tokenKey]cachedToken{}, manifests: map[string]time.Time{},
+		checksRefused: map[int64]time.Time{},
 	}
 }
 
