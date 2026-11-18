@@ -140,6 +140,7 @@ var prefixRules = []prefixRule{
 	{"/api/v1/keys", instancePolicy},
 	{"/api/v1/registries", instancePolicy},
 	{"/api/v1/git-provider", instancePolicy},
+	{"/api/v1/git-connections", instancePolicy},
 	{"/api/v1/settings", instancePolicy},
 	{"/api/v1/notifications", instancePolicy},
 	{"/api/v1/notification-events", instancePolicy},

@@ -3,6 +3,7 @@ package httpapi
 import (
 	"io"
 	"net/http"
+	"pier/internal/gitprovider"
 	"strconv"
 	"strings"
 	"time"
@@ -208,9 +209,18 @@ func (a *API) getWebhook(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (a *API) rotateWebhook(w http.ResponseWriter, r *http.Request) error {
+	hookURL, err := a.linkedWebhookURL(r, gitprovider.KindApplication)
+	if err != nil {
+		return err
+	}
 	secret, err := a.Applications.RotateWebhookSecret(r.Context(), r.PathValue("id"))
 	if err != nil {
 		return err
+	}
+	if hookURL != "" {
+		if _, err := a.GitConnections.RefreshWebhook(r.Context(), gitprovider.KindApplication, r.PathValue("id"), gitprovider.HookTarget{URL: hookURL, Secret: secret}); err != nil {
+			return err
+		}
 	}
 	return ok(w, a.webhookResponse(r, secret))
 }

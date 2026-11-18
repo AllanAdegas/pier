@@ -118,7 +118,11 @@ func TestSourceFetchNeverPersistsHTTPSCredentialsAndClonesRelativeSubmodules(t *
 	gitFixture(t, filepath.Join(root, "main.git"), child)
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user, password, ok := r.BasicAuth()
-		if !ok || user != "user" || password != "credential-for-test" {
+		if strings.HasPrefix(r.URL.Path, "/child.git/") {
+			if r.Header.Get("Authorization") != "" {
+				t.Error("parent credential leaked to submodule")
+			}
+		} else if !ok || user != "user" || password != "credential-for-test" {
 			w.Header().Set("WWW-Authenticate", `Basic realm="test"`)
 			w.WriteHeader(401)
 			return

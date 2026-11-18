@@ -2494,8 +2494,44 @@
           "created_at"
         ]
       },
+      "gitprovider.Account": {
+        "properties": {
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "scopes_known": {
+            "type": "boolean"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "x-json-always-serialized": [
+          "username",
+          "name",
+          "scopes",
+          "scopes_known",
+          "missing"
+        ]
+      },
       "gitprovider.Config": {
         "properties": {
+          "api_url": {
+            "type": "string"
+          },
           "app_id": {
             "type": "integer"
           },
@@ -2512,6 +2548,97 @@
         "type": "object",
         "x-json-always-serialized": [
           "app_id"
+        ]
+      },
+      "gitprovider.Connection": {
+        "properties": {
+          "account": {
+            "type": "string"
+          },
+          "base_url": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "token_set": {
+            "type": "boolean"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "workspace": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "x-json-always-serialized": [
+          "id",
+          "provider",
+          "name",
+          "base_url",
+          "account",
+          "scopes",
+          "token_set",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "gitprovider.ConnectionInput": {
+        "properties": {
+          "base_url": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          },
+          "workspace": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "x-json-always-serialized": [
+          "provider",
+          "name",
+          "base_url",
+          "workspace",
+          "token"
+        ]
+      },
+      "gitprovider.ConnectionResult": {
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/gitprovider.Account"
+          },
+          "connection": {
+            "$ref": "#/components/schemas/gitprovider.Connection"
+          }
+        },
+        "type": "object",
+        "x-json-always-serialized": [
+          "connection",
+          "account"
         ]
       },
       "gitprovider.FailedReport": {
@@ -2689,6 +2816,9 @@
       },
       "gitprovider.Status": {
         "properties": {
+          "api_url": {
+            "type": "string"
+          },
           "app_id": {
             "type": "integer"
           },
@@ -2949,6 +3079,9 @@
       },
       "httpapi.gitProviderStatus": {
         "properties": {
+          "api_url": {
+            "type": "string"
+          },
           "app_id": {
             "type": "integer"
           },
@@ -10943,6 +11076,474 @@
         "x-pier-access": "canWrite",
         "x-pier-session-only": false,
         "x-source": "internal/httpapi/handlers_applications.go"
+      }
+    },
+    "/api/v1/applications/{id}/git-connection": {
+      "delete": {
+        "operationId": "DELETE__api_v1_applications_id_git_connection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Required for cookie-authenticated mutations (CSRF protection); bearer-token requests do not require it.",
+            "in": "header",
+            "name": "X-Pier-Client",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\tif err := c.Disconnect(r.Context(), kind, r.PathValue(\"id\")); err != nil {\n\t\treturn err\n\t}\n\treturn noContent(w)\n}",
+        "tags": [
+          "applications"
+        ],
+        "x-pier-ability": "write",
+        "x-pier-access": "canWrite",
+        "x-pier-session-only": false,
+        "x-source": "internal/httpapi/handlers_gitconnections.go"
+      },
+      "get": {
+        "operationId": "GET__api_v1_applications_id_git_connection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Shape not statically inferred; see x-schema-inference.",
+                  "x-go-expression": "link"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\tlink, err := c.Link(r.Context(), kind, r.PathValue(\"id\"))\n\tif err != nil {\n\t\treturn err\n\t}\n\treturn ok(w, link)\n}",
+        "tags": [
+          "applications"
+        ],
+        "x-pier-ability": "read",
+        "x-pier-access": "canRead",
+        "x-pier-session-only": false,
+        "x-schema-inference": [
+          "response link"
+        ],
+        "x-source": "internal/httpapi/handlers_gitconnections.go"
+      },
+      "put": {
+        "operationId": "PUT__api_v1_applications_id_git_connection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Required for cookie-authenticated mutations (CSRF protection); bearer-token requests do not require it.",
+            "in": "header",
+            "name": "X-Pier-Client",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "connection_id": {
+                    "type": "string"
+                  },
+                  "repository": {
+                    "type": "string"
+                  }
+                },
+                "type": "object",
+                "x-json-always-serialized": [
+                  "connection_id",
+                  "repository"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Shape not statically inferred; see x-schema-inference.",
+                  "x-go-expression": "link"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\tinput, err := decode[struct {\n\t\tConnectionID string `json:\"connection_id\"`\n\t\tRepository   string `json:\"repository\"`\n\t}](w, r)\n\tif err != nil {\n\t\treturn err\n\t}\n\tbaseURL, err := a.managedWebhookBaseURL(r)\n\tif err != nil {\n\t\treturn err\n\t}\n\tsource, err := a.resourceRepository(r.Context(), kind, r.PathValue(\"id\"))\n\tif err != nil {\n\t\treturn err\n\t}\n\tconnection, err := c.Get(r.Context(), input.ConnectionID)\n\tif err != nil {\n\t\treturn err\n\t}\n\tvar secret string\n\tif kind == gitprovider.KindStack {\n\t\tsecret, err = a.Stacks.WebhookSecret(r.Context(), r.PathValue(\"id\"))\n\t} else {\n\t\tsecret, err = a.Applications.WebhookSecret(r.Context(), r.PathValue(\"id\"))\n\t}\n\tif err != nil {\n\t\treturn err\n\t}\n\tlink, err := c.Connect(r.Context(), gitprovider.LinkRequest{Kind: kind, ResourceID: r.PathValue(\"id\"), ConnectionID: input.ConnectionID, Repository: input.Repository, Source: source, Hook: gitprovider.HookTarget{URL: baseURL + \"/webhooks/\" + kind + \"s/\" + r.PathValue(\"id\") + \"/\" + connection.Provider, Secret: secret}})\n\tif err != nil {\n\t\treturn err\n\t}\n\treturn ok(w, link)\n}",
+        "tags": [
+          "applications"
+        ],
+        "x-pier-ability": "write",
+        "x-pier-access": "canWrite",
+        "x-pier-session-only": false,
+        "x-schema-inference": [
+          "response link"
+        ],
+        "x-source": "internal/httpapi/handlers_gitconnections.go"
       }
     },
     "/api/v1/applications/{id}/git-host-key/reset": {
@@ -26349,6 +26950,898 @@
         "x-pier-access": "canRead",
         "x-pier-session-only": false,
         "x-source": "internal/httpapi/handlers_engine.go"
+      }
+    },
+    "/api/v1/git-connections": {
+      "get": {
+        "operationId": "GET__api_v1_git_connections",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Shape not statically inferred; see x-schema-inference.",
+                  "x-go-expression": "rows"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\trows, err := c.List(r.Context())\n\tif err != nil {\n\t\treturn err\n\t}\n\treturn ok(w, rows)\n}",
+        "tags": [
+          "git-connections"
+        ],
+        "x-pier-ability": "read",
+        "x-pier-access": "canRead",
+        "x-pier-session-only": false,
+        "x-schema-inference": [
+          "response rows"
+        ],
+        "x-source": "internal/httpapi/handlers_gitconnections.go"
+      },
+      "post": {
+        "operationId": "POST__api_v1_git_connections",
+        "parameters": [
+          {
+            "description": "Required for cookie-authenticated mutations (CSRF protection); bearer-token requests do not require it.",
+            "in": "header",
+            "name": "X-Pier-Client",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/gitprovider.ConnectionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/gitprovider.ConnectionResult"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\tinput, err := decode[gitprovider.ConnectionInput](w, r)\n\tif err != nil {\n\t\treturn err\n\t}\n\tvar result gitprovider.ConnectionResult\n\tif r.Method == \"POST\" {\n\t\tresult, err = c.Create(r.Context(), input)\n\t} else {\n\t\tresult, err = c.Update(r.Context(), r.PathValue(\"connection\"), input)\n\t}\n\tif err != nil {\n\t\treturn err\n\t}\n\treturn ok(w, result)\n}",
+        "tags": [
+          "git-connections"
+        ],
+        "x-pier-ability": "write",
+        "x-pier-access": "canWrite",
+        "x-pier-session-only": false,
+        "x-source": "internal/httpapi/handlers_gitconnections.go"
+      }
+    },
+    "/api/v1/git-connections/{connection}": {
+      "delete": {
+        "operationId": "DELETE__api_v1_git_connections_connection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Required for cookie-authenticated mutations (CSRF protection); bearer-token requests do not require it.",
+            "in": "header",
+            "name": "X-Pier-Client",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\tif err := c.Delete(r.Context(), r.PathValue(\"connection\")); err != nil {\n\t\treturn err\n\t}\n\treturn noContent(w)\n}",
+        "tags": [
+          "git-connections"
+        ],
+        "x-pier-ability": "write",
+        "x-pier-access": "canWrite",
+        "x-pier-session-only": false,
+        "x-source": "internal/httpapi/handlers_gitconnections.go"
+      },
+      "put": {
+        "operationId": "PUT__api_v1_git_connections_connection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Required for cookie-authenticated mutations (CSRF protection); bearer-token requests do not require it.",
+            "in": "header",
+            "name": "X-Pier-Client",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/gitprovider.ConnectionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/gitprovider.ConnectionResult"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\tinput, err := decode[gitprovider.ConnectionInput](w, r)\n\tif err != nil {\n\t\treturn err\n\t}\n\tvar result gitprovider.ConnectionResult\n\tif r.Method == \"POST\" {\n\t\tresult, err = c.Create(r.Context(), input)\n\t} else {\n\t\tresult, err = c.Update(r.Context(), r.PathValue(\"connection\"), input)\n\t}\n\tif err != nil {\n\t\treturn err\n\t}\n\treturn ok(w, result)\n}",
+        "tags": [
+          "git-connections"
+        ],
+        "x-pier-ability": "write",
+        "x-pier-access": "canWrite",
+        "x-pier-session-only": false,
+        "x-source": "internal/httpapi/handlers_gitconnections.go"
+      }
+    },
+    "/api/v1/git-connections/{connection}/branches": {
+      "get": {
+        "operationId": "GET__api_v1_git_connections_connection_branches",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Shape not statically inferred; see x-schema-inference.",
+                  "x-go-expression": "rows"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\tq := r.URL.Query()\n\tpage, _ := strconv.Atoi(q.Get(\"page\"))\n\trows, err := c.Branches(r.Context(), r.PathValue(\"connection\"), q.Get(\"repository\"), q.Get(\"q\"), page)\n\tif err != nil {\n\t\treturn err\n\t}\n\treturn ok(w, rows)\n}",
+        "tags": [
+          "git-connections"
+        ],
+        "x-pier-ability": "write",
+        "x-pier-access": "canWrite",
+        "x-pier-session-only": false,
+        "x-schema-inference": [
+          "response rows"
+        ],
+        "x-source": "internal/httpapi/handlers_gitconnections.go"
+      }
+    },
+    "/api/v1/git-connections/{connection}/repositories": {
+      "get": {
+        "operationId": "GET__api_v1_git_connections_connection_repositories",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Shape not statically inferred; see x-schema-inference.",
+                  "x-go-expression": "rows"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\tq := r.URL.Query()\n\tpage, _ := strconv.Atoi(q.Get(\"page\"))\n\trows, err := c.Repositories(r.Context(), r.PathValue(\"connection\"), q.Get(\"q\"), page)\n\tif err != nil {\n\t\treturn err\n\t}\n\treturn ok(w, rows)\n}",
+        "tags": [
+          "git-connections"
+        ],
+        "x-pier-ability": "write",
+        "x-pier-access": "canWrite",
+        "x-pier-session-only": false,
+        "x-schema-inference": [
+          "response rows"
+        ],
+        "x-source": "internal/httpapi/handlers_gitconnections.go"
       }
     },
     "/api/v1/git-provider": {
@@ -45582,6 +47075,474 @@
         "x-source": "internal/httpapi/handlers_applications.go"
       }
     },
+    "/api/v1/stacks/{id}/git-connection": {
+      "delete": {
+        "operationId": "DELETE__api_v1_stacks_id_git_connection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Required for cookie-authenticated mutations (CSRF protection); bearer-token requests do not require it.",
+            "in": "header",
+            "name": "X-Pier-Client",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\tif err := c.Disconnect(r.Context(), kind, r.PathValue(\"id\")); err != nil {\n\t\treturn err\n\t}\n\treturn noContent(w)\n}",
+        "tags": [
+          "stacks"
+        ],
+        "x-pier-ability": "write",
+        "x-pier-access": "canWrite",
+        "x-pier-session-only": false,
+        "x-source": "internal/httpapi/handlers_gitconnections.go"
+      },
+      "get": {
+        "operationId": "GET__api_v1_stacks_id_git_connection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Shape not statically inferred; see x-schema-inference.",
+                  "x-go-expression": "link"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\tlink, err := c.Link(r.Context(), kind, r.PathValue(\"id\"))\n\tif err != nil {\n\t\treturn err\n\t}\n\treturn ok(w, link)\n}",
+        "tags": [
+          "stacks"
+        ],
+        "x-pier-ability": "read",
+        "x-pier-access": "canRead",
+        "x-pier-session-only": false,
+        "x-schema-inference": [
+          "response link"
+        ],
+        "x-source": "internal/httpapi/handlers_gitconnections.go"
+      },
+      "put": {
+        "operationId": "PUT__api_v1_stacks_id_git_connection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Required for cookie-authenticated mutations (CSRF protection); bearer-token requests do not require it.",
+            "in": "header",
+            "name": "X-Pier-Client",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "connection_id": {
+                    "type": "string"
+                  },
+                  "repository": {
+                    "type": "string"
+                  }
+                },
+                "type": "object",
+                "x-json-always-serialized": [
+                  "connection_id",
+                  "repository"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Shape not statically inferred; see x-schema-inference.",
+                  "x-go-expression": "link"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "func(w http.ResponseWriter, r *http.Request) error {\n\tinput, err := decode[struct {\n\t\tConnectionID string `json:\"connection_id\"`\n\t\tRepository   string `json:\"repository\"`\n\t}](w, r)\n\tif err != nil {\n\t\treturn err\n\t}\n\tbaseURL, err := a.managedWebhookBaseURL(r)\n\tif err != nil {\n\t\treturn err\n\t}\n\tsource, err := a.resourceRepository(r.Context(), kind, r.PathValue(\"id\"))\n\tif err != nil {\n\t\treturn err\n\t}\n\tconnection, err := c.Get(r.Context(), input.ConnectionID)\n\tif err != nil {\n\t\treturn err\n\t}\n\tvar secret string\n\tif kind == gitprovider.KindStack {\n\t\tsecret, err = a.Stacks.WebhookSecret(r.Context(), r.PathValue(\"id\"))\n\t} else {\n\t\tsecret, err = a.Applications.WebhookSecret(r.Context(), r.PathValue(\"id\"))\n\t}\n\tif err != nil {\n\t\treturn err\n\t}\n\tlink, err := c.Connect(r.Context(), gitprovider.LinkRequest{Kind: kind, ResourceID: r.PathValue(\"id\"), ConnectionID: input.ConnectionID, Repository: input.Repository, Source: source, Hook: gitprovider.HookTarget{URL: baseURL + \"/webhooks/\" + kind + \"s/\" + r.PathValue(\"id\") + \"/\" + connection.Provider, Secret: secret}})\n\tif err != nil {\n\t\treturn err\n\t}\n\treturn ok(w, link)\n}",
+        "tags": [
+          "stacks"
+        ],
+        "x-pier-ability": "write",
+        "x-pier-access": "canWrite",
+        "x-pier-session-only": false,
+        "x-schema-inference": [
+          "response link"
+        ],
+        "x-source": "internal/httpapi/handlers_gitconnections.go"
+      }
+    },
     "/api/v1/stacks/{id}/git-provider": {
       "delete": {
         "operationId": "DELETE__api_v1_stacks_id_git_provider",
@@ -53958,6 +55919,6 @@
       "url": "/"
     }
   ],
-  "x-route-count": 317,
-  "x-route-inventory-sha256": "8f31d293a251f3701d830e0e9500b1ce862aa0d08acb2ba0aa3b75ce56f3909d"
+  "x-route-count": 329,
+  "x-route-inventory-sha256": "caa47e49168ff89c757093e31b2dfe9b1f8f1c0b3372f62c3b6cf4f78a752a8d"
 }

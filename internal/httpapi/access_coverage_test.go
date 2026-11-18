@@ -24,6 +24,7 @@ func fullAPI(t *testing.T) *API {
 	a.Registries = &registry.Service{}
 	a.GitProviders = &gitprovider.Service{}
 	a.GitFeedback = &gitprovider.Queue{}
+	a.GitConnections = gitprovider.NewConnections(a.GitProviders)
 	a.ServerOperations = &server.Operations{}
 	a.OIDC = &identity.OIDCService{}
 	a.Handler()

@@ -18,7 +18,7 @@ Em **Configurações**, a integração permite cadastrar uma GitHub App própria
 4. No Pier, informe App ID, chave privada RSA PEM e o mesmo segredo. Após salvar, os campos de credenciais são limpos.
 5. Liste instalações e repositórios e selecione o recurso pelo tipo e ID.
 
-A integração usa `api.github.com`; GitHub Enterprise não é suportado. Não confunda GitHub App com [SSO](/docs/equipe/): ela autoriza acesso a repositórios, não o login de pessoas.
+A integração usa `api.github.com` por padrão. Um GitHub App configurado manualmente pode usar uma URL de API do GitHub Enterprise; o fluxo de manifesto continua específico do GitHub.com. Vincular credenciais Git globais exige permissão de escrita na instância e no recurso. Pessoas com permissão de deploy no projeto podem implantar um vínculo aprovado somente enquanto a origem corresponder ao repositório vinculado. Clones autenticados recusam redirecionamentos e não compartilham credenciais com outros repositórios, inclusive submódulos. Não confunda GitHub App com [SSO](/docs/equipe/): ela autoriza acesso a repositórios, não o login de pessoas.
 
 ### Vincular e acompanhar
 
@@ -37,3 +37,19 @@ Aplicações e Git stacks mostram os endereços e segredos de webhook na área d
 Para builds em outra máquina, registries privados e deploy em vários destinos, siga [Registry e múltiplos servidores](/docs/multisservidor/).
 
 Para instâncias GitLab/Gitea/Forgejo em domínio próprio, escolha o provedor explicitamente. A sugestão automática reconhece apenas hosts públicos exatos; nomes no caminho, query ou usuário da URL não identificam o provedor.
+
+## Conexões GitLab, Gitea e Bitbucket
+
+Em **Configurações**, abra **Conexões Git**. Escolha GitLab, Gitea / Forgejo ou Bitbucket Cloud, informe o nome, endereço HTTPS e **Token de acesso**, e clique em **Salvar conexão**. GitLab aceita subcaminhos; Bitbucket aceita apenas bitbucket.org, com workspace opcional. O token é validado e armazenado criptografado; nunca volta na resposta. Para trocar o token, preencha **Token de acesso** e clique em **Substituir token** na conexão desejada.
+
+GitLab precisa de `api`. Gitea/Forgejo precisa de leitura de usuário e escrita de repositório. Bitbucket precisa de leitura de repositório e escrita de webhook; aceita Bearer ou `usuario:senha-de-app`. Use credenciais restritas aos repositórios necessários.
+
+Em **Integração Git** de uma aplicação ou stack existente, escolha **Conexão Git**, use **Buscar repositório** e navegue com **Anterior** e **Próxima**. A lista mostra o endereço de clone e as branches disponíveis. Configure esse endereço e a branch na origem do recurso antes de clicar em **Vincular repositório**. O vínculo usa credenciais somente durante o clone e recusa uma origem diferente.
+
+O Pier cria ou atualiza um webhook por recurso: `active` indica sucesso, `manual` indica falta de permissão (configure o webhook na área de automação), e `failed` indica outro erro. Vincular novamente tenta registrar de novo sem duplicar o webhook conhecido. A rotação do segredo atualiza o webhook remoto. **Desvincular** remove o webhook; falhas temporárias são tentadas novamente em segundo plano. Remover recursos também agenda essa limpeza. **Remover conexão** exige desvincular os recursos primeiro.
+
+Defina a **URL pública** em **Configurações** antes de vincular o repositório ou girar o segredo de um webhook gerenciado. O provedor precisa alcançar esse endereço.
+
+Vincular um repositório exige escrita na instância e no projeto do recurso. Para consultar ou remover um vínculo, é preciso ter permissão de leitura ou escrita, respectivamente, no projeto do recurso.
+
+O mesmo seletor aparece na criação de aplicações e Git stacks. A seleção é vinculada antes do primeiro deploy, desde que o endereço da origem não tenha sido alterado.
