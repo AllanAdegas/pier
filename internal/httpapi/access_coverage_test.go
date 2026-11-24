@@ -10,6 +10,7 @@ import (
 	"pier/internal/application"
 	"pier/internal/gitprovider"
 	"pier/internal/identity"
+	"pier/internal/indexnow"
 	"pier/internal/registry"
 	"pier/internal/server"
 )
@@ -27,6 +28,7 @@ func fullAPI(t *testing.T) *API {
 	a.GitConnections = gitprovider.NewConnections(a.GitProviders)
 	a.ServerOperations = &server.Operations{}
 	a.OIDC = &identity.OIDCService{}
+	a.IndexNow = &indexnow.Service{}
 	a.Handler()
 	return a
 }

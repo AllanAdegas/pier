@@ -53,6 +53,19 @@ An `https://` domain also answers on `http://` with a permanent redirect (308) t
 
 Certificates are renewed automatically. Pier warns you if a certificate is invalid or close to expiring: see [Alerts](/en/docs/alerts/).
 
+### Notify search engines
+
+For a site to show up in search engines, they need to know it exists. In the **Configuration** tab of the application, or in **Compose and domains** on the stack, the **Notify search engines** section lists the `https://` domains of the resource that have no path. When you tick a domain:
+
+- Pier creates an [IndexNow](https://www.indexnow.org/) key and publishes the key file on the domain itself (`https://your-domain/<key>.txt`), so the app does not need that file;
+- after each finished deployment, Pier reads the sitemap of the site (the `Sitemap:` lines of `robots.txt` or, without them, `/sitemap.xml`) and submits to IndexNow the pages changed since the last submission. Bing, Yandex, Seznam, Naver and the other participants get the notice.
+
+The outcome is in the deployment log. A failure (DNS not pointing yet, no sitemap, key refused) becomes a WARNING and never fails the deployment. The **Notify now** button submits every page of the sitemap right away.
+
+On servers other than the panel's, the proxy fetches the key from Pier itself: fill in **Pier's public URL** under **Settings** and keep the panel reachable from the internet. Resources on Swarm do not have this option.
+
+Google does not use IndexNow. For Google, verify the domain in [Search Console](https://search.google.com/search-console) (a TXT record in the DNS) and register the sitemap once: Google reads it again on its own.
+
 ### I already have Caddy on the server
 
 If a Caddy already uses ports 80 and 443 to serve other sites, you do not need to remove it. In **Proxy**, choose the Caddy container. Pier keeps its own block in the Caddyfile, which forwards its domains to the Pier proxy. The rest of the file is not touched. The Caddyfile must be writable inside the Caddy container.

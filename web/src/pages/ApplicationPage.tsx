@@ -18,6 +18,7 @@ import { DeploysTab } from "./application/Deploys";
 import { OverviewTab } from "./application/Overview";
 import { withProcessNames } from "./application/processes";
 import { t } from "../i18n";
+import { SearchIndexing } from "../components/SearchIndexing";
 
 const TABS = [
   { id: "overview", label: t("Visão geral") },
@@ -126,7 +127,10 @@ export function ApplicationPage() {
                 </QueryView>
               </Match>
               <Match when={tab() === "config"}>
-                <ConfigTab application={app()} onSaved={(saved) => application.set(saved)} />
+                <div class="stack">
+                  <ConfigTab application={app()} onSaved={(saved) => application.set(saved)} />
+                  <SearchIndexing kind="applications" id={app().id} />
+                </div>
               </Match>
               <Match when={tab() === "env"}>
                 <EnvEditor

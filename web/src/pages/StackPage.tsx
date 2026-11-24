@@ -17,6 +17,7 @@ import { resourceStatus } from "../lib/format";
 import { createAction, createQuery, type Query } from "../lib/query";
 import type { Container, OperationSnapshot, Stack, StackGitSource, StackRoute } from "../lib/types";
 import { createDomainDnsCheck } from "./application/DomainDnsStatus";
+import { SearchIndexing } from "../components/SearchIndexing";
 import { DirectorySource } from "./stack/DirectorySource";
 import { ExpectedVariables } from "./stack/ExpectedVariables";
 import { GitSettings, GitSummary } from "./stack/GitSettings";
@@ -108,7 +109,10 @@ export function StackPage() {
                 <OverviewTab git={data().git} stackId={data().id} stackName={data().name} containers={containers.data() ?? []} operation={operation.data()} />
               </Match>
               <Match when={tab() === "compose"}>
-                <ComposeTab stack={data()} onSaved={(saved) => stack.set(saved)} />
+                <div class="stack">
+                  <ComposeTab stack={data()} onSaved={(saved) => stack.set(saved)} />
+                  <SearchIndexing kind="stacks" id={data().id} />
+                </div>
                 <CloneResource kind="stacks" id={data().id} name={data().name} environmentId={data().environment_id} />
               </Match>
               <Match when={tab() === "env"}>

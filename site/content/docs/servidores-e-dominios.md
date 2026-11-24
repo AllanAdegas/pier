@@ -53,6 +53,19 @@ Um domínio `https://` também responde em `http://` com um redirecionamento per
 
 Certificados são renovados sozinhos. O Pier avisa se um certificado estiver inválido ou perto de vencer: veja [Alertas](/docs/alertas/).
 
+### Avisar buscadores
+
+Para um site aparecer nos buscadores, eles precisam saber que ele existe. Na aba **Configuração** da aplicação, ou em **Compose e domínios** na stack, a seção **Avisar buscadores** lista os domínios `https://` sem caminho do recurso. Ao marcar um domínio:
+
+- o Pier gera uma chave do [IndexNow](https://www.indexnow.org/) e publica o arquivo da chave no próprio domínio (`https://seu-dominio/<chave>.txt`), sem você precisar criar esse arquivo no app;
+- depois de cada deploy concluído, o Pier lê o sitemap do site (as linhas `Sitemap:` do `robots.txt` ou, sem elas, `/sitemap.xml`) e envia ao IndexNow as páginas que mudaram desde o último envio. Bing, Yandex, Seznam, Naver e outros participantes recebem o aviso.
+
+O resultado aparece no log do deploy. Uma falha (DNS que ainda não aponta, sitemap ausente, chave recusada) vira um AVISO e nunca falha o deploy. O botão **Avisar agora** envia todas as páginas do sitemap na hora.
+
+Em servidores que não são o do painel, o proxy busca a chave no próprio Pier: preencha a **URL pública do Pier** em **Configurações** e deixe o painel acessível pela internet. Recursos no Swarm não têm essa opção.
+
+O Google não usa IndexNow. Para ele, verifique o domínio no [Search Console](https://search.google.com/search-console) (registro TXT no DNS) e cadastre o sitemap uma vez: o Google volta a lê-lo sozinho.
+
 ### Já tenho um Caddy no servidor
 
 Se um Caddy já ocupa as portas 80 e 443 servindo outros sites, não precisa tirá-lo. Em **Proxy**, escolha o container do Caddy. O Pier mantém no Caddyfile um bloco próprio, que encaminha os domínios dele para o proxy do Pier. O resto do arquivo não é tocado. O Caddyfile precisa ser gravável dentro do container do Caddy.

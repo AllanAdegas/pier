@@ -121,6 +121,8 @@ type prefixRule struct {
 var prefixRules = []prefixRule{
 	{"/api/v1/auth", publicPolicy},
 	{"/webhooks", publicPolicy},
+	// The IndexNow key of a site, read by search engines.
+	{"/indexnow", publicPolicy},
 	{"/api/v1/me", selfPolicy},
 	{"/api/v1/tokens", selfPolicy},
 	{"/api/v1/access/instance", ownerPolicy},

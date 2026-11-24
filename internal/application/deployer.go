@@ -62,6 +62,8 @@ type Deployer struct {
 	gitProvider     GitCredentials
 	// deploymentReporter sets commit statuses; nil reports nothing.
 	deploymentReporter DeploymentReporter
+	// search tells search engines about the pages; nil notifies nobody.
+	search SearchNotifier
 }
 
 // SetArchiveDir sets where uploaded source archives wait for their deployment.
@@ -89,6 +91,7 @@ func (d *Deployer) Run(ctx context.Context, deploymentID string) {
 	background := context.WithoutCancel(ctx)
 	switch {
 	case err == nil:
+		d.notifySearchEngines(background, deployment, log)
 		log.Success("Deploy concluído em %s.", time.Since(startedAt).Round(time.Second))
 		d.finish(background, deployment, DeploymentFinished, "")
 	case errors.Is(ctx.Err(), context.Canceled):

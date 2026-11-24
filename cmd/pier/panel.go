@@ -9,6 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"pier/internal/compose"
+	"pier/internal/indexnow"
 	"pier/internal/platform/executor"
 	"pier/internal/server"
 )
@@ -61,7 +62,7 @@ func containsPanelPath(domain string) bool {
 	return false
 }
 func panelConfiguration(domain string) ([]byte, error) {
-	service := map[string]any{"loadBalancer": map[string]any{"servers": []any{map[string]string{"url": "http://pier-panel:8700"}}}}
+	service := map[string]any{"loadBalancer": map[string]any{"servers": []any{map[string]string{"url": indexnow.PanelService}}}}
 	router := func(entry string, tls bool) map[string]any {
 		r := map[string]any{"rule": "Host(`" + domain + "`)", "entryPoints": []string{entry}, "service": "pier-panel"}
 		if tls {
