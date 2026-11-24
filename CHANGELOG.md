@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.0](https://github.com/AllanAdegas/pier/compare/v0.9.0...v0.10.0) (2026-11-24)
+
+
+### Features
+
+* **proxy:** control search indexing by domain ([#29](https://github.com/AllanAdegas/pier/issues/29)) ([af0b458](https://github.com/AllanAdegas/pier/commit/af0b458f63d69cc9796fe59bcc9445c35d6d25c1))
+
+
+### Bug Fixes
+
+* **proxy:** redirect HTTP to HTTPS permanently (308) ([#28](https://github.com/AllanAdegas/pier/issues/28)) ([4d7637d](https://github.com/AllanAdegas/pier/commit/4d7637da194530765ef2ca94da35ec70d95205ad))
+
 ## [0.9.0](https://github.com/AllanAdegas/pier/compare/v0.8.0...v0.9.0) (2026-11-18)
 
 
