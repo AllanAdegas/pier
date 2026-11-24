@@ -69,7 +69,7 @@ func (r Route) rule() string {
 
 // labelSchema changes whenever the layout of the generated labels changes, so
 // containers created by different versions never share router names.
-const labelSchema = "v2"
+const labelSchema = "v3"
 
 // ProxyLabels returns the Traefik labels that publish a container port on the
 // given routes, reached through the given docker network, behind a proxy that
@@ -135,6 +135,9 @@ func (p Publication) Labels() map[string]string {
 		"traefik.http.middlewares." + name + "-retry.retry.attempts":        "3",
 		"traefik.http.middlewares." + name + "-retry.retry.initialinterval": "100ms",
 		"traefik.http.middlewares." + name + "-https.redirectscheme.scheme": "https",
+		// Permanent (308): search engines then treat the HTTPS address as the
+		// only one, as the panel's own route does.
+		"traefik.http.middlewares." + name + "-https.redirectscheme.permanent": "true",
 	}
 	if httpsPort != DefaultHTTPSPort {
 		labels["traefik.http.middlewares."+name+"-https.redirectscheme.port"] = strconv.Itoa(httpsPort)

@@ -49,6 +49,8 @@ Para um domínio funcionar com HTTPS:
 
 Antes de pedir o certificado, o Pier confere se o DNS aponta para o servidor. Se não aponta, publica em HTTP e o log diz exatamente qual registro criar. Depois que o DNS propagar, implante de novo.
 
+Um domínio `https://` também responde em `http://` com um redirecionamento permanente (308) para o endereço HTTPS. Assim, os buscadores indexam só a versão HTTPS. Recursos implantados antes da versão com o 308 continuam com o redirecionamento temporário (307) até o próximo deploy.
+
 Certificados são renovados sozinhos. O Pier avisa se um certificado estiver inválido ou perto de vencer: veja [Alertas](/docs/alertas/).
 
 ### Já tenho um Caddy no servidor
