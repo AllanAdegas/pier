@@ -3800,6 +3800,9 @@
       },
       "indexnow.HostState": {
         "properties": {
+          "eligible": {
+            "type": "boolean"
+          },
           "enabled": {
             "type": "boolean"
           },
@@ -3818,11 +3821,16 @@
                 "type": "null"
               }
             ]
+          },
+          "reason": {
+            "type": "string"
           }
         },
         "type": "object",
         "x-json-always-serialized": [
           "host",
+          "eligible",
+          "reason",
           "enabled",
           "key_location",
           "last"
@@ -3899,6 +3907,40 @@
           "reason",
           "hosts",
           "warning"
+        ]
+      },
+      "indexnow.ResourceOverview": {
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "hosts": {
+            "items": {
+              "$ref": "#/components/schemas/indexnow.HostState"
+            },
+            "type": "array"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "resource_id": {
+            "type": "string"
+          },
+          "resource_kind": {
+            "type": "string"
+          },
+          "resource_name": {
+            "type": "string"
+          },
+          "warning": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "x-json-always-serialized": [
+          "resource_kind",
+          "resource_id",
+          "resource_name"
         ]
       },
       "instance.BackupConfig": {
@@ -29550,6 +29592,143 @@
         "x-pier-access": "canWrite",
         "x-pier-session-only": false,
         "x-source": "internal/httpapi/handlers_gitproviders.go"
+      }
+    },
+    "/api/v1/indexnow/sites": {
+      "get": {
+        "operationId": "GET__api_v1_indexnow_sites",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/indexnow.ResourceOverview"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "a.allIndexNowSites",
+        "tags": [
+          "indexnow"
+        ],
+        "x-pier-ability": "read",
+        "x-pier-access": "canRead",
+        "x-pier-session-only": false,
+        "x-source": "internal/httpapi/handlers_indexnow.go"
       }
     },
     "/api/v1/instance/backups": {
@@ -57326,6 +57505,6 @@
       "url": "/"
     }
   ],
-  "x-route-count": 337,
-  "x-route-inventory-sha256": "63709a01f3370d5712a5d74806f4d270035b062baa367a6f02dbb41f5a4aeb55"
+  "x-route-count": 338,
+  "x-route-inventory-sha256": "a879b36f56c6143cd8eaf13a5071d098e49924c02756f5e3c56161895b44be47"
 }

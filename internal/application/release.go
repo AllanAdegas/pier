@@ -38,6 +38,8 @@ type releaseSpec struct {
 	// PendingCertificates are HTTPS hosts not pointing to the server yet:
 	// they are published over HTTP until DNS is fixed.
 	PendingCertificates map[string]bool
+	// Indexed are the hosts search engines may index.
+	Indexed map[string]bool
 }
 
 // composeFor renders the compose file that runs one release of an application:
@@ -103,7 +105,7 @@ func serviceFor(spec releaseSpec, replica replica, routes []compose.Route) *comp
 	}
 	publication := compose.Publication{
 		Name: spec.App.ID, Network: docker.Network, Routes: withoutPendingCertificates(routes, spec.PendingCertificates),
-		Port: config.Network.Port, Entry: spec.Entry,
+		Port: config.Network.Port, Entry: spec.Entry, Indexed: spec.Indexed,
 	}
 	for key, value := range publication.Labels() {
 		labels[key] = value
@@ -197,7 +199,7 @@ func (j *job) releaseRecoverable(ctx context.Context, image string, env map[stri
 	file, err := composeFor(releaseSpec{
 		App: j.app, Image: image, ContainerName: containerName, DeploymentID: j.deployment.ID,
 		CommitSHA: j.deployment.CommitSHA, Env: env, Entry: j.server.Proxy.Entry(), Server: j.server,
-		PendingCertificates: j.pendingCertificates(ctx),
+		PendingCertificates: j.pendingCertificates(ctx), Indexed: j.indexed,
 	})
 	if err != nil {
 		return err

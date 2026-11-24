@@ -23,6 +23,15 @@ func (f fakeResources) Resource(_ context.Context, kind, id string) (Resource, e
 	return resource, nil
 }
 
+func (f fakeResources) List(context.Context) ([]ResourceRef, error) {
+	refs := []ResourceRef{}
+	for key := range f {
+		kind, id, _ := strings.Cut(key, "/")
+		refs = append(refs, ResourceRef{Kind: kind, ID: id, Name: id})
+	}
+	return refs, nil
+}
+
 type fakeProxies struct {
 	servers map[string]server.Server
 	ex      map[string]*executor.Fake
@@ -91,17 +100,32 @@ func (f *fixture) publish(t *testing.T, overview Overview) {
 	f.web.pages["asigas.com/sitemap.xml"] = urlset
 }
 
-func (f *fixture) deploy(kind, id string) []string {
+// deployLog returns every line the notifier wrote after a deployment.
+func (f *fixture) deployLog(kind, id string) []string {
 	lines := []string{}
 	f.service.Notifier(kind).Deployed(context.Background(), id, func(line string) { lines = append(lines, line) })
+	return lines
+}
+
+// deploy returns only the IndexNow lines of a deployment.
+func (f *fixture) deploy(kind, id string) []string {
+	lines := []string{}
+	for _, line := range f.deployLog(kind, id) {
+		if strings.Contains(line, "IndexNow") {
+			lines = append(lines, line)
+		}
+	}
 	return lines
 }
 
 func TestTurningNotificationOnServesTheKeyThroughTheProxy(t *testing.T) {
 	f := newFixture(t)
 	overview := f.enable(t, KindApplication, "site", "asigas.com")
-	if !overview.Available || len(overview.Hosts) != 1 || !overview.Hosts[0].Enabled {
+	if !overview.Available || len(overview.Hosts) != 2 || !overview.Hosts[0].Enabled || !overview.Hosts[0].Eligible {
 		t.Fatalf("overview = %+v", overview)
+	}
+	if legacy := overview.Hosts[1]; legacy.Eligible || legacy.Enabled || !strings.Contains(legacy.Reason, "https://") {
+		t.Errorf("an http host is listed as never indexable: %+v", legacy)
 	}
 	location := overview.Hosts[0].KeyLocation
 	if !strings.HasPrefix(location, "https://asigas.com/") || !strings.HasSuffix(location, ".txt") {
@@ -224,12 +248,61 @@ func TestSubmissionProblemsAreWarningsInTheLog(t *testing.T) {
 	}
 }
 
-func TestResourcesWithoutNotificationLogNothing(t *testing.T) {
+// Nothing is indexed unless marked: a deployment says which hosts answer
+// noindex and where to mark them.
+func TestADeploymentListsTheHostsOutOfSearchEngines(t *testing.T) {
 	f := newFixture(t)
-	if lines := f.deploy(KindApplication, "site"); len(lines) != 0 {
+	lines := f.deployLog(KindApplication, "site")
+	if len(lines) != 1 || !strings.HasPrefix(lines[0], "Fora dos buscadores (noindex): asigas.com, legacy.com.") {
+		t.Fatalf("log = %v", lines)
+	}
+	f.publish(t, f.enable(t, KindApplication, "site", "asigas.com"))
+	lines = f.deployLog(KindApplication, "site")
+	if !strings.HasPrefix(lines[0], "Fora dos buscadores (noindex): legacy.com.") {
+		t.Errorf("a marked host is not out of search engines: %v", lines)
+	}
+	if lines := f.deployLog(KindStack, "missing"); len(lines) != 0 {
 		t.Errorf("log = %v", lines)
 	}
-	if lines := f.deploy(KindStack, "missing"); len(lines) != 0 {
-		t.Errorf("log = %v", lines)
+}
+
+func TestOnlyMarkedHostsAreIndexable(t *testing.T) {
+	f := newFixture(t)
+	notifier := f.service.Notifier(KindApplication)
+	if hosts := notifier.IndexedHosts(context.Background(), "site"); len(hosts) != 0 {
+		t.Errorf("nothing is indexable before marking: %v", hosts)
+	}
+	f.enable(t, KindApplication, "site", "asigas.com")
+	if hosts := notifier.IndexedHosts(context.Background(), "site"); !hosts["asigas.com"] || len(hosts) != 1 {
+		t.Errorf("indexed = %v", hosts)
+	}
+	if hosts := notifier.IndexedHosts(context.Background(), "missing"); len(hosts) != 0 {
+		t.Errorf("an unknown resource has nothing indexable: %v", hosts)
+	}
+}
+
+func TestAHostWithOnlyPathRoutesCanNeverBeIndexed(t *testing.T) {
+	f := newFixture(t)
+	f.resources["applications/api"] = Resource{Domains: []string{"https://api.example.com/v1"}, ServerIDs: []string{"local"}, Proxied: true}
+	overview, err := f.service.Overview(context.Background(), KindApplication, "api")
+	if err != nil || len(overview.Hosts) != 1 || overview.Hosts[0].Eligible || !strings.Contains(overview.Hosts[0].Reason, "sem caminho") {
+		t.Fatalf("overview = %+v, %v", overview, err)
+	}
+}
+
+func TestTheInstanceViewListsTheHostsOfEveryResource(t *testing.T) {
+	f := newFixture(t)
+	f.resources["stacks/internal"] = Resource{Domains: []string{}, ServerIDs: []string{"local"}, Proxied: true}
+	f.enable(t, KindApplication, "site", "asigas.com")
+	all, err := f.service.All(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	byID := map[string]ResourceOverview{}
+	for _, resource := range all {
+		byID[resource.ResourceID] = resource
+	}
+	if len(all) != 2 || len(byID["site"].Hosts) != 2 || !byID["site"].Hosts[0].Enabled || byID["blog"].ResourceKind != KindStack {
+		t.Errorf("resources without domains are left out, the others listed: %+v", all)
 	}
 }

@@ -15,6 +15,8 @@ Painel self-hosted Apache-2.0 para equipes pequenas. Esta linha continua em beta
 
 ## Atualização e limites
 
+**Buscadores (depois da 0.9.0):** nada do que o Pier publica é indexado sem marca. Depois da atualização, o próximo deploy de cada recurso acrescenta `X-Robots-Tag: noindex` a todo domínio não marcado em **Configurações › Buscadores** ou na seção **Indexar nos buscadores** do recurso. Marque os sites que precisam continuar nos buscadores **antes** de reimplantá-los. O painel sempre responde com noindex.
+
 Faça backup do banco de controle e da chave e teste a restauração antes de atualizar. Migrations não têm down. A linha 0.6 altera o controle de acesso: usuários preexistentes preservam papel owner da instância por compatibilidade; revise explicitamente os grants. Bancos de desenvolvimento que aplicaram versões intermediárias das migrations 0.6 precisam ser recriados; não são caminho de upgrade lançado.
 
 Binds/opções perigosas exigem owner da instância e política explícita para gravar configuração, inclusive clones. Previews não herdam privilégios de host, mas código de fork continua sendo código não confiável no servidor; não é sandbox de kernel. Portas fixas do host implicam interrupção na troca; compensação não desfaz migrações/dados externos. Métricas somam destinos completos; histórico legado sobrescrito não é recuperável. Log drains são best effort com perdas contabilizadas e cursor em memória.

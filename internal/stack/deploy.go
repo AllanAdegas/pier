@@ -336,6 +336,9 @@ func (s *Service) reach(ctx context.Context, id string) (*stackRun, error) {
 	}
 	stack.proxyEntry = target.Proxy.Entry()
 	stack.proxyLabels = server.ProxyRouteLabels(target)
+	if s.search != nil {
+		stack.indexedHosts = s.search.IndexedHosts(ctx, stack.ID)
+	}
 	return &stackRun{stack: stack, ex: ex, target: target, project: projectFor(ctx, ex, target, stack)}, nil
 }
 

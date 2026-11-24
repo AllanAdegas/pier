@@ -48,8 +48,11 @@ type Stack struct {
 	Git *GitSource `json:"git"`
 	// proxyEntry is how browsers reach the proxy of the stack's server; set
 	// when the server is reached, never stored.
-	proxyEntry  compose.ProxyEntry
-	proxyLabels map[string]string
+	proxyEntry compose.ProxyEntry
+	// indexedHosts are the hosts search engines may index; every other
+	// route answers noindex. Set by reach, like proxyEntry.
+	indexedHosts map[string]bool
+	proxyLabels  map[string]string
 	// pendingHosts are HTTPS hosts whose DNS does not point to the server
 	// yet; they are published over HTTP for this deployment. Never stored.
 	pendingHosts map[string]bool

@@ -24,6 +24,7 @@ func (a *API) registerIndexNowRoutes(mux *http.ServeMux) {
 		a.route(mux, "PUT "+base, canWrite, a.setIndexNow(kind))
 		a.route(mux, "POST "+base+"/submit", canDeploy, a.submitIndexNow(kind))
 	}
+	a.route(mux, "GET /api/v1/indexnow/sites", canRead, a.allIndexNowSites)
 	// Search engines read the key here, through the proxy of the site. The
 	// key is public by design and the answer never says why one is unknown.
 	a.public(mux, "GET "+indexnow.KeyPath+"{file}", a.indexNowKey)
@@ -77,4 +78,12 @@ func (a *API) indexNowKey(w http.ResponseWriter, r *http.Request) error {
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write([]byte(key))
 	return err
+}
+
+func (a *API) allIndexNowSites(w http.ResponseWriter, r *http.Request) error {
+	all, err := a.IndexNow.All(r.Context())
+	if err != nil {
+		return err
+	}
+	return ok(w, all)
 }

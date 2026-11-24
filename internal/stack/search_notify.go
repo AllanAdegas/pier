@@ -6,6 +6,9 @@ import "context"
 // successful deployment. It reports through report and never fails it.
 type SearchNotifier interface {
 	Deployed(ctx context.Context, stackID string, report func(string))
+	// IndexedHosts are the hosts the operator marked for search engines;
+	// every other route of the stack answers noindex.
+	IndexedHosts(ctx context.Context, stackID string) map[string]bool
 }
 
 // SetSearchNotifier installs the notifier; nil notifies nobody.

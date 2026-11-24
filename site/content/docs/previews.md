@@ -10,6 +10,8 @@ Previews são cópias temporárias de uma aplicação para revisar pull requests
 
 Cada preview tem identidade, domínio, imagens e volumes próprios. Portas do host, bind mounts, dispositivos e capabilities adicionadas são descartados; privileged e namespaces de host não são herdados, inclusive depois de sobreposições do repositório. A política Docker vigente é revalidada antes do build, e revogar a política bloqueia novos previews da configuração antes autorizada. Isso separa recursos da aplicação principal, mas o código ainda é construído no Docker do servidor.
 
+Previews nunca aparecem nos buscadores: todas as respostas levam `X-Robots-Tag: noindex, nofollow`, mesmo com o domínio de produção marcado em **Indexar nos buscadores**.
+
 ## Variáveis e forks
 
 PRs do próprio repositório herdam variáveis da aplicação, com sobreposições específicas de preview. Revise quais segredos esse código pode ler.

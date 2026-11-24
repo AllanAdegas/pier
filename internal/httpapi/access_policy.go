@@ -136,6 +136,9 @@ var prefixRules = []prefixRule{
 	{"/api/v1/tasks/{id}", projectPolicy("tasks")},
 	{"/api/v1/backups/{id}", projectPolicy("backups")},
 	{"/api/v1/volume-backups/{id}", projectPolicy("volume-backups")},
+	// Every domain of every resource: instance readers only. Changes go
+	// through the project-scoped routes of each resource.
+	{"/api/v1/indexnow", instancePolicy},
 	{"/api/v1/servers", instancePolicy},
 	{"/api/v1/clusters", instancePolicy},
 	{"/api/v1/swarm", instancePolicy},

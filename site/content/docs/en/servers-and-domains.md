@@ -53,16 +53,21 @@ An `https://` domain also answers on `http://` with a permanent redirect (308) t
 
 Certificates are renewed automatically. Pier warns you if a certificate is invalid or close to expiring: see [Alerts](/en/docs/alerts/).
 
-### Notify search engines
+### Index in search engines
 
-For a site to show up in search engines, they need to know it exists. In the **Configuration** tab of the application, or in **Compose and domains** on the stack, the **Notify search engines** section lists the `https://` domains of the resource that have no path. When you tick a domain:
+Nothing Pier publishes shows up in search engines unless you mark it. The panel and previews always answer with `X-Robots-Tag: noindex, nofollow`, and so does every domain that is not marked.
 
-- Pier creates an [IndexNow](https://www.indexnow.org/) key and publishes the key file on the domain itself (`https://your-domain/<key>.txt`), so the app does not need that file;
-- after each finished deployment, Pier reads the sitemap of the site (the `Sitemap:` lines of `robots.txt` or, without them, `/sitemap.xml`) and submits to IndexNow the pages changed since the last submission. Bing, Yandex, Seznam, Naver and the other participants get the notice.
+For a site to show up, mark its domain in the **Index in search engines** section of the **Configuration** tab of the application (or of **Compose and domains** on the stack), or in **Settings › Search engines**, which lists the domains of every application and stack. The mark is per exact domain: marking `example.com` marks neither `www.example.com` nor `app.example.com`. Only `https://` domains with a route without a path can be marked; the others always stay out.
 
-The outcome is in the deployment log. A failure (DNS not pointing yet, no sitemap, key refused) becomes a WARNING and never fails the deployment. The **Notify now** button submits every page of the sitemap right away.
+A marked domain:
 
-On servers other than the panel's, the proxy fetches the key from Pier itself: fill in **Pier's public URL** under **Settings** and keep the panel reachable from the internet. Resources on Swarm do not have this option.
+- answers without `noindex` from the next deployment of the resource;
+- has an [IndexNow](https://www.indexnow.org/) key published on the domain itself (`https://your-domain/<key>.txt`), so the app does not need that file;
+- after each finished deployment, has its sitemap read (the `Sitemap:` lines of `robots.txt` or, without them, `/sitemap.xml`) and the changed pages submitted to IndexNow. Bing, Yandex, Seznam, Naver and the other participants get the notice.
+
+The deployment log lists the domains left out of search engines and shows the outcome of the submission. A failure (DNS not pointing yet, no sitemap, key refused) becomes a WARNING and never fails the deployment. The **Notify now** button submits every page of the sitemap right away.
+
+On servers other than the panel's, the proxy fetches the key from Pier itself: fill in **Pier's public URL** under **Settings** and keep the panel reachable from the internet. Resources on Swarm cannot be marked.
 
 Google does not use IndexNow. For Google, verify the domain in [Search Console](https://search.google.com/search-console) (a TXT record in the DNS) and register the sitemap once: Google reads it again on its own.
 

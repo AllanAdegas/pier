@@ -7,6 +7,7 @@ import (
 	"slices"
 	"time"
 
+	"pier/internal/compose"
 	"pier/internal/platform/apperr"
 	"pier/internal/platform/i18n"
 )
@@ -27,9 +28,18 @@ type Resource struct {
 	Proxied bool
 }
 
+// ResourceRef names an application or stack for the overview of all sites.
+type ResourceRef struct {
+	Kind string
+	ID   string
+	Name string
+}
+
 // Resources resolves the resources whose domains notify search engines.
 type Resources interface {
 	Resource(ctx context.Context, kind, id string) (Resource, error)
+	// List returns every application and stack.
+	List(ctx context.Context) ([]ResourceRef, error)
 }
 
 // Service manages the sites and their submissions.
@@ -68,7 +78,11 @@ type Overview struct {
 
 // HostState is one eligible host of a resource.
 type HostState struct {
-	Host        string   `json:"host"`
+	Host string `json:"host"`
+	// Eligible is false for a host that always answers noindex; Reason
+	// says why (http only, or only routes with a path).
+	Eligible    bool     `json:"eligible"`
+	Reason      string   `json:"reason"`
 	Enabled     bool     `json:"enabled"`
 	KeyLocation string   `json:"key_location"`
 	Last        *Outcome `json:"last"`
@@ -81,6 +95,35 @@ func (s *Service) Overview(ctx context.Context, kind, id string) (Overview, erro
 		return Overview{}, err
 	}
 	return s.overview(ctx, resource, sites), nil
+}
+
+// ResourceOverview is the overview of one resource in the list of all.
+type ResourceOverview struct {
+	ResourceKind string `json:"resource_kind"`
+	ResourceID   string `json:"resource_id"`
+	ResourceName string `json:"resource_name"`
+	Overview
+}
+
+// All returns the overview of every resource that publishes a domain, for
+// the instance-wide view. It reads only the database.
+func (s *Service) All(ctx context.Context) ([]ResourceOverview, error) {
+	refs, err := s.resources.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	all := []ResourceOverview{}
+	for _, ref := range refs {
+		overview, err := s.Overview(ctx, ref.Kind, ref.ID)
+		if err != nil {
+			return nil, err
+		}
+		if len(overview.Hosts) > 0 {
+			all = append(all, ResourceOverview{ResourceKind: ref.Kind, ResourceID: ref.ID, ResourceName: ref.Name,
+				Overview: overview})
+		}
+	}
+	return all, nil
 }
 
 // SetEnabled turns notification on or off for a host of a resource and
@@ -217,8 +260,12 @@ func (s *Service) overview(ctx context.Context, resource Resource, sites []Site)
 	overview := Overview{Hosts: []HostState{}}
 	overview.Reason = s.unavailable(ctx, resource)
 	overview.Available = overview.Reason == ""
-	for _, host := range Eligible(resource.Domains) {
-		state := HostState{Host: host}
+	eligible := Eligible(resource.Domains)
+	for _, host := range routedHosts(resource.Domains) {
+		state := HostState{Host: host, Eligible: slices.Contains(eligible, host)}
+		if !state.Eligible {
+			state.Reason = ineligibility(ctx, resource.Domains, host)
+		}
 		if site, found := siteOf(sites, host); found {
 			last := site.Last
 			state.Enabled, state.KeyLocation, state.Last = true, site.KeyLocation(), &last
@@ -255,4 +302,25 @@ func siteOf(sites []Site, host string) (Site, bool) {
 
 func hasSite(sites []Site, id string) bool {
 	return slices.ContainsFunc(sites, func(site Site) bool { return site.ID == id })
+}
+
+// ineligibility explains why a host can never be indexed.
+func ineligibility(ctx context.Context, domains []string, host string) string {
+	if slices.Contains(Eligible(rewriteScheme(domains, "https")), host) {
+		return i18n.FromContext(ctx).Text("Só domínios https:// podem ser indexados.")
+	}
+	return i18n.FromContext(ctx).Text("Só um domínio com uma rota sem caminho pode ser indexado.")
+}
+
+// rewriteScheme forces a scheme on the domains, to tell an http-only host
+// from one that only has routes with a path.
+func rewriteScheme(domains []string, scheme string) []string {
+	rewritten := make([]string, 0, len(domains))
+	for _, domain := range domains {
+		if route, err := compose.ParseRoute(domain); err == nil {
+			route.Scheme = scheme
+			rewritten = append(rewritten, route.String())
+		}
+	}
+	return rewritten
 }

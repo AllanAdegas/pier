@@ -10,6 +10,8 @@ Previews are temporary copies of an application, used to review pull requests (o
 
 Each preview has its own identity, domain, images and volumes. Host ports, bind mounts, devices and added capabilities are dropped; privileged mode and host namespaces are not inherited, even after repository overrides. The current Docker policy is revalidated before the build, and revoking the policy blocks new previews of the configuration that was authorized before. This separates resources from the main application, but the code is still built in the server's Docker.
 
+Previews never show up in search engines: every answer carries `X-Robots-Tag: noindex, nofollow`, even when the production domain is marked in **Index in search engines**.
+
 ## Variables and forks
 
 PRs from the repository itself inherit the application variables, with preview-specific overrides. Review which secrets this code can read.

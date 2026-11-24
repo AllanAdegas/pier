@@ -55,6 +55,25 @@ func (r searchResources) Resource(ctx context.Context, kind, id string) (indexno
 	return resource, nil
 }
 
+func (r searchResources) List(ctx context.Context) ([]indexnow.ResourceRef, error) {
+	apps, err := r.applications.List(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	stacks, err := r.stacks.List(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	refs := make([]indexnow.ResourceRef, 0, len(apps)+len(stacks))
+	for _, app := range apps {
+		refs = append(refs, indexnow.ResourceRef{Kind: indexnow.KindApplication, ID: app.ID, Name: app.Name})
+	}
+	for _, current := range stacks {
+		refs = append(refs, indexnow.ResourceRef{Kind: indexnow.KindStack, ID: current.ID, Name: current.Name})
+	}
+	return refs, nil
+}
+
 // gone tells a resource that no longer exists from any other failure.
 func gone(err error) error {
 	if failure, ok := apperr.As(err); ok && failure.Kind == apperr.KindNotFound {

@@ -118,6 +118,8 @@ func (a *API) securityHeaders(next http.Handler) http.Handler {
 			}
 		}
 		header.Set("X-Frame-Options", "DENY")
+		// The panel is never for search engines, whatever its domain.
+		header.Set("X-Robots-Tag", "noindex, nofollow")
 		header.Set("Referrer-Policy", "same-origin")
 		header.Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; "+
 			"img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'")

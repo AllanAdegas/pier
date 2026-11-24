@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -83,6 +84,18 @@ func Eligible(domains []string) []string {
 		}
 		seen[route.Host] = true
 		hosts = append(hosts, route.Host)
+	}
+	return hosts
+}
+
+// routedHosts returns every host the domains publish, of any scheme or path,
+// each once, in the order they appear.
+func routedHosts(domains []string) []string {
+	hosts := []string{}
+	for _, domain := range domains {
+		if route, err := compose.ParseRoute(domain); err == nil && !slices.Contains(hosts, route.Host) {
+			hosts = append(hosts, route.Host)
+		}
 	}
 	return hosts
 }

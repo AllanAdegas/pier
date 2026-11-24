@@ -7,6 +7,9 @@ import "context"
 // the deployment.
 type SearchNotifier interface {
 	Deployed(ctx context.Context, applicationID string, report func(string))
+	// IndexedHosts are the hosts the operator marked for search engines;
+	// every other route of the application answers noindex.
+	IndexedHosts(ctx context.Context, applicationID string) map[string]bool
 }
 
 // SetSearchNotifier installs the notifier; nil notifies nobody.
@@ -19,4 +22,13 @@ func (d *Deployer) notifySearchEngines(ctx context.Context, deployment Deploymen
 		return
 	}
 	d.search.Deployed(ctx, deployment.ApplicationID, func(message string) { log.Info("%s", message) })
+}
+
+// indexedHosts returns the hosts of the application that may be indexed.
+// Without a notifier nothing is.
+func (d *Deployer) indexedHosts(ctx context.Context, applicationID string) map[string]bool {
+	if d.search == nil {
+		return nil
+	}
+	return d.search.IndexedHosts(ctx, applicationID)
 }

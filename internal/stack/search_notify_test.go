@@ -6,7 +6,12 @@ import (
 	"testing"
 )
 
-type recordingSearch struct{ deployed []string }
+type recordingSearch struct {
+	deployed []string
+	indexed  map[string]bool
+}
+
+func (r *recordingSearch) IndexedHosts(context.Context, string) map[string]bool { return r.indexed }
 
 func (r *recordingSearch) Deployed(_ context.Context, id string, report func(string)) {
 	r.deployed = append(r.deployed, id)
@@ -47,5 +52,34 @@ func TestSearchEnginesHearOnlyAboutSuccessfulStackDeployments(t *testing.T) {
 	}
 	if failed := waitOperation(t, service, stack.ID); failed.Error == "" || len(search.deployed) != 1 {
 		t.Errorf("only the first deployment may notify: error %q, notified %v", failed.Error, search.deployed)
+	}
+}
+
+func TestStackRoutesAnswerNoindexUnlessTheHostIsMarked(t *testing.T) {
+	for _, marked := range []bool{false, true} {
+		ctx := context.Background()
+		service, fake := newService(t)
+		search := &recordingSearch{}
+		if marked {
+			search.indexed = map[string]bool{"web.example.com": true}
+		}
+		service.SetSearchNotifier(search)
+		stack, err := service.Create(ctx, CreateInput{EnvironmentID: "env1", ServerID: "srv1", Name: "web",
+			Compose: "services:\n  web:\n    image: nginx:alpine\n", Routes: []Route{{Service: "web", Port: 80, Domain: "https://web.example.com"}}})
+		if err != nil {
+			t.Fatalf("Create: %v", err)
+		}
+		fake.On("config --format json", `{"services":{"web":{}}}`, 0)
+		fake.On("docker image inspect", "null", 0)
+		if err := service.Deploy(ctx, stack.ID); err != nil {
+			t.Fatal(err)
+		}
+		if snapshot := waitOperation(t, service, stack.ID); snapshot.Error != "" {
+			t.Fatalf("deploy: %s", snapshot.Error)
+		}
+		rendered := string(fake.Files["/data/pier/stacks/"+stack.ID+"/docker-compose.yaml"])
+		if hidden := strings.Contains(rendered, "X-Robots-Tag"); hidden == marked {
+			t.Errorf("marked=%v: noindex present=%v\n%s", marked, hidden, rendered)
+		}
 	}
 }

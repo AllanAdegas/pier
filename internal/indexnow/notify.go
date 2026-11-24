@@ -27,7 +27,14 @@ func (n Notifier) Deployed(ctx context.Context, id string, report func(string)) 
 	ctx, cancel := context.WithTimeout(ctx, deployBudget)
 	defer cancel()
 	resource, sites, err := s.load(ctx, n.kind, id)
-	if err != nil || len(sites) == 0 {
+	if err != nil {
+		return
+	}
+	if hidden := unmarked(resource.Domains, sites); len(hidden) > 0 {
+		report(i18n.Instance().Sprintf("Fora dos buscadores (noindex): %s. Para indexar, marque em Configurações › "+
+			"Buscadores ou na seção \"Indexar nos buscadores\" do recurso.", strings.Join(hidden, ", ")))
+	}
+	if len(sites) == 0 {
 		return
 	}
 	if reason := s.unavailable(ctx, resource); reason != "" {
@@ -45,6 +52,31 @@ func (n Notifier) Deployed(ctx context.Context, id string, report func(string)) 
 		}
 		report(outcome.Message)
 	}
+}
+
+// IndexedHosts returns the hosts of a resource the operator marked. On any
+// failure it returns none: answering noindex is the safe side.
+func (n Notifier) IndexedHosts(ctx context.Context, id string) map[string]bool {
+	_, sites, err := n.service.load(ctx, n.kind, id)
+	if err != nil {
+		return nil
+	}
+	hosts := make(map[string]bool, len(sites))
+	for _, site := range sites {
+		hosts[site.Host] = true
+	}
+	return hosts
+}
+
+// unmarked lists the routed hosts of the domains that answer noindex.
+func unmarked(domains []string, sites []Site) []string {
+	hidden := []string{}
+	for _, host := range routedHosts(domains) {
+		if _, marked := siteOf(sites, host); !marked {
+			hidden = append(hidden, host)
+		}
+	}
+	return hidden
 }
 
 // notify submits the pages of a site and records the outcome. everything

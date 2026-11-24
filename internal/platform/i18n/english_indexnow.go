@@ -22,9 +22,12 @@ func init() {
 		"IndexNow: não foi possível ler o sitemap: %s":                                            "IndexNow: could not read the sitemap: %s",
 		"Domínio": "Domain",
 		"Chave":   "Key",
-		"Outro recurso já avisa os buscadores sobre %s.":                                                         "Another resource already notifies search engines about %s.",
-		"Disponível só para recursos publicados pelo proxy do Pier, fora do Swarm.":                              "Available only for resources published by Pier's proxy, outside Swarm.",
-		"Configure a URL pública do Pier em Configurações para avisar buscadores a partir de outros servidores.": "Set Pier's public URL in Settings to notify search engines from other servers.",
-		"Use um domínio https:// sem caminho deste recurso.":                                                     "Use an https:// domain of this resource, without a path.",
+		"Outro recurso já avisa os buscadores sobre %s.":                                                                                           "Another resource already notifies search engines about %s.",
+		"Disponível só para recursos publicados pelo proxy do Pier, fora do Swarm.":                                                                "Available only for resources published by Pier's proxy, outside Swarm.",
+		"Configure a URL pública do Pier em Configurações para avisar buscadores a partir de outros servidores.":                                   "Set Pier's public URL in Settings to notify search engines from other servers.",
+		"Use um domínio https:// sem caminho deste recurso.":                                                                                       "Use an https:// domain of this resource, without a path.",
+		"Fora dos buscadores (noindex): %s. Para indexar, marque em Configurações › Buscadores ou na seção \"Indexar nos buscadores\" do recurso.": "Out of search engines (noindex): %s. To index, mark them under Settings › Search engines or in the \"Index in search engines\" section of the resource.",
+		"Só domínios https:// podem ser indexados.":                                                                                                "Only https:// domains can be indexed.",
+		"Só um domínio com uma rota sem caminho pode ser indexado.":                                                                                "Only a domain with a route without a path can be indexed.",
 	})
 }
