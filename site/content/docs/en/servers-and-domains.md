@@ -49,6 +49,8 @@ For a domain to work with HTTPS:
 
 Before asking for the certificate, Pier checks whether the DNS points to the server. If it does not, it publishes over HTTP and the log says exactly which record to create. After the DNS propagates, deploy again.
 
+An `https://` domain also answers on `http://` with a permanent redirect (308) to the HTTPS address, so search engines index only the HTTPS version. Resources deployed before the version with the 308 keep the temporary redirect (307) until their next deploy.
+
 Certificates are renewed automatically. Pier warns you if a certificate is invalid or close to expiring: see [Alerts](/en/docs/alerts/).
 
 ### I already have Caddy on the server

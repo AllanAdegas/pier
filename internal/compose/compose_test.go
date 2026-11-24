@@ -205,6 +205,37 @@ func TestRedirectToHTTPSKeepsTheProxyPort(t *testing.T) {
 	}
 }
 
+// A temporary redirect (307) makes search engines keep http:// and https://
+// as separate addresses; the move to HTTPS is permanent (308), as the panel's
+// own route already says.
+func TestRedirectToHTTPSIsPermanent(t *testing.T) {
+	routes := []Route{{Scheme: "https", Host: "n8n.example.com"}}
+	for _, entry := range []ProxyEntry{{}, {HTTPSPort: 8843}} {
+		labels := Publication{Name: "app1", Network: "pier", Routes: routes, Port: 5678, Entry: entry}.Labels()
+		permanent := ""
+		for key, value := range labels {
+			if strings.HasSuffix(key, "-https.redirectscheme.permanent") {
+				permanent = value
+			}
+		}
+		if permanent != "true" {
+			t.Errorf("port %d: the redirect must be permanent, labels %v", entry.HTTPSPort, labels)
+		}
+	}
+}
+
+// Containers of the version that redirected temporarily declare a middleware
+// of the same name with another value; Traefik drops a router whose
+// definitions conflict, so the new labels must use new names.
+func TestPermanentRedirectRenamesTheRouters(t *testing.T) {
+	routes := []Route{{Scheme: "https", Host: "n8n.example.com"}}
+	labels := Publication{Name: "app1", Network: "pier", Routes: routes, Port: 5678}.Labels()
+	const temporaryRedirectService = "traefik.http.services.app1-43ce1b65.loadbalancer.server.port"
+	if name := routerNames(labels); name == temporaryRedirectService {
+		t.Errorf("router names must change with the permanent redirect, still %s", name)
+	}
+}
+
 func TestBehindAnEdgeProxyEveryRouteIsPlainHTTP(t *testing.T) {
 	routes := []Route{
 		{Scheme: "https", Host: "n8n.example.com"},
