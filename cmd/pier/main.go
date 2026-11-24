@@ -26,6 +26,7 @@ import (
 	"pier/internal/gitprovider"
 	"pier/internal/httpapi"
 	"pier/internal/identity"
+	"pier/internal/indexnow"
 	"pier/internal/instance"
 	"pier/internal/logdrain"
 	"pier/internal/mcp"
@@ -196,6 +197,17 @@ func run() error {
 	stacks.SetGitProvider(gitCredentials)
 	stacks.SetGitFeedback(gitFeedbackQueue, publicURL, logger)
 	feedbackSources.stacks = stacks
+	search := indexnow.NewService(indexnow.NewStore(db), searchResources{applications: applications, multi: multi, stacks: stacks},
+		searchProxies{servers: servers, connector: connector}, publicURL, indexnow.NewHTTPClient())
+	deployer.SetSearchNotifier(search.Notifier(indexnow.KindApplication))
+	stacks.SetSearchNotifier(search.Notifier(indexnow.KindStack))
+	// Brings the key routes in line with changes made while a server was
+	// unreachable or with a new public URL of the panel.
+	go func() {
+		if err := search.SyncAll(ctx); err != nil {
+			logger.Warn("indexnow route sync", "error", err)
+		}
+	}()
 	go gitFeedbackQueue.Run(ctx)
 	clusters := cluster.NewService(db, box, connector, oplog.NewRegistry(), cfg.LocalHost)
 	tasks := schedule.NewTaskService(db, applications, connector, notifications)
@@ -275,7 +287,7 @@ func run() error {
 		Identity:    identities, Instance: backups, Audit: &audit.Store{DB: db}, Monitoring: alerts, MetricsHistory: metricsHistory, CookieSecure: os.Getenv("PIER_COOKIE_SECURE") == "1",
 		Servers: servers, ServerOperations: serverOperations, DockerInstaller: dockerInstaller, Provisioning: provisioning, LogDrains: logDrains, Keys: keys, Proxy: server.NewProxyService(connector), Connector: connector,
 		Projects: projects, Applications: applications, Previews: previews, LogHub: logHub, Env: env,
-		Databases: databases, Stacks: stacks, Swarm: swarm.NewService(db, connector), VolumeBackups: volumeBackups, Engine: engine.NewService(connector), Clusters: clusters,
+		Databases: databases, Stacks: stacks, IndexNow: search, Swarm: swarm.NewService(db, connector), VolumeBackups: volumeBackups, Engine: engine.NewService(connector), Clusters: clusters,
 		Tasks: tasks, Notifications: notifications,
 		Terminal: terminals, Settings: instanceSettings, Updates: updateChecker, Logger: logger, WebUI: webui.Files(), SessionTTL: cfg.SessionTTL,
 		TrustedProxies: cfg.TrustedProxies,

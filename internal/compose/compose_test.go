@@ -2,6 +2,7 @@ package compose
 
 import (
 	"context"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -295,5 +296,71 @@ func TestMarshalRotatesLogsUnlessTheServiceChoseItsOwn(t *testing.T) {
 	}
 	if got := parsed.Services["custom"].Logging; got.Driver != "json-file" {
 		t.Fatalf("custom logging overwritten: %+v", got)
+	}
+}
+
+var routerIndex = regexp.MustCompile(`-(\d+)-https?\.middlewares$`)
+
+func middlewaresOf(labels map[string]string) map[string]string {
+	routers := map[string]string{}
+	for key, value := range labels {
+		if strings.HasPrefix(key, "traefik.http.routers.") && strings.HasSuffix(key, ".middlewares") {
+			routers[key] = value
+		}
+	}
+	return routers
+}
+
+// Only the hosts the operator marked may be indexed: every route of any
+// other host answers noindex, in every proxy mode.
+func TestOnlyMarkedHostsCanBeIndexed(t *testing.T) {
+	routes := []Route{
+		{Scheme: "https", Host: "asigas.com"},
+		{Scheme: "https", Host: "asigas.com", Path: "/blog"},
+		{Scheme: "https", Host: "staging.asigas.com"},
+		{Scheme: "http", Host: "app.1.2.3.4.sslip.io"},
+	}
+	for name, entry := range map[string]ProxyEntry{"standard": {}, "port": {HTTPSPort: 8843}, "edge": {Edge: true}} {
+		labels := Publication{Name: "app1", Network: "pier", Routes: routes, Port: 80, Entry: entry,
+			Indexed: map[string]bool{"asigas.com": true}}.Labels()
+		header := ""
+		for key, value := range labels {
+			if strings.HasSuffix(key, "-noindex.headers.customresponseheaders.X-Robots-Tag") {
+				header = value
+			}
+		}
+		if header != "noindex, nofollow" {
+			t.Errorf("%s: noindex middleware = %q", name, header)
+		}
+		for router, chain := range middlewaresOf(labels) {
+			index := routerIndex.FindStringSubmatch(router)[1]
+			marked := index == "0" || index == "1" // routes of asigas.com
+			redirect := strings.HasSuffix(chain, "-https") && !strings.Contains(chain, ",")
+			switch {
+			case redirect:
+			case marked && strings.Contains(chain, "-noindex"):
+				t.Errorf("%s: marked host must be indexable: %s = %s", name, router, chain)
+			case !marked && !strings.Contains(chain, "-noindex"):
+				t.Errorf("%s: unmarked host must answer noindex: %s = %s", name, router, chain)
+			}
+		}
+	}
+}
+
+func TestMarkingAHostRenamesTheRouters(t *testing.T) {
+	routes := []Route{{Scheme: "https", Host: "asigas.com"}}
+	hidden := Publication{Name: "app1", Network: "pier", Routes: routes, Port: 80}.Labels()
+	indexed := Publication{Name: "app1", Network: "pier", Routes: routes, Port: 80,
+		Indexed: map[string]bool{"asigas.com": true, "unrelated.com": true}}.Labels()
+	if routerNames(hidden) == routerNames(indexed) {
+		t.Errorf("old and new containers must not share routers with different middlewares")
+	}
+	again := Publication{Name: "app1", Network: "pier", Routes: routes, Port: 80,
+		Indexed: map[string]bool{"asigas.com": true}}.Labels()
+	if routerNames(indexed) != routerNames(again) {
+		t.Errorf("hosts the publication does not route must not change its names")
+	}
+	if _, found := indexed["traefik.http.middlewares."+strings.TrimPrefix(strings.TrimSuffix(routerNames(indexed), ".loadbalancer.server.port"), "traefik.http.services.")+"-noindex.headers.customresponseheaders.X-Robots-Tag"]; found {
+		t.Errorf("a publication whose hosts are all marked needs no noindex middleware")
 	}
 }

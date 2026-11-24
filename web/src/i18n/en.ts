@@ -19,6 +19,7 @@ import { englishUpdates } from "./en-updates";
 import { englishVolumes } from "./en-volumes";
 import { englishLocalization } from "./en-localization";
 import { englishUxReview } from "./en-uxreview";
+import { englishIndexNow } from "./en-indexnow";
 
 // English catalog: Portuguese source text → English. Every text the
 // interface passes to t(), msg() or <Trans> must be here (i18n.test.ts).
@@ -1071,6 +1072,7 @@ export const english: Record<string, string> = {
   ...englishEngine06,
   ...englishRbac,
   ...englishUxReview,
+  ...englishIndexNow,
   ...englishMultiserver,
   ...englishAuth,
   ...englishEngine,

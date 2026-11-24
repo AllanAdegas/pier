@@ -18,6 +18,7 @@ import (
 	"pier/internal/envvar"
 	"pier/internal/gitprovider"
 	"pier/internal/identity"
+	"pier/internal/indexnow"
 	"pier/internal/instance"
 	"pier/internal/logdrain"
 	"pier/internal/mcp"
@@ -66,6 +67,7 @@ type Dependencies struct {
 	Env              *envvar.Store
 	Databases        *database.Service
 	Stacks           *stack.Service
+	IndexNow         *indexnow.Service
 	VolumeBackups    *volumebackup.Service
 	Engine           *engine.Service
 	Swarm            *swarm.Service
@@ -162,6 +164,9 @@ func (a *API) Handler() http.Handler {
 	a.registerTerminalRoutes(mux)
 	a.registerEngineRoutes(mux)
 	a.registerWebhookRoutes(mux)
+	if a.IndexNow != nil {
+		a.registerIndexNowRoutes(mux)
+	}
 	mux.Handle("/api/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, errorBody{Error: errorDetail{
 			Code: "not_found", Message: i18n.FromContext(r.Context()).Text("Rota inexistente."),

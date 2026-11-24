@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -106,7 +107,13 @@ type Publication struct {
 	// Port is the port of the container.
 	Port  int
 	Entry ProxyEntry
+	// Indexed are the hosts search engines may index. Every route of any
+	// other host answers noindex: nothing is indexed unless marked.
+	Indexed map[string]bool
 }
+
+// noIndexHeader keeps search engines from indexing a response.
+const noIndexHeader = "noindex, nofollow"
 
 // Labels returns the Traefik labels of the publication.
 //
@@ -142,13 +149,14 @@ func (p Publication) Labels() map[string]string {
 	if httpsPort != DefaultHTTPSPort {
 		labels["traefik.http.middlewares."+name+"-https.redirectscheme.port"] = strconv.Itoa(httpsPort)
 	}
+	p.addNoIndex(labels, name)
 	for index, route := range routes {
 		httpRouter := fmt.Sprintf("traefik.http.routers.%s-%d-http", name, index)
 		labels[httpRouter+".rule"] = route.rule()
 		labels[httpRouter+".entrypoints"] = "http"
 		labels[httpRouter+".service"] = name
 		if route.Scheme == "http" {
-			labels[httpRouter+".middlewares"] = name + "-retry," + name + "-gzip"
+			labels[httpRouter+".middlewares"] = p.serving(name, route)
 			continue
 		}
 		labels[httpRouter+".middlewares"] = name + "-https"
@@ -156,7 +164,7 @@ func (p Publication) Labels() map[string]string {
 		labels[httpsRouter+".rule"] = route.rule()
 		labels[httpsRouter+".entrypoints"] = "https"
 		labels[httpsRouter+".service"] = name
-		labels[httpsRouter+".middlewares"] = name + "-retry," + name + "-gzip"
+		labels[httpsRouter+".middlewares"] = p.serving(name, route)
 		labels[httpsRouter+".tls"] = "true"
 		labels[httpsRouter+".tls.certresolver"] = "letsencrypt"
 	}
@@ -180,6 +188,8 @@ func (p Publication) fingerprint() string {
 	if p.Entry.Edge {
 		input = fmt.Append(input, "edge")
 	}
+	// Marking a host changes the middlewares of its routers.
+	input = fmt.Append(input, p.indexedHosts())
 	sum := sha256.Sum256(input)
 	return hex.EncodeToString(sum[:4])
 }
@@ -196,14 +206,47 @@ func (p Publication) edgeLabels(name string) map[string]string {
 		"traefik.http.middlewares." + name + "-retry.retry.initialinterval": "100ms",
 		EdgeSitesLabel: strings.Join(EdgeSites(p.Routes), ","),
 	}
+	p.addNoIndex(labels, name)
 	for index, route := range p.Routes {
 		router := fmt.Sprintf("traefik.http.routers.%s-%d-http", name, index)
 		labels[router+".rule"] = route.rule()
 		labels[router+".entrypoints"] = "http"
 		labels[router+".service"] = name
-		labels[router+".middlewares"] = name + "-retry," + name + "-gzip"
+		labels[router+".middlewares"] = p.serving(name, route)
 	}
 	return labels
+}
+
+// serving is the middleware chain of a router that serves the container.
+func (p Publication) serving(name string, route Route) string {
+	chain := name + "-retry," + name + "-gzip"
+	if !p.Indexed[route.Host] {
+		chain += "," + name + "-noindex"
+	}
+	return chain
+}
+
+// addNoIndex declares the noindex middleware when a route needs it.
+func (p Publication) addNoIndex(labels map[string]string, name string) {
+	for _, route := range p.Routes {
+		if !p.Indexed[route.Host] {
+			labels["traefik.http.middlewares."+name+"-noindex.headers.customresponseheaders.X-Robots-Tag"] = noIndexHeader
+			return
+		}
+	}
+}
+
+// indexedHosts lists, sorted, the routed hosts that may be indexed: the
+// only part of Indexed that changes the labels.
+func (p Publication) indexedHosts() []string {
+	hosts := []string{}
+	for _, route := range p.Routes {
+		if p.Indexed[route.Host] && !slices.Contains(hosts, route.Host) {
+			hosts = append(hosts, route.Host)
+		}
+	}
+	slices.Sort(hosts)
+	return hosts
 }
 
 // EdgeSites returns the distinct "scheme://host" sites of the routes, in

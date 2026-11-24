@@ -53,6 +53,24 @@ Um domínio `https://` também responde em `http://` com um redirecionamento per
 
 Certificados são renovados sozinhos. O Pier avisa se um certificado estiver inválido ou perto de vencer: veja [Alertas](/docs/alertas/).
 
+### Indexar nos buscadores
+
+Nada do que o Pier publica aparece nos buscadores sem você marcar. O painel e os previews sempre respondem com `X-Robots-Tag: noindex, nofollow`, e todo domínio não marcado também.
+
+Para um site aparecer, marque o domínio na seção **Indexar nos buscadores** da aba **Configuração** da aplicação (ou de **Compose e domínios** na stack), ou na aba **Configurações › Buscadores**, que lista os domínios de todas as aplicações e stacks. A marca é por domínio exato: marcar `exemplo.com` não marca `www.exemplo.com` nem `app.exemplo.com`. Só domínios `https://` com uma rota sem caminho podem ser marcados; os outros ficam sempre fora.
+
+Um domínio marcado:
+
+- responde sem `noindex` a partir do próximo deploy do recurso;
+- tem uma chave do [IndexNow](https://www.indexnow.org/) publicada no próprio domínio (`https://seu-dominio/<chave>.txt`), sem você precisar criar esse arquivo no app;
+- depois de cada deploy concluído, tem o sitemap lido (as linhas `Sitemap:` do `robots.txt` ou, sem elas, `/sitemap.xml`) e as páginas que mudaram enviadas ao IndexNow. Bing, Yandex, Seznam, Naver e outros participantes recebem o aviso.
+
+O log do deploy lista os domínios que ficaram fora dos buscadores e mostra o resultado do envio. Uma falha (DNS que ainda não aponta, sitemap ausente, chave recusada) vira um AVISO e nunca falha o deploy. O botão **Avisar agora** envia todas as páginas do sitemap na hora.
+
+Em servidores que não são o do painel, o proxy busca a chave no próprio Pier: preencha a **URL pública do Pier** em **Configurações** e deixe o painel acessível pela internet. Recursos no Swarm não podem ser marcados.
+
+O Google não usa IndexNow. Para ele, verifique o domínio no [Search Console](https://search.google.com/search-console) (registro TXT no DNS) e cadastre o sitemap uma vez: o Google volta a lê-lo sozinho.
+
 ### Já tenho um Caddy no servidor
 
 Se um Caddy já ocupa as portas 80 e 443 servindo outros sites, não precisa tirá-lo. Em **Proxy**, escolha o container do Caddy. O Pier mantém no Caddyfile um bloco próprio, que encaminha os domínios dele para o proxy do Pier. O resto do arquivo não é tocado. O Caddyfile precisa ser gravável dentro do container do Caddy.

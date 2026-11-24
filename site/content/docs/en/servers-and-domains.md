@@ -53,6 +53,24 @@ An `https://` domain also answers on `http://` with a permanent redirect (308) t
 
 Certificates are renewed automatically. Pier warns you if a certificate is invalid or close to expiring: see [Alerts](/en/docs/alerts/).
 
+### Index in search engines
+
+Nothing Pier publishes shows up in search engines unless you mark it. The panel and previews always answer with `X-Robots-Tag: noindex, nofollow`, and so does every domain that is not marked.
+
+For a site to show up, mark its domain in the **Index in search engines** section of the **Configuration** tab of the application (or of **Compose and domains** on the stack), or in **Settings › Search engines**, which lists the domains of every application and stack. The mark is per exact domain: marking `example.com` marks neither `www.example.com` nor `app.example.com`. Only `https://` domains with a route without a path can be marked; the others always stay out.
+
+A marked domain:
+
+- answers without `noindex` from the next deployment of the resource;
+- has an [IndexNow](https://www.indexnow.org/) key published on the domain itself (`https://your-domain/<key>.txt`), so the app does not need that file;
+- after each finished deployment, has its sitemap read (the `Sitemap:` lines of `robots.txt` or, without them, `/sitemap.xml`) and the changed pages submitted to IndexNow. Bing, Yandex, Seznam, Naver and the other participants get the notice.
+
+The deployment log lists the domains left out of search engines and shows the outcome of the submission. A failure (DNS not pointing yet, no sitemap, key refused) becomes a WARNING and never fails the deployment. The **Notify now** button submits every page of the sitemap right away.
+
+On servers other than the panel's, the proxy fetches the key from Pier itself: fill in **Pier's public URL** under **Settings** and keep the panel reachable from the internet. Resources on Swarm cannot be marked.
+
+Google does not use IndexNow. For Google, verify the domain in [Search Console](https://search.google.com/search-console) (a TXT record in the DNS) and register the sitemap once: Google reads it again on its own.
+
 ### I already have Caddy on the server
 
 If a Caddy already uses ports 80 and 443 to serve other sites, you do not need to remove it. In **Proxy**, choose the Caddy container. Pier keeps its own block in the Caddyfile, which forwards its domains to the Pier proxy. The rest of the file is not touched. The Caddyfile must be writable inside the Caddy container.

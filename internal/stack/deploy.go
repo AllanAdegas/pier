@@ -35,14 +35,23 @@ func (s *Service) Deploy(ctx context.Context, id string) error {
 	}
 	return s.runInBackground(ctx, id, "Deploy da stack", func(ctx context.Context, run *stackRun) error {
 		if err := server.CheckConnectorDeployment(ctx, s.connector, run.stack.ServerID); err != nil { return err }
-		if run.stack.FromGit() {
-			return s.deployGit(ctx, run)
+		if err := s.deploySource(ctx, run); err != nil {
+			return err
 		}
-		if run.stack.FromDirectory() {
-			return s.deployDirectory(ctx, run)
-		}
-		return s.deployInline(ctx, run)
+		s.notifySearchEngines(ctx, run)
+		return nil
 	})
+}
+
+// deploySource deploys the stack from where its compose file lives.
+func (s *Service) deploySource(ctx context.Context, run *stackRun) error {
+	if run.stack.FromGit() {
+		return s.deployGit(ctx, run)
+	}
+	if run.stack.FromDirectory() {
+		return s.deployDirectory(ctx, run)
+	}
+	return s.deployInline(ctx, run)
 }
 
 // deployInline runs the compose file Pier keeps.
@@ -327,6 +336,9 @@ func (s *Service) reach(ctx context.Context, id string) (*stackRun, error) {
 	}
 	stack.proxyEntry = target.Proxy.Entry()
 	stack.proxyLabels = server.ProxyRouteLabels(target)
+	if s.search != nil {
+		stack.indexedHosts = s.search.IndexedHosts(ctx, stack.ID)
+	}
 	return &stackRun{stack: stack, ex: ex, target: target, project: projectFor(ctx, ex, target, stack)}, nil
 }
 

@@ -42,6 +42,8 @@ type job struct {
 	domains     DomainChecker
 	gitProvider GitCredentials
 	registries  *registry.Service
+	// indexed are the hosts search engines may index; nil for previews.
+	indexed map[string]bool
 }
 
 // Deployer executes deployments: fetch source, build image, release.
@@ -62,6 +64,8 @@ type Deployer struct {
 	gitProvider     GitCredentials
 	// deploymentReporter sets commit statuses; nil reports nothing.
 	deploymentReporter DeploymentReporter
+	// search tells search engines about the pages; nil notifies nobody.
+	search SearchNotifier
 }
 
 // SetArchiveDir sets where uploaded source archives wait for their deployment.
@@ -89,6 +93,7 @@ func (d *Deployer) Run(ctx context.Context, deploymentID string) {
 	background := context.WithoutCancel(ctx)
 	switch {
 	case err == nil:
+		d.notifySearchEngines(background, deployment, log)
 		log.Success("Deploy concluído em %s.", time.Since(startedAt).Round(time.Second))
 		d.finish(background, deployment, DeploymentFinished, "")
 	case errors.Is(ctx.Err(), context.Canceled):
@@ -191,7 +196,8 @@ func (d *Deployer) execute(ctx context.Context, deployment Deployment, log *depl
 	if err := d.engineDeployPreflight(ctx, &app, target, ex, log); err != nil {
 		return err
 	}
-	j := &job{app: app, deployment: deployment, server: target, ex: ex, log: log, env: variables, domains: d.domains, gitProvider: d.gitProvider, registries: d.images}
+	j := &job{app: app, deployment: deployment, server: target, ex: ex, log: log, env: variables, domains: d.domains, gitProvider: d.gitProvider, registries: d.images,
+		indexed: d.indexedHosts(ctx, app.ID)}
 	defer func() {
 		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cleanupTimeout)
 		defer cancel()

@@ -15,6 +15,8 @@ Self-hosted Apache-2.0 panel for small teams. This line remains in beta: the fea
 
 ## Upgrade and limits
 
+**Search engines (after 0.9.0):** nothing Pier publishes is indexed unless marked. After the upgrade, the next deployment of each resource adds `X-Robots-Tag: noindex` to every domain not marked under **Settings › Search engines** or in the **Index in search engines** section of the resource. Mark the sites that must stay in search engines **before** redeploying them. The panel always answers with noindex.
+
 Back up the control database and the key, and test the restore before upgrading. Migrations have no down. The 0.6 line changes access control: pre-existing users keep the instance owner role for compatibility; review the grants explicitly. Development databases that applied intermediate versions of the 0.6 migrations must be recreated; they are not a released upgrade path.
 
 Dangerous binds/options require the instance owner and an explicit policy to write configuration, including clones. Previews do not inherit host privileges, but fork code is still untrusted code on the server; this is not a kernel sandbox. Fixed host ports imply an interruption during the switch; compensation does not undo external migrations/data. Metrics add up complete targets; overwritten legacy history is not recoverable. Log drains are best effort with accounted losses and an in-memory cursor.

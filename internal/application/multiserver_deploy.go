@@ -216,7 +216,8 @@ func (r *rollout) job(ctx context.Context, serverID string) (*job, error) {
 	app := r.app
 	app.ServerID = serverID
 	return &job{app: app, deployment: r.deployment, server: target, ex: ex, log: r.log, env: variables,
-		domains: r.d.domains, gitProvider: r.d.gitProvider, registries: r.d.images}, nil
+		domains: r.d.domains, gitProvider: r.d.gitProvider, registries: r.d.images,
+		indexed: r.d.indexedHosts(ctx, app.ID)}, nil
 }
 
 // releaseOn releases the pinned image on one server. Only the first server

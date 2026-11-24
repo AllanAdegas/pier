@@ -182,6 +182,7 @@ func publish(stack Stack, name string, declaredNetworks any, usesNetworkMode boo
 	routerName := stack.ID + "-" + strings.ToLower(variableSuffix(name))
 	publication := compose.Publication{
 		Name: routerName, Network: IngressNetwork(stack.ID), Routes: routes, Port: port, Entry: stack.proxyEntry,
+		Indexed: stack.indexedHosts,
 	}
 	for key, value := range publication.Labels() {
 		result.labels[key] = compose.EscapeInterpolation(value)

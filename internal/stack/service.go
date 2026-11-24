@@ -40,6 +40,7 @@ type Service struct {
 	keys       KeyVault
  gitProvider application.GitCredentials
 	feedback    gitFeedback
+	search      SearchNotifier
 }
 
 // DeployGuard decides whether an environment accepts deployments now (a

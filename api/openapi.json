@@ -3114,6 +3114,32 @@
           "image"
         ]
       },
+      "httpapi.indexNowInput": {
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "host": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "x-json-always-serialized": [
+          "host",
+          "enabled"
+        ]
+      },
+      "httpapi.indexNowSubmit": {
+        "properties": {
+          "host": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "x-json-always-serialized": [
+          "host"
+        ]
+      },
       "httpapi.keyRequest": {
         "properties": {
           "description": {
@@ -3770,6 +3796,151 @@
           "email",
           "name",
           "created_at"
+        ]
+      },
+      "indexnow.HostState": {
+        "properties": {
+          "eligible": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "host": {
+            "type": "string"
+          },
+          "key_location": {
+            "type": "string"
+          },
+          "last": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/indexnow.Outcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "x-json-always-serialized": [
+          "host",
+          "eligible",
+          "reason",
+          "enabled",
+          "key_location",
+          "last"
+        ]
+      },
+      "indexnow.Outcome": {
+        "properties": {
+          "attempted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "problem": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "submitted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "url_count": {
+            "type": "integer"
+          }
+        },
+        "type": "object",
+        "x-json-always-serialized": [
+          "attempted_at",
+          "submitted_at",
+          "status",
+          "message",
+          "url_count",
+          "problem"
+        ]
+      },
+      "indexnow.Overview": {
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "hosts": {
+            "items": {
+              "$ref": "#/components/schemas/indexnow.HostState"
+            },
+            "type": "array"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "warning": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "x-json-always-serialized": [
+          "available",
+          "reason",
+          "hosts",
+          "warning"
+        ]
+      },
+      "indexnow.ResourceOverview": {
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "hosts": {
+            "items": {
+              "$ref": "#/components/schemas/indexnow.HostState"
+            },
+            "type": "array"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "resource_id": {
+            "type": "string"
+          },
+          "resource_kind": {
+            "type": "string"
+          },
+          "resource_name": {
+            "type": "string"
+          },
+          "warning": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "x-json-always-serialized": [
+          "resource_kind",
+          "resource_id",
+          "resource_name"
         ]
       },
       "instance.BackupConfig": {
@@ -12954,6 +13125,473 @@
         "x-pier-access": "canDeploy",
         "x-pier-session-only": false,
         "x-source": "internal/httpapi/handlers_git_feedback.go"
+      }
+    },
+    "/api/v1/applications/{id}/indexnow": {
+      "get": {
+        "operationId": "GET__api_v1_applications_id_indexnow",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/indexnow.Overview"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "a.indexNowOverview(kind)",
+        "tags": [
+          "applications"
+        ],
+        "x-pier-ability": "read",
+        "x-pier-access": "canRead",
+        "x-pier-session-only": false,
+        "x-source": "internal/httpapi/handlers_indexnow.go"
+      },
+      "put": {
+        "operationId": "PUT__api_v1_applications_id_indexnow",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Required for cookie-authenticated mutations (CSRF protection); bearer-token requests do not require it.",
+            "in": "header",
+            "name": "X-Pier-Client",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/httpapi.indexNowInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/indexnow.Overview"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "a.setIndexNow(kind)",
+        "tags": [
+          "applications"
+        ],
+        "x-pier-ability": "write",
+        "x-pier-access": "canWrite",
+        "x-pier-session-only": false,
+        "x-source": "internal/httpapi/handlers_indexnow.go"
+      }
+    },
+    "/api/v1/applications/{id}/indexnow/submit": {
+      "post": {
+        "operationId": "POST__api_v1_applications_id_indexnow_submit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Required for cookie-authenticated mutations (CSRF protection); bearer-token requests do not require it.",
+            "in": "header",
+            "name": "X-Pier-Client",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/httpapi.indexNowSubmit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/indexnow.HostState"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "a.submitIndexNow(kind)",
+        "tags": [
+          "applications"
+        ],
+        "x-pier-ability": "deploy",
+        "x-pier-access": "canDeploy",
+        "x-pier-session-only": false,
+        "x-source": "internal/httpapi/handlers_indexnow.go"
       }
     },
     "/api/v1/applications/{id}/placement": {
@@ -28954,6 +29592,143 @@
         "x-pier-access": "canWrite",
         "x-pier-session-only": false,
         "x-source": "internal/httpapi/handlers_gitproviders.go"
+      }
+    },
+    "/api/v1/indexnow/sites": {
+      "get": {
+        "operationId": "GET__api_v1_indexnow_sites",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/indexnow.ResourceOverview"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "a.allIndexNowSites",
+        "tags": [
+          "indexnow"
+        ],
+        "x-pier-ability": "read",
+        "x-pier-access": "canRead",
+        "x-pier-session-only": false,
+        "x-source": "internal/httpapi/handlers_indexnow.go"
       }
     },
     "/api/v1/instance/backups": {
@@ -48953,6 +49728,473 @@
         "x-source": "internal/httpapi/handlers_stack_git.go"
       }
     },
+    "/api/v1/stacks/{id}/indexnow": {
+      "get": {
+        "operationId": "GET__api_v1_stacks_id_indexnow",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/indexnow.Overview"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "a.indexNowOverview(kind)",
+        "tags": [
+          "stacks"
+        ],
+        "x-pier-ability": "read",
+        "x-pier-access": "canRead",
+        "x-pier-session-only": false,
+        "x-source": "internal/httpapi/handlers_indexnow.go"
+      },
+      "put": {
+        "operationId": "PUT__api_v1_stacks_id_indexnow",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Required for cookie-authenticated mutations (CSRF protection); bearer-token requests do not require it.",
+            "in": "header",
+            "name": "X-Pier-Client",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/httpapi.indexNowInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/indexnow.Overview"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "a.setIndexNow(kind)",
+        "tags": [
+          "stacks"
+        ],
+        "x-pier-ability": "write",
+        "x-pier-access": "canWrite",
+        "x-pier-session-only": false,
+        "x-source": "internal/httpapi/handlers_indexnow.go"
+      }
+    },
+    "/api/v1/stacks/{id}/indexnow/submit": {
+      "post": {
+        "operationId": "POST__api_v1_stacks_id_indexnow_submit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Required for cookie-authenticated mutations (CSRF protection); bearer-token requests do not require it.",
+            "in": "header",
+            "name": "X-Pier-Client",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/httpapi.indexNowSubmit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/indexnow.HostState"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "a.submitIndexNow(kind)",
+        "tags": [
+          "stacks"
+        ],
+        "x-pier-ability": "deploy",
+        "x-pier-access": "canDeploy",
+        "x-pier-session-only": false,
+        "x-source": "internal/httpapi/handlers_indexnow.go"
+      }
+    },
     "/api/v1/stacks/{id}/operation": {
       "get": {
         "operationId": "GET__api_v1_stacks_id_operation",
@@ -55422,6 +56664,138 @@
         "x-source": "internal/httpapi/api.go"
       }
     },
+    "/indexnow/{file}": {
+      "get": {
+        "operationId": "GET__indexnow_file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Handler-specific response. May be streamed, redirected, or binary; consult x-source and protocol notes."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Bad request / provider webhook rejected"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Authentication required or expired"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Credential, role, project scope, session-only or CSRF check refused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Conflicting operation or invalid lifecycle state"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Body exceeds allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Invalid fields or malformed JSON"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Rate limit (Retry-After header)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Internal error (details omitted)"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/httpapi.errorBody"
+                }
+              }
+            },
+            "description": "Dependency or server unavailable"
+          }
+        },
+        "security": [],
+        "summary": "a.indexNowKey",
+        "tags": [
+          ""
+        ],
+        "x-pier-ability": "",
+        "x-pier-access": "public",
+        "x-pier-session-only": false,
+        "x-schema-inference": [
+          "handler-specific success response"
+        ],
+        "x-source": "internal/httpapi/handlers_indexnow.go"
+      }
+    },
     "/webhooks/applications/{id}/deploy": {
       "post": {
         "description": "Provider signature/token verification is required even though no bearer/session is used. GitHub/Gitea use HMAC and GitLab uses the configured secret token. Replay/lifecycle rules depend on the event.",
@@ -56131,6 +57505,6 @@
       "url": "/"
     }
   ],
-  "x-route-count": 330,
-  "x-route-inventory-sha256": "c52e5286310cc68a6b7be26de7914bd375d089dcdb473df83c072b532d4c2f28"
+  "x-route-count": 338,
+  "x-route-inventory-sha256": "a879b36f56c6143cd8eaf13a5071d098e49924c02756f5e3c56161895b44be47"
 }

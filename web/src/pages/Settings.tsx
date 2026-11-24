@@ -4,6 +4,7 @@ import { EngineSettings } from "./settings/EngineSettings";
 import { createSignal, Match, Switch } from "solid-js";
 import { useLocation, useSearchParams } from "@solidjs/router";
 import { S3Settings } from "./settings/S3Settings";
+import { SearchEngineSettings } from "./settings/SearchEngineSettings";
 import { Button } from "../components/Button";
 import { QueryView } from "../components/Feedback";
 import { PageHeader, Section, Tabs } from "../components/Page";
@@ -27,6 +28,7 @@ export function SettingsPage() {
     { id: "instance", label: t("Instância") },
     { id: "backups", label: t("Backups") },
     { id: "git", label: "Git" },
+    { id: "search", label: t("Buscadores") },
     { id: "account", label: t("Sua conta") },
   ];
   return (
@@ -45,6 +47,9 @@ export function SettingsPage() {
         <Match when={tab() === "git"}>
           <GitProviders />
           <GitConnections />
+        </Match>
+        <Match when={tab() === "search"}>
+          <SearchEngineSettings />
         </Match>
         <Match when={tab() === "account"}>
           <InterfaceLanguage />
